@@ -32,6 +32,26 @@ jobs:
           sed -i 's/android:label="[^"]*"/android:label="KıyıdanAv" android:allowBackup="false" android:usesCleartextTraffic="false"/' "$M"
           cat "$M"
 
+      - name: Logo ve yazı tipini indir (kiyidanav.com + Google Fonts)
+        run: |
+          mkdir -p assets/brand assets/fonts
+          curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png"
+          curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
+          pip install --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image
+          # Uyarlanabilir simge: logo güvenli alanda kalsın diye kenar boşluğu
+          logo = Image.open('assets/brand/logo.png').convert('RGBA')
+          size = 1024
+          canvas = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+          inner = int(size * 0.62)
+          canvas.paste(logo.resize((inner, inner), Image.LANCZOS), ((size - inner) // 2, (size - inner) // 2))
+          canvas.save('assets/brand/logo_fg.png')
+          big = logo.resize((1024, 1024), Image.LANCZOS)
+          big.save('assets/brand/logo.png')
+          PY
+          ls -la assets/brand assets/fonts
+
       - name: Paketleri indir
         run: flutter pub get
 
