@@ -21,7 +21,10 @@ class FavoritesScreen extends StatelessWidget {
               title: 'Henüz favorin yok',
               body: 'Ürünlerdeki kalbe dokunarak sonra bakmak istediklerini burada topla.',
               actionLabel: 'Ürünlere göz at',
-              onAction: () => Shell.goTo(context, 0),
+              onAction: () {
+                Navigator.of(context).popUntil((r) => r.isFirst);
+                Shell.goTo(context, Shell.tabHome);
+              },
             );
           }
           return CustomScrollView(slivers: [

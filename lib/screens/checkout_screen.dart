@@ -64,7 +64,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       });
       return;
     }
-    await WebViewCookieManager().clearCookies();
+    // Müşteri oturumu korunur (Hesabım'dan giriş yapıldıysa ödeme de o hesapla olur).
+    // Sitedeki eski sepet, aktarım başında JS ile boşaltılır.
     await _web.loadRequest(Uri.parse('${AppConfig.siteUrl}index.php?route=common/home'));
   }
 
@@ -108,6 +109,22 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 (async function(items){
   const routes = ['checkout/cart/add','checkout/cart.add','checkout/cart|add'];
   let route = null, added = 0, errors = [];
+  // 1) Sitedeki mevcut sepeti boşalt (mükerrer ürün olmasın)
+  try {
+    const info = await (await fetch('index.php?route=common/cart/info', {credentials: 'same-origin'})).text();
+    const keys = [...new Set([...info.matchAll(/cart\\.remove\\('([^']+)'\\)/g)].map(m => m[1]))];
+    for (const k of keys) {
+      for (const rr of ['checkout/cart/remove', 'checkout/cart.remove']) {
+        try {
+          const b = new URLSearchParams(); b.append('key', k);
+          const x = await fetch('index.php?route=' + rr, {method: 'POST', body: b, credentials: 'same-origin',
+            headers: {'X-Requested-With': 'XMLHttpRequest'}});
+          if (x.ok) break;
+        } catch (e) {}
+      }
+    }
+  } catch (e) { /* sepet okunamazsa ekleme yine yapılır */ }
+  // 2) Uygulamadaki sepeti ekle
   for (const it of items) {
     const tryRoutes = route ? [route] : routes;
     for (const r of tryRoutes) {

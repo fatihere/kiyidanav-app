@@ -5,6 +5,7 @@ import '../app_state.dart';
 import '../format.dart';
 import '../main.dart';
 import '../models.dart';
+import '../share.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
@@ -82,7 +83,7 @@ class _ProductScreenState extends State<ProductScreen> {
           textColor: Tide.samandira,
           onPressed: () {
             Navigator.of(context).popUntil((r) => r.isFirst);
-            Shell.goTo(context, 3);
+            Shell.goTo(context, Shell.tabCart);
           },
         ),
       ));
@@ -98,6 +99,12 @@ class _ProductScreenState extends State<ProductScreen> {
           appBar: AppBar(
             title: Text(p?.brand ?? widget.preview?.brand ?? ''),
             actions: [
+              if (p != null)
+                IconButton(
+                  tooltip: 'Paylaş',
+                  icon: const Icon(Icons.share_outlined),
+                  onPressed: () => Sharer.product(p.toCard()),
+                ),
               if (p != null)
                 ListenableBuilder(
                   listenable: appState,
