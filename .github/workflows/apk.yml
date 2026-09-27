@@ -69,9 +69,27 @@ jobs:
       - name: APK derle (karartılmış kod)
         run: flutter build apk --release --obfuscate --split-debug-info=build/symbols
 
+      - name: Kalıcı anahtarla imzala (güncellemeler eskisinin üzerine kurulabilsin)
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASS }}
+        run: |
+          OUT=build/app/outputs/flutter-apk
+          if [ -z "$KS_B64" ] || [ -z "$KS_PASS" ]; then
+            echo "::warning::KEYSTORE_B64 / KEYSTORE_PASS eklenmemiş; APK geçici anahtarla imzalandı."
+            cp "$OUT/app-release.apk" "$OUT/KiyidanAv.apk"
+            exit 0
+          fi
+          echo "$KS_B64" | base64 -d > /tmp/ks.jks
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" sign --ks /tmp/ks.jks --ks-pass env:KS_PASS --key-pass env:KS_PASS \
+            --ks-key-alias kiyidanav --out "$OUT/KiyidanAv.apk" "$OUT/app-release.apk"
+          "$BT/apksigner" verify --print-certs "$OUT/KiyidanAv.apk" | grep -i sha-256 || true
+          rm -f /tmp/ks.jks
+
       - name: APK'yı indirilebilir yap
         uses: actions/upload-artifact@v4
         with:
           name: KiyidanAv-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/KiyidanAv.apk
           retention-days: 30
