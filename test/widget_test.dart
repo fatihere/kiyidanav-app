@@ -10,8 +10,9 @@ void main() {
     await appState.load();
     await tester.pumpWidget(const KiyidanAvApp());
     await tester.pump(const Duration(seconds: 1));
-    expect(find.text('KıyıdanAv'), findsOneWidget);
     expect(find.text('Keşfet'), findsOneWidget);
+    expect(find.text('Av Raporu'), findsOneWidget);
+    expect(find.text('Hesabım'), findsWidgets);
     expect(find.text('Sepet'), findsOneWidget);
     // Sepet sekmesi boş durum mesajını gösterir
     await tester.tap(find.text('Sepet'));

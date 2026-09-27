@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kiyidanav/format.dart';
 import 'package:kiyidanav/models.dart';
 import 'package:kiyidanav/sea.dart';
+import 'package:kiyidanav/solunar.dart';
 
 // Aşağıdaki JSON'lar sunucudaki mobil-api.php'nin test veritabanında
 // ürettiği GERÇEK çıktılardır (sözleşme testi).
@@ -94,6 +95,48 @@ void main() {
       expect(const SeaReport(windDir: 225).windFrom, 'Lodos');
       expect(const SeaReport(windDir: 45).windFrom, 'Poyraz');
       expect(const SeaReport(windDir: 0).windFrom, 'Yıldız');
+    });
+  });
+
+  group('Ay evresi ve av verimliliği', () {
+    test('21 Eylül 2026 = İlk Şişkin Ay, %70 (İstanbul av raporu ile aynı)', () {
+      final d = DateTime.utc(2026, 9, 21, 12);
+      expect(Moon.phaseName(d), 'İlk Şişkin Ay');
+      expect(Moon.baseScore(d), 70);
+    });
+    test('26 Eylül 2026 dolunay', () {
+      expect(Moon.phaseName(DateTime.utc(2026, 9, 26, 18)), 'Dolunay');
+      expect(Moon.illumination(DateTime.utc(2026, 9, 26, 18)), greaterThan(0.97));
+    });
+    test('fırtına verimliliği düşürür, sakin hava artırır', () {
+      final d = DateTime.utc(2026, 9, 26, 18);
+      final calm = FishingScore.compute(d, windKmh: 8, waveM: 0.4);
+      final storm = FishingScore.compute(d, windKmh: 40, waveM: 2.2);
+      expect(calm, greaterThan(storm));
+      expect(calm, inInclusiveRange(10, 98));
+      expect(storm, inInclusiveRange(10, 98));
+      expect(FishingScore.fishCount(calm), inInclusiveRange(1, 5));
+    });
+  });
+
+  group('v2 sözleşmesi', () {
+    test('vitrin bölümleri ve ayarlar çözümlenir', () {
+      final h = HomeData.fromJson(jsonDecode(
+          '{"ok":true,"categories":[],"sections":[{"id":815,"title":"Hazır Olta Setleri","items":[{"id":1,"name":"Set","brand":null,"image":"https://kiyidanav.com/image/a.jpg","price":1200,"special":null,"in_stock":true}]}],"new":[]}'));
+      expect(h.sections.single.title, 'Hazır Olta Setleri');
+      expect(h.sections.single.items.single.price, 1200);
+      final c = RemoteConfig.fromJson(jsonDecode(
+          '{"ok":true,"duyuru":"Kargo bedava","dalga_esik":1.2,"paylas_metin":"","telefon":"+90","ay":9,"yem":[{"balik":"Palamut","canli":"-","sahte":"Jig","ara":"jig"}]}'));
+      expect(c.announcement, 'Kargo bedava');
+      expect(c.waveThreshold, 1.2);
+      expect(c.shareText, contains('KıyıdanAv'));
+      expect(c.bait.single.fish, 'Palamut');
+      expect(c.bait.single.search, 'jig');
+    });
+    test('yaka noktaları: Anadolu Riva–Darıca, Avrupa Semizkum dahil', () {
+      expect(spotsOf(Side.anadolu).first.name, 'Riva');
+      expect(spotsOf(Side.anadolu).last.name, 'Darıca');
+      expect(spotsOf(Side.avrupa).map((s) => s.name), contains('Semizkum'));
     });
   });
 }
