@@ -4,10 +4,11 @@ class AppConfig {
   static const siteUrl = 'https://kiyidanav.com/';
   static const siteHost = 'kiyidanav.com';
   static const apiUrl = 'https://kiyidanav.com/mobil-api.php';
+  static const whatsapp = '905493013001';
 
   /// Sunucu API'si henüz yüklenmemişse örnek ürünlerle çalışır.
   /// Google Play'e göndermeden önce false yapın.
-  static const demoFallback = true;
+  static const demoFallback = false;
 
   // Kargo kuralı (bilgilendirme amaçlı; kesin tutarı site hesaplar)
   static const freeShippingLimit = 2500.0;

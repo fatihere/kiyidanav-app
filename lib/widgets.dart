@@ -14,7 +14,7 @@ class NetImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final placeholder = Container(
-      color: const Color(0xFFE2EAE7),
+      color: const Color(0xFFF1EFE6),
       alignment: Alignment.center,
       child: const Icon(Icons.phishing, color: Tide.misina, size: 36),
     );
@@ -79,7 +79,7 @@ class ProductTile extends StatelessWidget {
             AspectRatio(
               aspectRatio: 1,
               child: Stack(fit: StackFit.expand, children: [
-                NetImage(p.image),
+                Container(color: Colors.white, padding: const EdgeInsets.all(6), child: NetImage(p.image, fit: BoxFit.contain)),
                 if (!p.inStock)
                   Container(
                     color: Colors.white.withAlpha(150),
@@ -118,7 +118,7 @@ class ProductTile extends StatelessWidget {
                         style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Tide.derinAcik)),
+                            color: Tide.zeytin)),
                   const SizedBox(height: 2),
                   Text(p.name,
                       maxLines: 2,
@@ -131,6 +131,26 @@ class ProductTile extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Yatay kaydırılan ürün şeridi (ana sayfa vitrinleri)
+class ProductCarousel extends StatelessWidget {
+  final List<ProductCard> items;
+  const ProductCarousel(this.items, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 292,
+      child: ListView.separated(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (_, i) => SizedBox(width: 158, child: ProductTile(items[i])),
       ),
     );
   }

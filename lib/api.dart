@@ -74,6 +74,18 @@ class Api {
     }
   }
 
+  /// Son yüklenen ayarlar (başarısız olursa varsayılanlar)
+  static RemoteConfig config = const RemoteConfig();
+
+  static Future<RemoteConfig> loadConfig() async {
+    try {
+      config = RemoteConfig.fromJson(await _get({'a': 'config'}));
+    } catch (_) {
+      // Ayar alınamazsa varsayılanlarla devam
+    }
+    return config;
+  }
+
   static Future<HomeData> home() => _withDemo(
       () async => HomeData.fromJson(await _get({'a': 'home'})),
       DemoData.home);

@@ -188,18 +188,86 @@ class PageResult {
       );
 }
 
+class HomeSection {
+  final int id;
+  final String title;
+  final List<ProductCard> items;
+  const HomeSection({required this.id, required this.title, required this.items});
+
+  factory HomeSection.fromJson(Map<String, dynamic> j) => HomeSection(
+        id: _i(j['id']),
+        title: _s(j['title']) ?? '',
+        items: ((j['items'] as List?) ?? [])
+            .map((e) => ProductCard.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
 class HomeData {
   final List<Category> categories;
+  final List<HomeSection> sections;
   final List<ProductCard> newArrivals;
 
-  const HomeData({required this.categories, required this.newArrivals});
+  const HomeData(
+      {required this.categories, this.sections = const [], required this.newArrivals});
 
   factory HomeData.fromJson(Map<String, dynamic> j) => HomeData(
         categories: ((j['categories'] as List?) ?? [])
             .map((e) => Category.fromJson(e as Map<String, dynamic>))
             .toList(),
+        sections: ((j['sections'] as List?) ?? [])
+            .map((e) => HomeSection.fromJson(e as Map<String, dynamic>))
+            .toList(),
         newArrivals: ((j['new'] as List?) ?? [])
             .map((e) => ProductCard.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+/// Aylık balık/yem önerisi satırı (yönetim panelinden)
+class BaitRow {
+  final String fish;
+  final String live;
+  final String lure;
+  final String search;
+  const BaitRow({required this.fish, required this.live, required this.lure, required this.search});
+
+  factory BaitRow.fromJson(Map<String, dynamic> j) => BaitRow(
+        fish: _s(j['balik']) ?? '',
+        live: _s(j['canli']) ?? '',
+        lure: _s(j['sahte']) ?? '',
+        search: _s(j['ara']) ?? '',
+      );
+}
+
+/// Yönetim panelinden gelen uygulama ayarları
+class RemoteConfig {
+  final String announcement;
+  final double waveThreshold;
+  final String shareText;
+  final String phone;
+  final int month;
+  final List<BaitRow> bait;
+
+  const RemoteConfig({
+    this.announcement = '',
+    this.waveThreshold = 1.0,
+    this.shareText = 'Kıyı balıkçılığı için her şey KıyıdanAv\'da: kiyidanav.com',
+    this.phone = '+90 549 301 30 01',
+    this.month = 0,
+    this.bait = const [],
+  });
+
+  factory RemoteConfig.fromJson(Map<String, dynamic> j) => RemoteConfig(
+        announcement: _s(j['duyuru']) ?? '',
+        waveThreshold: _d(j['dalga_esik']) <= 0 ? 1.0 : _d(j['dalga_esik']),
+        shareText: (_s(j['paylas_metin']) ?? '').isEmpty
+            ? 'Kıyı balıkçılığı için her şey KıyıdanAv\'da: kiyidanav.com'
+            : _s(j['paylas_metin'])!,
+        phone: _s(j['telefon']) ?? '',
+        month: _i(j['ay']),
+        bait: ((j['yem'] as List?) ?? [])
+            .map((e) => BaitRow.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }
