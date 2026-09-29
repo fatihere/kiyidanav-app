@@ -18,7 +18,7 @@ void main() {
 
     final nav = find.byType(NavigationBar);
     expect(nav, findsOneWidget);
-    for (final label in ['Keşfet', 'Av Raporu', 'Ara', 'Sepet', 'Hesabım']) {
+    for (final label in ['Keşfet', 'Mera Bilgisi', 'Ara', 'Sepet', 'Hesabım']) {
       expect(find.descendant(of: nav, matching: find.text(label)), findsOneWidget, reason: label);
     }
 
