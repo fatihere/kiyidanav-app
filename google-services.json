@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "534825917318",
+    "project_id": "kiyidanav-8f38f",
+    "storage_bucket": "kiyidanav-8f38f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:534825917318:android:aa1f2962fc294de4efea07",
+        "android_client_info": {
+          "package_name": "com.kiyidanav.kiyidanav"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBpHwUET1L5GT9bLMvlEs669cxgVPVSmG0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
