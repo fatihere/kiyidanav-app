@@ -79,6 +79,8 @@ jobs:
           "$BT/aapt2" dump resources "$APK" | grep -q "drawable/ic_launcher_foreground" || { echo "::error::KıyıdanAv simgesi APK'da yok"; exit 1; }
           "$BT/aapt2" dump resources "$APK" | grep -q "drawable/ic_stat_notify" || { echo "::error::Bildirim simgesi APK'da yok"; exit 1; }
           echo "== İzinler"; "$BT/aapt2" dump permissions "$APK"
+          if "$BT/aapt2" dump permissions "$APK" | grep -q "FOREGROUND_SERVICE"; then echo "::error::Gereksiz ön plan hizmeti izni APK'da"; exit 1; fi
+          if "$BT/apksigner" verify --print-certs "$APK" | grep -q "CN=Android Debug"; then echo "::warning::APK/AAB hata ayıklama anahtarıyla imzalı — Google Play'e yüklenemez. KEYSTORE_B64 ve KEYSTORE_PASS secrets eklenmeli."; fi
           echo "== APK imzası"; "$BT/apksigner" verify --print-certs "$APK" | grep -iE "DN:|SHA-256" | head -3
           echo "== AAB imzası"; keytool -printcert -jarfile "$AAB" | grep -E "Owner:|SHA256:" | head -2
           mkdir -p cikti && cp "$APK" cikti/KiyidanAv.apk && cp "$AAB" cikti/KiyidanAv-GooglePlay.aab && cp build/store/*.png cikti/
