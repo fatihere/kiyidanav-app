@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'api.dart';
 import 'app_state.dart';
+import 'notices.dart';
 import 'sea_card.dart';
 import 'screens/account_screen.dart';
 import 'screens/cart_screen.dart';
@@ -21,17 +22,50 @@ Future<void> main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
+  Notices.enabled = true;
   runApp(const KiyidanAvApp());
+  Notices.start();
 }
 
-class KiyidanAvApp extends StatelessWidget {
+class KiyidanAvApp extends StatefulWidget {
   const KiyidanAvApp({super.key});
+
+  @override
+  State<KiyidanAvApp> createState() => _KiyidanAvAppState();
+}
+
+class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Notices.refresh();
+      if (Notices.enabled && !appState.notificationAsked) {
+        await Future<void>.delayed(const Duration(seconds: 2));
+        await Notices.askPermission();
+        await appState.setNotificationAsked();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) Notices.refresh();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'KıyıdanAv',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navKey,
       theme: Tide.theme(),
       home: const Shell(),
     );

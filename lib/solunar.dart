@@ -55,7 +55,7 @@ class FishingScore {
   /// Ay + hava koşullarına göre av verimliliği (%10 – %98)
   /// [pressureTrend]: önümüzdeki 6 saatteki basınç değişimi (hPa)
   static int compute(DateTime day,
-      {double? windKmh, double? waveM, double? pressureTrend}) {
+      {double? windKmh, double? waveM, double? pressureTrend, double? rainMm}) {
     var s = Moon.baseScore(day).toDouble();
     final w = windKmh;
     if (w != null) {
@@ -81,6 +81,14 @@ class FishingScore {
     if (p != null) {
       if (p <= -1.5) s += 5; // cephe öncesi iştah
       if (p >= 2.5) s -= 5;
+    }
+    final r = rainMm;
+    if (r != null) {
+      if (r >= 20) {
+        s -= 15;
+      } else if (r >= 8) {
+        s -= 8;
+      }
     }
     return s.round().clamp(10, 98);
   }

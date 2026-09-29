@@ -41,6 +41,10 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Bildirim izni bir kez soruldu mu?
+  bool get notificationAsked => _prefs?.getBool('notif_asked') ?? false;
+  Future<void> setNotificationAsked() async => _prefs?.setBool('notif_asked', true);
+
   void _save() {
     _prefs?.setString(
         _cartKey, jsonEncode(cart.map((e) => e.toJson()).toList()));

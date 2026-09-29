@@ -10,7 +10,8 @@ import 'theme.dart';
 class WebPageScreen extends StatefulWidget {
   final String title;
   final String route; // ör. account/login
-  const WebPageScreen({super.key, required this.title, required this.route});
+  final String? path; // ör. mobil-gizlilik.php (sitenin kökünde bir sayfa)
+  const WebPageScreen({super.key, required this.title, this.route = '', this.path});
 
   @override
   State<WebPageScreen> createState() => _WebPageScreenState();
@@ -39,7 +40,9 @@ class _WebPageScreenState extends State<WebPageScreen> {
           return NavigationDecision.prevent;
         },
       ))
-      ..loadRequest(Uri.parse('${AppConfig.siteUrl}index.php?route=${widget.route}'));
+      ..loadRequest(Uri.parse(widget.path != null
+          ? '${AppConfig.siteUrl}${widget.path}'
+          : '${AppConfig.siteUrl}index.php?route=${widget.route}'));
   }
 
   @override

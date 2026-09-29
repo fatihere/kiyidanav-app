@@ -113,8 +113,8 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
         final list = _data[_side];
         final cur = _current(list);
         final r = cur?.now;
-        final wave = r?.waveM ?? 0.3;
-        final high = (r?.waveM ?? 0) >= _threshold;
+        final wave = r == null ? 0.3 : (r.strait ? 0.3 : r.effectiveWave);
+        final high = r != null && !r.strait && r.effectiveWave >= _threshold;
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(color: Tide.derin, borderRadius: BorderRadius.circular(20)),
@@ -150,7 +150,13 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                         painter: _WavePainter(
                           phase: _wave.value,
                           amplitude: (wave * 14).clamp(3.0, 24.0),
-                          label: r?.waveM == null ? null : 'Anlık dalga ${r!.waveM!.toStringAsFixed(1)} m',
+                          label: r == null
+                              ? null
+                              : r.strait
+                                  ? 'Boğaz içi · akıntıya dikkat'
+                                  : r.waveM == null
+                                      ? null
+                                      : 'Anlık dalga ${r.waveM!.toStringAsFixed(1)} m · 6 sa. en fazla ${r.effectiveWave.toStringAsFixed(1)} m',
                           alert: high,
                           blink: _blink.value,
                         ),
@@ -199,6 +205,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                               Wrap(spacing: 18, runSpacing: 8, children: [
                                 _stat('Rüzgâr', '${r.windKmh?.round() ?? '-'} km/s ${r.windFrom}'),
                                 if (r.gustKmh != null) _stat('Hamle', '${r.gustKmh!.round()} km/s'),
+                                if (r.rainDay != null && r.rainDay! >= 1) _stat('Yağış', '${r.rainDay!.round()} mm'),
                                 if (r.seaC != null) _stat('Su', '${r.seaC!.round()}°'),
                                 if (r.airC != null) _stat('Hava', '${r.airC!.round()}°'),
                               ]),
@@ -219,7 +226,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                   itemBuilder: (_, i) {
                     final f = list[i];
                     final sel = f.spot.name == spot.name;
-                    final hi = (f.now.waveM ?? 0) >= _threshold;
+                    final hi = !f.now.strait && f.now.effectiveWave >= _threshold;
                     return InkWell(
                       borderRadius: BorderRadius.circular(10),
                       onTap: () => saveSelectedSpot(f.spot),
@@ -238,7 +245,13 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                           ]),
                           const SizedBox(height: 2),
                           Text(
-                            f.now.waveM == null ? '—' : '${f.now.waveM!.toStringAsFixed(1)} m',
+                            f.now.strait
+                                ? 'Boğaz'
+                                : f.now.waveM == null
+                                    ? '—'
+                                    : f.now.effectiveWave > (f.now.waveM ?? 0) + 0.05
+                                        ? '${f.now.waveM!.toStringAsFixed(1)}→${f.now.effectiveWave.toStringAsFixed(1)} m'
+                                        : '${f.now.waveM!.toStringAsFixed(1)} m',
                             style: TextStyle(
                                 color: hi ? const Color(0xFFFF8A80) : const Color(0xFF9FC4BD),
                                 fontSize: 12,
@@ -377,9 +390,13 @@ class _WavePainter extends CustomPainter {
               fontWeight: FontWeight.w700),
         ),
         textDirection: TextDirection.ltr,
-      )..layout();
-      final px = (bx - tp.width - 18).clamp(6.0, size.width - tp.width - 6);
-      final py = (by - 30).clamp(2.0, size.height - tp.height - 2);
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: math.max(40.0, size.width - 24));
+      final maxX = math.max(6.0, size.width - tp.width - 6);
+      final maxY = math.max(2.0, size.height - tp.height - 2);
+      final px = (bx - tp.width - 18).clamp(6.0, maxX);
+      final py = (by - 30).clamp(2.0, maxY);
       final bg = RRect.fromRectAndRadius(
           Rect.fromLTWH(px - 6, py - 3, tp.width + 12, tp.height + 6), const Radius.circular(8));
       canvas.drawRRect(bg, Paint()..color = const Color(0xAA0A2F36));
