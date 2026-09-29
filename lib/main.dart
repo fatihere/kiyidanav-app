@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'api.dart';
 import 'app_state.dart';
 import 'notices.dart';
+import 'push.dart';
 import 'sea_card.dart';
 import 'screens/account_screen.dart';
 import 'screens/cart_screen.dart';
@@ -26,7 +27,7 @@ Future<void> main() async {
   ));
   Notices.enabled = true;
   runApp(const KiyidanAvApp());
-  Notices.start();
+  Notices.start().whenComplete(Push.start);
 }
 
 class KiyidanAvApp extends StatefulWidget {

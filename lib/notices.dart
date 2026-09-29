@@ -106,6 +106,13 @@ class Notices {
   static Future<void> start() async {
     try {
       await initPlugin(foreground: true);
+      // Firebase bildirimleri de bu kanalı kullanır; önceden oluşturulmalı
+      await _android?.createNotificationChannel(const AndroidNotificationChannel(
+        'kiyidanav_duyuru',
+        'Kampanyalar ve av raporu',
+        description: 'KıyıdanAv kampanya, ürün ve günlük av raporu bildirimleri',
+        importance: Importance.high,
+      ));
       final launch = await plugin.getNotificationAppLaunchDetails();
       if (launch?.didNotificationLaunchApp ?? false) {
         final payload = launch?.notificationResponse?.payload;
@@ -185,6 +192,29 @@ class Notices {
       final t = DateTime.tryParse(n.date);
       return t == null || t.isAfter(limit);
     }).toList();
+  }
+
+  /// Anlık bildirimle gelenleri "gösterildi" say (yedek kontrol tekrar göstermesin)
+  static Future<void> markNotifiedIds(List<String> ids) async {
+    final p = await SharedPreferences.getInstance();
+    final notified = (p.getStringList(_notifiedKey) ?? const []).toSet()..addAll(ids);
+    await p.setStringList(_notifiedKey, notified.take(200).toList());
+  }
+
+  /// Uygulama açıkken anlık bildirim geldi: telefona düşür, listeyi yenile
+  static Future<void> showIncoming(Notice n) async {
+    final p = await SharedPreferences.getInstance();
+    final already = (p.getStringList(_notifiedKey) ?? const []).contains(n.id);
+    await markNotifiedIds([n.id]);
+    if (!already) {
+      try {
+        await _show(n, p);
+      } catch (e) {
+        debugPrint('bildirim gösterilemedi: $e');
+      }
+    }
+    // Listeyi ve zil sayısını güncelle (sunucu önbelleği gecikebilir diye biraz bekle)
+    Future<void>.delayed(const Duration(seconds: 3), () => refresh(popup: false));
   }
 
   static Future<void> _markNotified(List<Notice> list, SharedPreferences p) async {
