@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../api.dart';
 import '../app_state.dart';
 import '../config.dart';
+import '../notices.dart';
 import '../share.dart';
 import '../theme.dart';
 import '../web_page_screen.dart';
@@ -14,6 +15,9 @@ class AccountScreen extends StatelessWidget {
 
   void _open(BuildContext context, String title, String route) => Navigator.of(context)
       .push(MaterialPageRoute(builder: (_) => WebPageScreen(title: title, route: route)));
+
+  void _openUrl(BuildContext context, String title, String path) => Navigator.of(context)
+      .push(MaterialPageRoute(builder: (_) => WebPageScreen(title: title, path: path)));
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +82,14 @@ class AccountScreen extends StatelessWidget {
           ]),
           const SizedBox(height: 16),
           _group([
+            _tile(Icons.notifications_none, 'Bildirimler ve kampanyalar',
+                () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NoticesScreen()))),
+            _tile(Icons.notifications_active_outlined, 'Bildirimlere izin ver', Notices.askPermission),
+          ]),
+          const SizedBox(height: 16),
+          _group([
+            _tile(Icons.privacy_tip_outlined, 'Gizlilik politikası', () => _openUrl(context, 'Gizlilik politikası', 'mobil-gizlilik.php')),
+            _tile(Icons.person_remove_outlined, 'Hesabımı sil', () => _openUrl(context, 'Hesabımı sil', 'hesap-sil.php')),
             _tile(Icons.logout, 'Çıkış yap', () => _open(context, 'Çıkış', 'account/logout')),
           ]),
           const SizedBox(height: 16),

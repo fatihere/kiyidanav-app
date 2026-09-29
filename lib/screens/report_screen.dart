@@ -92,7 +92,7 @@ class _ReportScreenState extends State<ReportScreen> {
               final now = DateTime.now();
               final today = f.days.isNotEmpty ? f.days.first : null;
               final score = FishingScore.compute(now,
-                  windKmh: f.now.windKmh, waveM: f.now.waveM, pressureTrend: f.pressureTrend);
+                  windKmh: f.now.effectiveWind, waveM: f.now.effectiveWave, pressureTrend: f.pressureTrend, rainMm: f.now.rainDay);
               return ListView(
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
@@ -221,7 +221,10 @@ class _ReportCard extends StatelessWidget {
         // Hava / deniz ölçümleri
         Wrap(spacing: 10, runSpacing: 10, children: [
           _chip(Icons.air, 'Rüzgâr', '${r.windKmh?.round() ?? '-'} km/s ${r.windFrom}'),
-          _chip(Icons.waves, 'Dalga', r.waveM == null ? '—' : '${r.waveM!.toStringAsFixed(1)} m'),
+          _chip(Icons.waves, 'Dalga (6 sa. en fazla)',
+              r.strait ? 'Boğaz içi' : (r.waveM == null ? '—' : '${r.waveM!.toStringAsFixed(1)} m (${r.effectiveWave.toStringAsFixed(1)} m)')),
+          if (r.gustKmh != null) _chip(Icons.storm, 'Hamle', '${r.gustKmh!.round()} km/s'),
+          if (r.rainDay != null) _chip(Icons.water_drop_outlined, 'Yağış (gün)', '${r.rainDay!.toStringAsFixed(r.rainDay! < 10 ? 1 : 0)} mm'),
           _chip(Icons.thermostat, 'Su / Hava', '${r.seaC?.round() ?? '-'}° / ${r.airC?.round() ?? '-'}°'),
           _chip(Icons.speed, 'Basınç',
               r.pressure == null ? '—' : '${r.pressure!.round()} hPa ${trend == null ? '' : (trend < -0.8 ? '↘' : trend > 0.8 ? '↗' : '→')}'),
@@ -288,7 +291,8 @@ class _ReportCard extends StatelessWidget {
   }
 
   Widget _dayRow(DayForecast d) {
-    final s = FishingScore.compute(d.date.add(const Duration(hours: 12)), windKmh: d.windMax, waveM: d.waveMax);
+    final s = FishingScore.compute(d.date.add(const Duration(hours: 12)),
+        windKmh: d.effectiveWind, waveM: d.waveMax, rainMm: d.rainSum);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(children: [
@@ -302,7 +306,7 @@ class _ReportCard extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: Text(
-            '${d.windMax?.round() ?? '-'} km/s · ${d.waveMax == null ? '—' : '${d.waveMax!.toStringAsFixed(1)} m'}',
+            '${d.windMax?.round() ?? '-'}/${d.gustMax?.round() ?? '-'} km/s · ${d.waveMax == null ? '—' : '${d.waveMax!.toStringAsFixed(1)} m'}${(d.rainSum ?? 0) >= 1 ? ' · ${d.rainSum!.round()} mm' : ''}',
             style: const TextStyle(color: Color(0xFF9FC4BD), fontSize: 12),
           ),
         ),

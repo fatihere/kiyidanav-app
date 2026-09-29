@@ -4,6 +4,7 @@ import '../api.dart';
 import '../bait_card.dart';
 import '../main.dart';
 import '../models.dart';
+import '../notices.dart';
 import '../sea_card.dart';
 import '../theme.dart';
 import '../widgets.dart';
@@ -27,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refresh() async {
     await Api.loadConfig();
+    Notices.refresh(popup: false);
     setState(() => _future = Api.home());
     await _future.catchError((_) => const HomeData(categories: [], newArrivals: []));
   }
@@ -51,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 if (Api.config.announcement.isNotEmpty)
                   SliverToBoxAdapter(child: _Announcement(Api.config.announcement)),
+                const SliverToBoxAdapter(child: NoticeBanner()),
                 const SliverToBoxAdapter(child: SizedBox(height: 14)),
                 const SliverToBoxAdapter(child: SeaCard()),
                 if (snap.connectionState != ConnectionState.done)
@@ -155,6 +158,7 @@ class BrandHeader extends StatelessWidget {
             ),
           ),
         ),
+        const NoticeBell(),
       ]),
     );
   }
