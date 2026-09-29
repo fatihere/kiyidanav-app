@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -35,10 +37,20 @@ class KiyidanAvApp extends StatefulWidget {
 }
 
 class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver {
+  Timer? _poll;
+
+  /// Uygulama ekrandayken bildirimler dakikada bir kontrol edilir
+  void _startPoll() {
+    _poll?.cancel();
+    if (!Notices.enabled) return;
+    _poll = Timer.periodic(const Duration(minutes: 1), (_) => Notices.refresh(popup: false));
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _startPoll();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Notices.refresh();
       if (Notices.enabled && !appState.notificationAsked) {
@@ -51,13 +63,19 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
 
   @override
   void dispose() {
+    _poll?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) Notices.refresh();
+    if (state == AppLifecycleState.resumed) {
+      Notices.refresh();
+      _startPoll();
+    } else if (state == AppLifecycleState.paused) {
+      _poll?.cancel(); // arka planda WorkManager devralır
+    }
   }
 
   @override

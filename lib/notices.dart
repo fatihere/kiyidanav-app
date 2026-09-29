@@ -119,9 +119,9 @@ class Notices {
       await Workmanager().registerPeriodicTask(
         _taskName,
         _taskName,
-        frequency: const Duration(minutes: 30),
+        frequency: const Duration(minutes: 15), // Android'in izin verdiği en kısa aralık
         constraints: Constraints(networkType: NetworkType.connected),
-        existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
+        existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
       );
     } catch (e) {
       debugPrint('arka plan görevi: $e');
@@ -150,15 +150,23 @@ class Notices {
     final seen = (p.getStringList(_seenKey) ?? const []).toSet();
     items.value = list;
     unread.value = list.where((n) => !seen.contains(n.id)).length;
-    // Uygulama açıkken gelenler için telefon bildirimi tekrar çıkmasın
-    final notified = (p.getStringList(_notifiedKey) ?? const []).toSet()..addAll(list.map((n) => n.id));
-    await p.setStringList(_notifiedKey, notified.take(200).toList());
+
+    // Daha önce telefona düşmemiş yeni bildirimler: uygulama açıkken de göster
+    final fresh = _fresh(list, p);
+    await _markNotified(list, p);
+    for (final n in fresh.take(3)) {
+      try {
+        await _show(n, p);
+      } catch (e) {
+        debugPrint('bildirim gösterilemedi: $e');
+      }
+    }
 
     if (!popup) return;
     final popped = (p.getStringList(_popupKey) ?? const []).toSet();
-    final fresh = list.where((n) => !seen.contains(n.id) && !popped.contains(n.id) && n.type != 'rapor');
-    if (fresh.isEmpty) return;
-    final n = fresh.first;
+    final pop = list.where((n) => !seen.contains(n.id) && !popped.contains(n.id) && n.type != 'rapor');
+    if (pop.isEmpty) return;
+    final n = pop.first;
     popped.add(n.id);
     await p.setStringList(_popupKey, popped.take(200).toList());
     // Navigator'ın altındaki bir bağlam gerekir (overlay)
@@ -166,6 +174,74 @@ class Notices {
     if (ctx != null && ctx.mounted) {
       showDialog(context: ctx, builder: (_) => NoticeDialog(n));
     }
+  }
+
+  /// Telefona henüz düşmemiş ve son 2 gün içinde gönderilmiş bildirimler
+  static List<Notice> _fresh(List<Notice> list, SharedPreferences p) {
+    final notified = (p.getStringList(_notifiedKey) ?? const []).toSet();
+    final limit = DateTime.now().subtract(const Duration(days: 2));
+    return list.where((n) {
+      if (notified.contains(n.id)) return false;
+      final t = DateTime.tryParse(n.date);
+      return t == null || t.isAfter(limit);
+    }).toList();
+  }
+
+  static Future<void> _markNotified(List<Notice> list, SharedPreferences p) async {
+    final notified = (p.getStringList(_notifiedKey) ?? const []).toSet()..addAll(list.map((n) => n.id));
+    await p.setStringList(_notifiedKey, notified.take(200).toList());
+  }
+
+  // ---------------- İzin ----------------
+  static AndroidFlutterLocalNotificationsPlugin? get _android =>
+      plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+
+  /// Bildirim izni açık mı? (bilinmiyorsa null)
+  static Future<bool?> permissionEnabled() async {
+    try {
+      return await _android?.areNotificationsEnabled();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// İzin iste; verilmezse nasıl açılacağını anlatan pencere göster.
+  /// İzin açıksa hemen bir deneme bildirimi gönderir.
+  static Future<void> checkAndTest(BuildContext context) async {
+    var ok = await permissionEnabled();
+    if (ok != true) {
+      await askPermission();
+      ok = await permissionEnabled();
+    }
+    if (!context.mounted) return;
+    if (ok == true) {
+      await plugin.show(
+        id: 1,
+        title: 'Bildirimler açık ✅',
+        body: 'KıyıdanAv kampanya ve av raporu bildirimlerini alacaksın.',
+        notificationDetails: const NotificationDetails(android: _channel),
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Deneme bildirimi gönderildi. Bildirim çubuğuna bak.')));
+      }
+      return;
+    }
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Bildirimler kapalı'),
+        content: const Text(
+          'Telefonun ayarlarından açman gerekiyor:\n\n'
+          '1. Ayarlar → Uygulamalar → KıyıdanAv\n'
+          '2. Bildirimler → Açık\n\n'
+          'Anahtar gri ve açılmıyorsa: aynı ekranda sağ üstteki ⋮ menüsünden '
+          '"Kısıtlanmış ayarlara izin ver" seçeneğine dokun, sonra tekrar dene. '
+          '(Play Store dışından kurulan uygulamalarda Android bunu isteyebilir.)',
+        ),
+        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Tamam'))],
+      ),
+    );
   }
 
   static Future<void> markAllSeen() async {
@@ -223,23 +299,32 @@ class Notices {
   static Future<void> backgroundCheck() async {
     final list = await fetch();
     final p = await SharedPreferences.getInstance();
-    final first = !p.containsKey(_notifiedKey);
-    final notified = (p.getStringList(_notifiedKey) ?? const []).toSet();
-    final fresh = list.where((n) => !notified.contains(n.id)).toList();
-    notified.addAll(list.map((n) => n.id));
-    await p.setStringList(_notifiedKey, notified.take(200).toList());
-    // İlk kurulumda eski bildirimleri topluca göstermeyelim
-    if (first || fresh.isEmpty) return;
+    final fresh = _fresh(list, p);
+    await _markNotified(list, p);
+    if (fresh.isEmpty) return;
     await initPlugin();
-    var shown = 0;
     for (final n in fresh.take(3)) {
-      var body = n.body;
-      if (n.type == 'rapor') body = await _reportLine(p) ?? body;
-      AndroidNotificationDetails details = _channel;
-      if (n.hasImage) {
-        final bytes = await _image(n.image);
-        if (bytes != null) {
-          details = AndroidNotificationDetails(
+      await _show(n, p);
+    }
+    debugPrint('arka plan: ${fresh.length} bildirim');
+  }
+
+  /// Telefon bildirimini gösterir (görselliyse büyük resimli, uzunsa geniş metinli)
+  static Future<void> _show(Notice n, SharedPreferences p) async {
+    var body = n.body;
+    if (n.type == 'rapor') body = await _reportLine(p) ?? body;
+    StyleInformation? style;
+    if (n.hasImage) {
+      final bytes = await _image(n.image);
+      if (bytes != null) {
+        style = BigPictureStyleInformation(ByteArrayAndroidBitmap(bytes),
+            contentTitle: n.title, summaryText: body.isEmpty ? null : body);
+      }
+    }
+    if (style == null && body.length > 40) style = BigTextStyleInformation(body);
+    final details = style == null
+        ? _channel
+        : AndroidNotificationDetails(
             _channel.channelId,
             _channel.channelName,
             channelDescription: _channel.channelDescription,
@@ -247,32 +332,15 @@ class Notices {
             priority: Priority.high,
             icon: 'ic_stat_notify',
             color: Tide.turuncu,
-            styleInformation: BigPictureStyleInformation(ByteArrayAndroidBitmap(bytes),
-                contentTitle: n.title, summaryText: body.isEmpty ? null : body),
+            styleInformation: style,
           );
-        }
-      } else if (body.length > 40) {
-        details = AndroidNotificationDetails(
-          _channel.channelId,
-          _channel.channelName,
-          channelDescription: _channel.channelDescription,
-          importance: Importance.high,
-          priority: Priority.high,
-          icon: 'ic_stat_notify',
-          color: Tide.turuncu,
-          styleInformation: BigTextStyleInformation(body),
-        );
-      }
-      await plugin.show(
-        id: n.id.hashCode & 0x7fffffff,
-        title: n.title,
-        body: body,
-        notificationDetails: NotificationDetails(android: details),
-        payload: jsonEncode(n.toJson()),
-      );
-      shown++;
-    }
-    debugPrint('arka plan: $shown bildirim');
+    await plugin.show(
+      id: n.id.hashCode & 0x7fffffff,
+      title: n.title,
+      body: body,
+      notificationDetails: NotificationDetails(android: details),
+      payload: jsonEncode(n.toJson()),
+    );
   }
 
   /// "Kartal: av verimliliği %72 (Verimli) — Uygun, biraz ağır takım tercih et"
