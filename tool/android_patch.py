@@ -54,7 +54,9 @@ def patch_gradle():
         s, n = re.subn(r'    buildTypes\s*\{', block, s, count=1)
         if n != 1:
             fail('buildTypes bloğu yok')
-    s, n = re.subn(
+    n = 1 if 'signingConfigs.getByName("release") else' in s else 0
+    if n == 0:
+      s, n = re.subn(
         r'signingConfig\s*=\s*signingConfigs\.getByName\("debug"\)',
         'signingConfig = if ((System.getenv("KS_FILE") ?: "").isNotEmpty()) '
         'signingConfigs.getByName("release") else signingConfigs.getByName("debug")',
@@ -62,10 +64,32 @@ def patch_gradle():
     if n != 1:
         fail('release signingConfig satırı yok')
 
+    # Firebase: google-services eklentisi (uygulama modülü)
+    if 'com.google.gms.google-services' not in s:
+        s, n = re.subn(r'(id\("com\.android\.application"\)[^\n]*\n)', r'\1    id("com.google.gms.google-services")\n', s, count=1)
+        if n != 1:
+            fail('app plugins bloğunda com.android.application yok')
+
     if 'desugar_jdk_libs' not in s:
         s += '\ndependencies {\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n}\n'
     kts.write_text(s)
     print(s)
+
+
+def patch_settings():
+    st = Path('android/settings.gradle.kts')
+    if not st.exists():
+        fail('android/settings.gradle.kts bulunamadı')
+    s = st.read_text()
+    if 'com.google.gms.google-services' not in s:
+        s, n = re.subn(r'(id\("dev\.flutter\.flutter-plugin-loader"\)[^\n]*\n)',
+                       r'\1    id("com.google.gms.google-services") version "4.4.2" apply false\n', s, count=1)
+        if n != 1:
+            fail('settings.gradle.kts plugins bloğu bulunamadı')
+    st.write_text(s)
+    print(s)
+    if not (APP / 'google-services.json').exists():
+        fail('android/app/google-services.json yok (Firebase ayarı)')
 
 
 def patch_manifest():
@@ -83,6 +107,13 @@ def patch_manifest():
         tag = f'<uses-permission android:name="{p}" tools:node="remove"/>'
         if tag not in s:
             s = s.replace('<application', tag + '\n    <application', 1)
+    # Firebase bildirimleri: KıyıdanAv simgesi, rengi ve kanalı
+    if 'default_notification_icon' not in s:
+        meta = ('        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_notify"/>\n'
+                '        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/bildirim_rengi"/>\n'
+                '        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="kiyidanav_duyuru"/>\n'
+                '    </application>')
+        s = s.replace('    </application>', meta, 1) if '    </application>' in s else s.replace('</application>', meta, 1)
     s, n = re.subn(r'android:label="[^"]*"',
                    'android:label="KıyıdanAv" android:allowBackup="false" android:usesCleartextTraffic="false"',
                    s, count=1)
@@ -94,4 +125,5 @@ def patch_manifest():
 
 if __name__ == '__main__':
     patch_gradle()
+    patch_settings()
     patch_manifest()

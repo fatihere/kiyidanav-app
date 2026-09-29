@@ -77,7 +77,8 @@ def main():
     (RES / 'values').mkdir(parents=True, exist_ok=True)
     (RES / 'values' / 'ic_launcher_background.xml').write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
-        '    <color name="ic_launcher_background">#FFFFFF</color>\n</resources>\n')
+        '    <color name="ic_launcher_background">#FFFFFF</color>\n'
+        '    <color name="bildirim_rengi">#F46C22</color>\n</resources>\n')
     # Kod küçültme (R8) bildirim simgesini silmesin
     (RES / 'raw').mkdir(parents=True, exist_ok=True)
     (RES / 'raw' / 'keep.xml').write_text(
