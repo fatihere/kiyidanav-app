@@ -84,7 +84,8 @@ class AccountScreen extends StatelessWidget {
           _group([
             _tile(Icons.notifications_none, 'Bildirimler ve kampanyalar',
                 () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NoticesScreen()))),
-            _tile(Icons.notifications_active_outlined, 'Bildirimlere izin ver', Notices.askPermission),
+            _tile(Icons.notifications_active_outlined, 'Bildirim iznini kontrol et ve dene',
+                () => Notices.checkAndTest(context)),
           ]),
           const SizedBox(height: 16),
           _group([
