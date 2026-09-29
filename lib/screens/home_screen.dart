@@ -77,18 +77,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   _title('Kategoriler'),
                   SliverToBoxAdapter(child: _CategoryGrid(data!.categories)),
                   const SliverToBoxAdapter(child: BaitCard(max: 4)),
-                  for (final s in data!.sections) ...[
+                  for (final s in data.sections) ...[
                     _title(s.title, onMore: () {
-                      final c = data!.categories.where((c) => c.id == s.id);
+                      final c = data.categories.where((c) => c.id == s.id);
                       Navigator.of(context).push(MaterialPageRoute(
                           builder: (_) => CategoryScreen(
                               category: c.isNotEmpty ? c.first : Category(id: s.id, name: s.title))));
                     }),
                     SliverToBoxAdapter(child: ProductCarousel(s.items)),
                   ],
-                  if (data!.newArrivals.isNotEmpty) ...[
+                  if (data.newArrivals.isNotEmpty) ...[
                     _title('Yeni gelen balıkçılık ürünleri'),
-                    ProductGrid(data!.newArrivals),
+                    ProductGrid(data.newArrivals),
                   ],
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],
