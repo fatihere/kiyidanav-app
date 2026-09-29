@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write   # derlenen APK/AAB için sürüm (Release) sayfası
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,6 +34,9 @@ jobs:
           curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png"
           curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
           pip install --quiet pillow
+
+      - name: Firebase ayarı
+        run: cp google-services.json android/app/google-services.json
 
       - name: Simgeleri üret (uygulama, bildirim, Play Store)
         run: python3 tool/make_icons.py
@@ -78,6 +84,8 @@ jobs:
           echo "== Simge kaynakları"; "$BT/aapt2" dump resources "$APK" | grep -E "drawable/ic_launcher_foreground|drawable/ic_stat_notify|mipmap/ic_launcher" | head
           "$BT/aapt2" dump resources "$APK" | grep -q "drawable/ic_launcher_foreground" || { echo "::error::KıyıdanAv simgesi APK'da yok"; exit 1; }
           "$BT/aapt2" dump resources "$APK" | grep -q "drawable/ic_stat_notify" || { echo "::error::Bildirim simgesi APK'da yok"; exit 1; }
+          "$BT/aapt2" dump resources "$APK" | grep -q "string/google_app_id" || { echo "::error::Firebase ayarı APK'da yok"; exit 1; }
+          echo "== Firebase: tamam"
           echo "== İzinler"; "$BT/aapt2" dump permissions "$APK"
           if "$BT/aapt2" dump permissions "$APK" | grep -q "FOREGROUND_SERVICE"; then echo "::error::Gereksiz ön plan hizmeti izni APK'da"; exit 1; fi
           if "$BT/apksigner" verify --print-certs "$APK" | grep -q "CN=Android Debug"; then echo "::warning::APK/AAB hata ayıklama anahtarıyla imzalı — Google Play'e yüklenemez. KEYSTORE_B64 ve KEYSTORE_PASS secrets eklenmeli."; fi
@@ -85,6 +93,23 @@ jobs:
           echo "== AAB imzası"; keytool -printcert -jarfile "$AAB" | grep -E "Owner:|SHA256:" | head -2
           mkdir -p cikti && cp "$APK" cikti/KiyidanAv.apk && cp "$AAB" cikti/KiyidanAv-GooglePlay.aab && cp build/store/*.png cikti/
           ls -la cikti
+
+      - name: Sürüm numarası
+        id: surum
+        run: echo "v=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: İndirme sayfası (GitHub Release)
+        if: ${{ env.KS_FILE != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.surum.outputs.v }}-${{ github.run_number }}
+          name: KıyıdanAv ${{ steps.surum.outputs.v }} (derleme ${{ github.run_number }})
+          body: |
+            KiyidanAv.apk → telefona doğrudan kurulum (test)
+            KiyidanAv-GooglePlay.aab → Google Play Console'a yüklenecek dosya
+            play-simge-512.png / play-tanitim-1024x500.png → mağaza görselleri
+          files: cikti/*
+          make_latest: true
 
       - name: Dosyaları indirilebilir yap
         uses: actions/upload-artifact@v4
