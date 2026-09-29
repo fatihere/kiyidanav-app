@@ -176,7 +176,10 @@ class _MenuBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    // Yükseklik her durumda sabit olmalı: kategoriler yüklenmeden (açılışta / bağlantı yokken)
+    // boş kutu 0 yükseklikte kalırsa Flutter'ın yerleşim kuralı bozulur.
     return Container(
+      height: maxExtent,
       color: Tide.zeytin,
       child: cats.isEmpty
           ? const SizedBox.shrink()
