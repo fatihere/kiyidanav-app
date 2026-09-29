@@ -13,8 +13,9 @@ import 'favorites_screen.dart';
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
 
-  void _open(BuildContext context, String title, String route) => Navigator.of(context)
-      .push(MaterialPageRoute(builder: (_) => WebPageScreen(title: title, route: route)));
+  void _open(BuildContext context, String title, String route, {bool homeAfterLogin = false}) =>
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => WebPageScreen(title: title, route: route, homeAfterLogin: homeAfterLogin)));
 
   void _openUrl(BuildContext context, String title, String path) => Navigator.of(context)
       .push(MaterialPageRoute(builder: (_) => WebPageScreen(title: title, path: path)));
@@ -40,7 +41,7 @@ class AccountScreen extends StatelessWidget {
                 Expanded(
                   child: FilledButton(
                     style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
-                    onPressed: () => _open(context, 'Giriş yap', 'account/login'),
+                    onPressed: () => _open(context, 'Giriş yap', 'account/login', homeAfterLogin: true),
                     child: const Text('Giriş yap'),
                   ),
                 ),
@@ -49,7 +50,7 @@ class AccountScreen extends StatelessWidget {
                   child: OutlinedButton(
                     style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
-                    onPressed: () => _open(context, 'Üye ol', 'account/register'),
+                    onPressed: () => _open(context, 'Üye ol', 'account/register', homeAfterLogin: true),
                     child: const Text('Üye ol'),
                   ),
                 ),
@@ -84,8 +85,7 @@ class AccountScreen extends StatelessWidget {
           _group([
             _tile(Icons.notifications_none, 'Bildirimler ve kampanyalar',
                 () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NoticesScreen()))),
-            _tile(Icons.notifications_active_outlined, 'Bildirim iznini kontrol et ve dene',
-                () => Notices.checkAndTest(context)),
+            const _NoticePermissionTile(),
           ]),
           const SizedBox(height: 16),
           _group([
@@ -123,4 +123,56 @@ class AccountScreen extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right, color: Tide.misina),
         onTap: onTap,
       );
+}
+
+/// Bildirim izni durumu (açık/kapalı) — dokununca izin ister ve deneme bildirimi gönderir
+class _NoticePermissionTile extends StatefulWidget {
+  const _NoticePermissionTile();
+
+  @override
+  State<_NoticePermissionTile> createState() => _NoticePermissionTileState();
+}
+
+class _NoticePermissionTileState extends State<_NoticePermissionTile> with WidgetsBindingObserver {
+  bool? _on;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _check();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Telefon ayarlarından dönünce durumu yenile
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    if (s == AppLifecycleState.resumed) _check();
+  }
+
+  Future<void> _check() async {
+    final v = await Notices.permissionEnabled();
+    if (mounted) setState(() => _on = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final on = _on == true;
+    return ListTile(
+      leading: Icon(on ? Icons.notifications_active : Icons.notifications_off_outlined,
+          color: on ? const Color(0xFF1F8B4C) : Tide.turuncu),
+      title: Text(on ? 'Bildirimler açık — deneme gönder' : 'Bildirimleri aç'),
+      subtitle: Text(on ? 'Kampanya ve mera bilgisi bildirimleri gelir' : 'Şu an kapalı: kampanyaları kaçırırsın'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () async {
+        await Notices.checkAndTest(context);
+        await _check();
+      },
+    );
+  }
 }

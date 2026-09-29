@@ -39,7 +39,7 @@ class _ReportScreenState extends State<ReportScreen> {
     setState(() => _sharing = true);
     try {
       await Sharer.widgetImage(_shotKey,
-          text: '${f.spot.name} günlük av raporu: av verimliliği %$score, '
+          text: '${f.spot.name} günlük mera balık bilgisi: av verimliliği %$score, '
               '${Moon.phaseName(DateTime.now())}. KıyıdanAv uygulamasıyla hazırlandı 🎣 kiyidanav.com');
     } catch (_) {
       if (mounted) {
@@ -59,7 +59,7 @@ class _ReportScreenState extends State<ReportScreen> {
         _ensure(spot);
         return Scaffold(
           appBar: AppBar(
-            title: const Text('Günlük Av Raporu'),
+            title: const Text('Günlük Mera Balık Bilgisi'),
             actions: [
               PopupMenuButton<Spot>(
                 tooltip: 'Kıyı seç',

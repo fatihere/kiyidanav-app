@@ -19,11 +19,28 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<HomeData> _future;
+  final _scroll = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _future = Api.home();
+    homeReset.addListener(_toTop);
+  }
+
+  @override
+  void dispose() {
+    homeReset.removeListener(_toTop);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  /// Keşfet'e basıldı / girişten dönüldü: en üste çık ve yenile
+  void _toTop() {
+    if (_scroll.hasClients) {
+      _scroll.animateTo(0, duration: const Duration(milliseconds: 350), curve: Curves.easeOut);
+    }
+    _refresh();
   }
 
   Future<void> _refresh() async {
@@ -45,6 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, snap) {
             final data = snap.data;
             return CustomScrollView(
+              controller: _scroll,
               slivers: [
                 const SliverToBoxAdapter(child: BrandHeader()),
                 SliverPersistentHeader(
