@@ -54,10 +54,9 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
     _startPoll();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Notices.refresh();
-      if (Notices.enabled && !appState.notificationAsked) {
+      if (Notices.enabled) {
         await Future<void>.delayed(const Duration(seconds: 2));
-        await Notices.askPermission();
-        await appState.setNotificationAsked();
+        await Notices.askOnLaunch();
       }
     });
   }
@@ -91,8 +90,18 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
   }
 }
 
-/// Seçili alt sekme (0: Keşfet, 1: Av Raporu, 2: Ara, 3: Sepet, 4: Hesabım)
+/// Seçili alt sekme (0: Keşfet, 1: Mera Bilgisi, 2: Ara, 3: Sepet, 4: Hesabım)
 final shellTab = ValueNotifier<int>(0);
+
+/// Ana sayfayı en üste kaydırıp yenilemek için sinyal
+final homeReset = ValueNotifier<int>(0);
+
+/// Açık tüm sayfaları kapatıp uygulamanın ana ekranına döner
+void goHome() {
+  navKey.currentState?.popUntil((r) => r.isFirst);
+  shellTab.value = Shell.tabHome;
+  homeReset.value++;
+}
 
 class Shell extends StatelessWidget {
   const Shell({super.key});
@@ -126,14 +135,20 @@ class Shell extends StatelessWidget {
         listenable: appState,
         builder: (_, __) => NavigationBar(
           selectedIndex: index,
-          onDestinationSelected: (i) => shellTab.value = i,
+          onDestinationSelected: (i) {
+            if (i == Shell.tabHome) {
+              goHome(); // her basışta ana ekran (en üst) gelir
+            } else {
+              shellTab.value = i;
+            }
+          },
           backgroundColor: Colors.white,
           indicatorColor: Tide.somon,
           destinations: [
             const NavigationDestination(
                 icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Keşfet'),
             const NavigationDestination(
-                icon: Icon(Icons.set_meal_outlined), selectedIcon: Icon(Icons.set_meal), label: 'Av Raporu'),
+                icon: Icon(Icons.set_meal_outlined), selectedIcon: Icon(Icons.set_meal), label: 'Mera Bilgisi'),
             const NavigationDestination(icon: Icon(Icons.search), label: 'Ara'),
             NavigationDestination(
                 icon: Badge(

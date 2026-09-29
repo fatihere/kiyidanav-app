@@ -8,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:workmanager/workmanager.dart';
+import 'package:app_settings/app_settings.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'bait_card.dart';
 import 'config.dart';
@@ -72,8 +74,8 @@ class Notices {
 
   static const _channel = AndroidNotificationDetails(
     'kiyidanav_duyuru',
-    'Kampanyalar ve av raporu',
-    channelDescription: 'KıyıdanAv kampanya, ürün ve günlük av raporu bildirimleri',
+    'Kampanyalar ve mera bilgisi',
+    channelDescription: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri',
     importance: Importance.high,
     priority: Priority.high,
     icon: 'ic_stat_notify',
@@ -109,8 +111,8 @@ class Notices {
       // Firebase bildirimleri de bu kanalı kullanır; önceden oluşturulmalı
       await _android?.createNotificationChannel(const AndroidNotificationChannel(
         'kiyidanav_duyuru',
-        'Kampanyalar ve av raporu',
-        description: 'KıyıdanAv kampanya, ürün ve günlük av raporu bildirimleri',
+        'Kampanyalar ve mera bilgisi',
+        description: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri',
         importance: Importance.high,
       ));
       final launch = await plugin.getNotificationAppLaunchDetails();
@@ -142,7 +144,14 @@ class Notices {
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
     } catch (_) {}
+    // Yedek yol: Firebase'in izin isteği (bazı üreticilerde sistem penceresini bu açar)
+    if (await permissionEnabled() != true) {
+      try {
+        await FirebaseMessaging.instance.requestPermission();
+      } catch (_) {}
+    }
   }
+
 
   // ---------------- Uygulama içi ----------------
   static Future<void> refresh({bool popup = true}) async {
@@ -235,43 +244,94 @@ class Notices {
     }
   }
 
-  /// İzin iste; verilmezse nasıl açılacağını anlatan pencere göster.
+  /// İzin iste; verilmezse telefonun bildirim ayarlarını açmayı önerir.
   /// İzin açıksa hemen bir deneme bildirimi gönderir.
   static Future<void> checkAndTest(BuildContext context) async {
-    var ok = await permissionEnabled();
-    if (ok != true) {
-      await askPermission();
-      ok = await permissionEnabled();
+    final ok = await ensurePermission(context, explain: false);
+    if (!ok || !context.mounted) return;
+    await plugin.show(
+      id: 1,
+      title: 'Bildirimler açık ✅',
+      body: 'KıyıdanAv kampanya ve mera balık bilgisi bildirimlerini alacaksın.',
+      notificationDetails: const NotificationDetails(android: _channel),
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Deneme bildirimi gönderildi. Bildirim çubuğuna bak.')));
     }
-    if (!context.mounted) return;
-    if (ok == true) {
-      await plugin.show(
-        id: 1,
-        title: 'Bildirimler açık ✅',
-        body: 'KıyıdanAv kampanya ve av raporu bildirimlerini alacaksın.',
-        notificationDetails: const NotificationDetails(android: _channel),
+  }
+
+  static const _askedAtKey = 'notice_perm_asked_at';
+
+  /// Açılışta: izin kapalıysa (ilk kez veya 3 günde bir) açıklamalı izin iste
+  static Future<void> askOnLaunch() async {
+    if (!enabled) return;
+    if (await permissionEnabled() == true) return;
+    final p = await SharedPreferences.getInstance();
+    final last = p.getInt(_askedAtKey) ?? 0;
+    if (DateTime.now().millisecondsSinceEpoch - last < const Duration(days: 3).inMilliseconds) return;
+    await p.setInt(_askedAtKey, DateTime.now().millisecondsSinceEpoch);
+    final ctx = navKey.currentState?.overlay?.context;
+    if (ctx == null || !ctx.mounted) return;
+    await ensurePermission(ctx, explain: true);
+  }
+
+  /// İzin akışı: (açıklama) → sistemin izin penceresi → olmazsa telefon ayarları
+  static Future<bool> ensurePermission(BuildContext context, {required bool explain}) async {
+    if (await permissionEnabled() == true) return true;
+    if (explain && context.mounted) {
+      final yes = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          icon: const Icon(Icons.notifications_active, color: Tide.turuncu, size: 36),
+          title: const Text('Kampanyaları kaçırma'),
+          content: const Text(
+              'İndirimleri, yeni ürünleri ve günlük mera balık bilgisini bildirim olarak gönderelim mi?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Şimdi değil')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('İzin ver'),
+            ),
+          ],
+        ),
       );
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Deneme bildirimi gönderildi. Bildirim çubuğuna bak.')));
-      }
-      return;
+      if (yes != true) return false;
     }
-    await showDialog(
+    // 1) Sistemin izin penceresi
+    await askPermission();
+    if (await permissionEnabled() == true) return true;
+    // 2) Pencere çıkmadıysa (Xiaomi vb. veya daha önce reddedildiyse): ayarlara yönlendir
+    if (!context.mounted) return false;
+    final go = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Bildirimler kapalı'),
         content: const Text(
-          'Telefonun ayarlarından açman gerekiyor:\n\n'
-          '1. Ayarlar → Uygulamalar → KıyıdanAv\n'
-          '2. Bildirimler → Açık\n\n'
-          'Anahtar gri ve açılmıyorsa: aynı ekranda sağ üstteki ⋮ menüsünden '
-          '"Kısıtlanmış ayarlara izin ver" seçeneğine dokun, sonra tekrar dene. '
-          '(Play Store dışından kurulan uygulamalarda Android bunu isteyebilir.)',
+          'Telefonun ayarlarından açman gerekiyor. "Ayarları aç"a dokun, açılan ekranda '
+          '"Bildirimleri göster" anahtarını aç ve geri dön.\n\n'
+          'Xiaomi/Redmi/POCO: anahtar gri ise Ayarlar → Uygulamalar → İzinler → Bildirimler '
+          'bölümünden KıyıdanAv\'ı aç.',
         ),
-        actions: [TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Tamam'))],
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Vazgeç')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Ayarları aç'),
+          ),
+        ],
       ),
     );
+    if (go == true) {
+      try {
+        await AppSettings.openAppSettings(type: AppSettingsType.notification);
+      } catch (_) {
+        await AppSettings.openAppSettings();
+      }
+    }
+    return false;
   }
 
   static Future<void> markAllSeen() async {
