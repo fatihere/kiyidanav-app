@@ -139,4 +139,40 @@ void main() {
       expect(spotsOf(Side.avrupa).map((s) => s.name), contains('Semizkum'));
     });
   });
+
+  group('Deniz yorumu (hamle ve yağış dahil)', () {
+    test('25 km/s rüzgâr + 40 km/s hamle + yağış artık "Uygun" sayılmaz', () {
+      const r = SeaReport(windKmh: 24.5, gustKmh: 40.3, waveM: 0.2, waveMax6h: 0.46, rainNow: 0, rainDay: 15.2);
+      expect(r.effectiveWind, closeTo(28.2, 0.1));
+      expect(r.verdict, startsWith('Sert'));
+      expect(r.verdict, contains('yağışlı'));
+      expect(r.isGood, isFalse);
+    });
+    test('sakin hava ideal', () {
+      const r = SeaReport(windKmh: 8, gustKmh: 12, waveM: 0.2, waveMax6h: 0.3, rainDay: 0);
+      expect(r.verdict, 'Kıyıdan atış için ideal');
+    });
+    test('6 saat içindeki en yüksek dalga dikkate alınır', () {
+      const r = SeaReport(windKmh: 10, gustKmh: 14, waveM: 0.3, waveMax6h: 1.2);
+      expect(r.effectiveWave, 1.2);
+      expect(r.verdict, startsWith('Sert'));
+    });
+    test('Boğaz içinde dalga verisi kullanılmaz', () {
+      const r = SeaReport(windKmh: 10, gustKmh: 12, waveM: 2.4, strait: true);
+      expect(r.effectiveWave, 0);
+      expect(spots.where((s) => s.strait).map((s) => s.name), containsAll(['Sarıyer', 'Bebek', 'Beykoz']));
+    });
+    test('saatlik seriden önümüzdeki saatlerin en büyüğü', () {
+      final hourly = {
+        'time': ['2026-09-29T17:00', '2026-09-29T18:00', '2026-09-29T19:00', '2026-09-29T23:00', '2026-09-30T02:00'],
+        'wave_height': [0.9, 0.2, 0.4, 0.6, 1.5],
+      };
+      final v = SeaService.maxNextHours(hourly, 'wave_height', 6, now: DateTime(2026, 9, 29, 18, 20));
+      expect(v, 0.6); // 17:00 geçmişte, 02:00 altı saatin dışında
+    });
+    test('yağış verimliliği düşürür', () {
+      final d = DateTime.utc(2026, 9, 26, 18);
+      expect(FishingScore.compute(d, windKmh: 10, rainMm: 25), lessThan(FishingScore.compute(d, windKmh: 10, rainMm: 0)));
+    });
+  });
 }
