@@ -103,8 +103,11 @@ class AccountScreen extends StatelessWidget {
     );
   }
 
-  Widget _group(List<Widget> children) => Container(
-        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+  // Material: satırlara dokununca dalga efekti görünsün (renkli kutu efekti gizliyordu)
+  Widget _group(List<Widget> children) => Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        clipBehavior: Clip.antiAlias,
         child: Column(children: [
           for (var i = 0; i < children.length; i++) ...[
             if (i > 0) const Divider(height: 1, indent: 56),
