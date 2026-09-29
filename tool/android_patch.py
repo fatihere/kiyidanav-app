@@ -75,6 +75,14 @@ def patch_manifest():
     for p in perms:
         if p not in s:
             s = s.replace('<application', f'<uses-permission android:name="{p}"/>\n    <application', 1)
+    # Kullanılmayan ön plan hizmeti izinleri (WorkManager ekliyor) kaldırılsın:
+    # Play Console bunlar varsa ayrıca beyan formu ister.
+    if 'xmlns:tools' not in s:
+        s = s.replace('<manifest ', '<manifest xmlns:tools="http://schemas.android.com/tools" ', 1)
+    for p in ['android.permission.FOREGROUND_SERVICE', 'android.permission.FOREGROUND_SERVICE_SHORT_SERVICE']:
+        tag = f'<uses-permission android:name="{p}" tools:node="remove"/>'
+        if tag not in s:
+            s = s.replace('<application', tag + '\n    <application', 1)
     s, n = re.subn(r'android:label="[^"]*"',
                    'android:label="KıyıdanAv" android:allowBackup="false" android:usesCleartextTraffic="false"',
                    s, count=1)
