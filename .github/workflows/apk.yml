@@ -1,4 +1,4 @@
-name: APK derle
+name: APK ve AAB derle
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -22,15 +22,8 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Android iskeletini oluştur ve güvenlik ayarlarını uygula
-        run: |
-          flutter create --org com.kiyidanav --project-name kiyidanav --platforms android .
-          M=android/app/src/main/AndroidManifest.xml
-          # İnternet izni (yayın sürümünde varsayılan olarak yok)
-          grep -q 'android.permission.INTERNET' "$M" || sed -i '0,/<application/s//<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/' "$M"
-          # Uygulama adı, yedekleme kapalı, şifresiz trafik yasak
-          sed -i 's/android:label="[^"]*"/android:label="KıyıdanAv" android:allowBackup="false" android:usesCleartextTraffic="false"/' "$M"
-          cat "$M"
+      - name: Android iskeletini oluştur
+        run: flutter create --org com.kiyidanav --project-name kiyidanav --platforms android .
 
       - name: Logo ve yazı tipini indir (kiyidanav.com + Google Fonts)
         run: |
@@ -38,58 +31,62 @@ jobs:
           curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png"
           curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
           pip install --quiet pillow
-          python3 - <<'PY'
-          from PIL import Image
-          # Uyarlanabilir simge: logo güvenli alanda kalsın diye kenar boşluğu
-          logo = Image.open('assets/brand/logo.png').convert('RGBA')
-          size = 1024
-          canvas = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-          inner = int(size * 0.62)
-          canvas.paste(logo.resize((inner, inner), Image.LANCZOS), ((size - inner) // 2, (size - inner) // 2))
-          canvas.save('assets/brand/logo_fg.png')
-          big = logo.resize((1024, 1024), Image.LANCZOS)
-          big.save('assets/brand/logo.png')
-          PY
-          ls -la assets/brand assets/fonts
+
+      - name: Simgeleri üret (uygulama, bildirim, Play Store)
+        run: python3 tool/make_icons.py
+
+      - name: Android ayarları (API 36, imza, izinler)
+        run: python3 tool/android_patch.py
 
       - name: Paketleri indir
         run: flutter pub get
-
-      - name: Simgeyi uygula
-        continue-on-error: true
-        run: dart run flutter_launcher_icons
 
       - name: Kod analizi
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
 
       - name: Testler
-        continue-on-error: true
         run: flutter test
 
-      - name: APK derle (karartılmış kod)
-        run: flutter build apk --release --obfuscate --split-debug-info=build/symbols
-
-      - name: Kalıcı anahtarla imzala (güncellemeler eskisinin üzerine kurulabilsin)
+      - name: İmza anahtarını hazırla
         env:
           KS_B64: ${{ secrets.KEYSTORE_B64 }}
           KS_PASS: ${{ secrets.KEYSTORE_PASS }}
         run: |
-          OUT=build/app/outputs/flutter-apk
           if [ -z "$KS_B64" ] || [ -z "$KS_PASS" ]; then
-            echo "::warning::KEYSTORE_B64 / KEYSTORE_PASS eklenmemiş; APK geçici anahtarla imzalandı."
-            cp "$OUT/app-release.apk" "$OUT/KiyidanAv.apk"
+            echo "::warning::KEYSTORE_B64 / KEYSTORE_PASS eklenmemiş. APK geçici anahtarla imzalanır; AAB Google Play'e YÜKLENEMEZ."
             exit 0
           fi
-          echo "$KS_B64" | base64 -d > /tmp/ks.jks
-          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
-          "$BT/apksigner" sign --ks /tmp/ks.jks --ks-pass env:KS_PASS --key-pass env:KS_PASS \
-            --ks-key-alias kiyidanav --out "$OUT/KiyidanAv.apk" "$OUT/app-release.apk"
-          "$BT/apksigner" verify --print-certs "$OUT/KiyidanAv.apk" | grep -i sha-256 || true
-          rm -f /tmp/ks.jks
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/ks.jks"
+          echo "KS_FILE=$RUNNER_TEMP/ks.jks" >> "$GITHUB_ENV"
+          echo "KS_PASS=$KS_PASS" >> "$GITHUB_ENV"
 
-      - name: APK'yı indirilebilir yap
+      - name: APK derle
+        run: flutter build apk --release --obfuscate --split-debug-info=build/symbols
+
+      - name: Google Play paketi (AAB) derle
+        run: flutter build appbundle --release --obfuscate --split-debug-info=build/symbols
+
+      - name: Son kontroller (logo, simge, hedef API, imza)
+        run: |
+          set -e
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "== Uygulama bilgisi"; "$BT/aapt2" dump badging "$APK" | grep -E "^package|targetSdkVersion|minSdkVersion|application-label:|application-icon-640" || true
+          "$BT/aapt2" dump badging "$APK" | grep -q "targetSdkVersion:'36'" || { echo "::error::targetSdk 36 değil"; exit 1; }
+          echo "== Uygulama içi logo"; unzip -l "$APK" | grep -q "assets/flutter_assets/assets/brand/logo.png" || { echo "::error::Logo APK içinde yok"; exit 1; }
+          echo "== Simge kaynakları"; "$BT/aapt2" dump resources "$APK" | grep -E "drawable/ic_launcher_foreground|drawable/ic_stat_notify|mipmap/ic_launcher" | head
+          "$BT/aapt2" dump resources "$APK" | grep -q "drawable/ic_launcher_foreground" || { echo "::error::KıyıdanAv simgesi APK'da yok"; exit 1; }
+          "$BT/aapt2" dump resources "$APK" | grep -q "drawable/ic_stat_notify" || { echo "::error::Bildirim simgesi APK'da yok"; exit 1; }
+          echo "== İzinler"; "$BT/aapt2" dump permissions "$APK"
+          echo "== APK imzası"; "$BT/apksigner" verify --print-certs "$APK" | grep -iE "DN:|SHA-256" | head -3
+          echo "== AAB imzası"; keytool -printcert -jarfile "$AAB" | grep -E "Owner:|SHA256:" | head -2
+          mkdir -p cikti && cp "$APK" cikti/KiyidanAv.apk && cp "$AAB" cikti/KiyidanAv-GooglePlay.aab && cp build/store/*.png cikti/
+          ls -la cikti
+
+      - name: Dosyaları indirilebilir yap
         uses: actions/upload-artifact@v4
         with:
-          name: KiyidanAv-APK
-          path: build/app/outputs/flutter-apk/KiyidanAv.apk
+          name: KiyidanAv-v1.2
+          path: cikti/
           retention-days: 30
