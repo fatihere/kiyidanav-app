@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import 'config.dart';
 import 'main.dart';
+import 'notices.dart';
 import 'theme.dart';
 
 /// Sitenin hesap sayfalarını (giriş, üyelik, siparişler, adresler) uygulama içinde açar.
