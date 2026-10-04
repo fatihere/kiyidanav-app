@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../app_state.dart';
 import '../bait_card.dart';
+import '../mera.dart';
 import '../sea.dart';
 import '../sea_card.dart';
 import '../share.dart';
@@ -56,7 +58,6 @@ class _ReportScreenState extends State<ReportScreen> {
     return ValueListenableBuilder<Spot>(
       valueListenable: selectedSpot,
       builder: (context, spot, _) {
-        _ensure(spot);
         return Scaffold(
           appBar: AppBar(
             title: const Text('Günlük Mera Balık Bilgisi'),
@@ -66,15 +67,18 @@ class _ReportScreenState extends State<ReportScreen> {
                 icon: const Icon(Icons.place_outlined),
                 onSelected: saveSelectedSpot,
                 itemBuilder: (_) => [
-                  const PopupMenuItem(enabled: false, child: Text('Anadolu Yakası')),
-                  for (final s in spotsOf(Side.anadolu)) PopupMenuItem(value: s, child: Text('   ${s.name}')),
-                  const PopupMenuItem(enabled: false, child: Text('Avrupa Yakası')),
-                  for (final s in spotsOf(Side.avrupa)) PopupMenuItem(value: s, child: Text('   ${s.name}')),
+                  for (final side in Side.values.where((e) => e.public || appState.isMember)) ...[
+                    PopupMenuItem(enabled: false, child: Text(side.label)),
+                    for (final s in spotsOf(side)) PopupMenuItem(value: s, child: Text('   ${s.name}')),
+                  ],
                 ],
               ),
             ],
           ),
-          body: FutureBuilder<SpotForecast>(
+          body: MemberGate(
+           child: Builder(builder: (context) {
+            _ensure(spot);
+            return FutureBuilder<SpotForecast>(
             future: _future,
             builder: (context, snap) {
               if (snap.connectionState != ConnectionState.done) {
@@ -114,6 +118,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       ),
                     ),
                   ),
+                  _MeraTile(spot: f.spot),
                   const BaitCard(),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -126,6 +131,52 @@ class _ReportScreenState extends State<ReportScreen> {
                 ],
               );
             },
+          );
+          }),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Kıyı kesiti (derinlik ve dip yapısı) kartı
+class _MeraTile extends StatelessWidget {
+  final Spot spot;
+  const _MeraTile({required this.spot});
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<MeraInfo?>(
+      future: MeraService.of(spot),
+      builder: (context, snap) {
+        final info = snap.data;
+        if (info == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+          child: Material(
+            color: Tide.derin,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => showMeraSheet(context, spot, info),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(children: [
+                  const Icon(Icons.layers_outlined, color: Color(0xFFFFD54F)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Kıyı derinliği ve dip yapısı',
+                          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                      const SizedBox(height: 3),
+                      Text(info.summary, style: const TextStyle(color: Color(0xFFBFD6D1), fontSize: 13)),
+                    ]),
+                  ),
+                  const Icon(Icons.chevron_right, color: Colors.white70),
+                ]),
+              ),
+            ),
           ),
         );
       },
@@ -166,7 +217,7 @@ class _ReportCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('${f.spot.name} · ${f.spot.side == Side.anadolu ? 'Anadolu Yakası' : 'Avrupa Yakası'}',
+              Text('${f.spot.name} · ${f.spot.side.label}',
                   style: const TextStyle(color: Color(0xFFBFD6D1), fontSize: 12.5, fontWeight: FontWeight.w700)),
               Text('${_tarih(now)} · ${_gunler[now.weekday - 1]}',
                   style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
@@ -222,7 +273,7 @@ class _ReportCard extends StatelessWidget {
         Wrap(spacing: 10, runSpacing: 10, children: [
           _chip(Icons.air, 'Rüzgâr', '${r.windKmh?.round() ?? '-'} km/s ${r.windFrom}'),
           _chip(Icons.waves, 'Dalga (6 sa. en fazla)',
-              r.strait ? 'Boğaz içi' : (r.waveM == null ? '—' : '${r.waveM!.toStringAsFixed(1)} m (${r.effectiveWave.toStringAsFixed(1)} m)')),
+              r.strait ? '${f.spot.shelter} içi' : (r.waveM == null ? '—' : '${r.waveM!.toStringAsFixed(1)} m (${r.effectiveWave.toStringAsFixed(1)} m)')),
           if (r.gustKmh != null) _chip(Icons.storm, 'Hamle', '${r.gustKmh!.round()} km/s'),
           if (r.rainDay != null) _chip(Icons.water_drop_outlined, 'Yağış (gün)', '${r.rainDay!.toStringAsFixed(r.rainDay! < 10 ? 1 : 0)} mm'),
           _chip(Icons.thermostat, 'Su / Hava', '${r.seaC?.round() ?? '-'}° / ${r.airC?.round() ?? '-'}°'),

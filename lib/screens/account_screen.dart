@@ -37,7 +37,18 @@ class AccountScreen extends StatelessWidget {
               const Text('Siparişlerini takip et, adreslerini kaydet, hızlı öde.',
                   style: TextStyle(color: Color(0xFFEDEBDD), fontSize: 13.5)),
               const SizedBox(height: 14),
-              Row(children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: memberNotifier,
+                builder: (context, member, _) => member
+                    ? const Row(children: [
+                        Icon(Icons.verified, color: Colors.white, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text('Üye girişi yapıldı. Tüm mera bilgileri açık.',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                        ),
+                      ])
+                    : Row(children: [
                 Expanded(
                   child: FilledButton(
                     style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
@@ -55,6 +66,7 @@ class AccountScreen extends StatelessWidget {
                   ),
                 ),
               ]),
+              ),
             ]),
           ),
           const SizedBox(height: 16),
