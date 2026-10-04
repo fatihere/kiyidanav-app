@@ -38,6 +38,18 @@ class AppState extends ChangeNotifier {
       cart.clear();
       favorites.clear();
     }
+    memberNotifier.value = isMember;
+    notifyListeners();
+  }
+
+  /// Üye girişi yapıldı mı? Site oturumu uygulamanın içindeki tarayıcıda tutulur;
+  /// başarılı giriş/üyelik sayfası görülünce işaretlenir, çıkışta silinir.
+  /// Şifre veya kişisel veri saklanmaz.
+  bool get isMember => _prefs?.getBool('member_v1') ?? false;
+  Future<void> setMember(bool v) async {
+    if (isMember == v) return;
+    await _prefs?.setBool('member_v1', v);
+    memberNotifier.value = v;
     notifyListeners();
   }
 
@@ -104,3 +116,6 @@ class AppState extends ChangeNotifier {
 }
 
 final appState = AppState();
+
+/// Üyelik durumu değişince kilitli bölümler kendiliğinden açılır/kapanır
+final memberNotifier = ValueNotifier<bool>(false);

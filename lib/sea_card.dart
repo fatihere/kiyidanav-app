@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
+import 'app_state.dart';
+import 'mera.dart';
 import 'sea.dart';
 import 'theme.dart';
 
@@ -49,7 +51,13 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    if (!_side.public && !appState.isMember) _side = Side.anadolu;
     _load(_side);
+    memberNotifier.addListener(_onMember);
+  }
+
+  void _onMember() {
+    if (!memberNotifier.value && !_side.public) _switchSide(Side.anadolu);
   }
 
   Future<void> _load(Side side) async {
@@ -94,6 +102,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    memberNotifier.removeListener(_onMember);
     _wave.dispose();
     _blink.dispose();
     super.dispose();
@@ -120,16 +129,16 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
           decoration: BoxDecoration(color: Tide.derin, borderRadius: BorderRadius.circular(20)),
           clipBehavior: Clip.antiAlias,
           child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            // Yaka seçimi
+            // Yaka seçimi (herkese açık İstanbul yakaları)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
               child: Row(children: [
-                for (final s in Side.values)
+                for (final s in Side.values.where((e) => e.public))
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: _SideButton(
-                        label: s == Side.anadolu ? 'Anadolu Yakası' : 'Avrupa Yakası',
+                        label: s.label,
                         selected: _side == s,
                         onTap: () => _switchSide(s),
                       ),
@@ -137,8 +146,34 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                   ),
               ]),
             ),
+            // Diğer bölgeler: yalnızca üyelere
+            ValueListenableBuilder<bool>(
+              valueListenable: memberNotifier,
+              builder: (context, member, _) {
+                if (!member) return const SizedBox.shrink();
+                return SizedBox(
+                  height: 44,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    children: [
+                      for (final s in Side.values.where((e) => !e.public))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: _SideButton(
+                            label: s.label,
+                            selected: _side == s,
+                            compact: true,
+                            onTap: () => _switchSide(s),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
             SizedBox(
-              height: 190,
+              height: 196,
               child: Stack(children: [
                 Positioned.fill(
                   top: null,
@@ -153,7 +188,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                           label: r == null
                               ? null
                               : r.strait
-                                  ? 'Boğaz içi · akıntıya dikkat'
+                                  ? '${cur?.spot.shelter ?? 'Boğaz'} içi · akıntıya dikkat'
                                   : r.waveM == null
                                       ? null
                                       : 'Anlık dalga ${r.waveM!.toStringAsFixed(1)} m · 6 sa. en fazla ${r.effectiveWave.toStringAsFixed(1)} m',
@@ -208,6 +243,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                                 if (r.rainDay != null && r.rainDay! >= 1) _stat('Yağış', '${r.rainDay!.round()} mm'),
                                 if (r.seaC != null) _stat('Su', '${r.seaC!.round()}°'),
                                 if (r.airC != null) _stat('Hava', '${r.airC!.round()}°'),
+                                MeraStat(spot: cur!.spot),
                               ]),
                             ]),
                 ),
@@ -246,7 +282,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                           const SizedBox(height: 2),
                           Text(
                             f.now.strait
-                                ? 'Boğaz'
+                                ? f.spot.shelter
                                 : f.now.waveM == null
                                     ? '—'
                                     : f.now.effectiveWave > (f.now.waveM ?? 0) + 0.05
@@ -283,7 +319,8 @@ class _SideButton extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _SideButton({required this.label, required this.selected, required this.onTap});
+  final bool compact;
+  const _SideButton({required this.label, required this.selected, required this.onTap, this.compact = false});
 
   @override
   Widget build(BuildContext context) {
@@ -294,7 +331,7 @@ class _SideButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: EdgeInsets.symmetric(vertical: compact ? 7 : 9, horizontal: compact ? 14 : 0),
           child: Text(label,
               textAlign: TextAlign.center,
               style: TextStyle(

@@ -133,7 +133,18 @@ class Shell extends StatelessWidget {
       ),
       bottomNavigationBar: ListenableBuilder(
         listenable: appState,
-        builder: (_, __) => NavigationBar(
+        // Telefonun büyük yazı ayarında etiketler iki satıra bölünüp simgeden kaymasın
+        builder: (context, __) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+              textScaler: MediaQuery.of(context).textScaler.clamp(maxScaleFactor: 1.0)),
+          child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
+                fontSize: 11.5,
+                letterSpacing: -0.1,
+                fontWeight: states.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500)),
+          ),
+          child: NavigationBar(
           selectedIndex: index,
           onDestinationSelected: (i) {
             if (i == Shell.tabHome) {
@@ -161,6 +172,8 @@ class Shell extends StatelessWidget {
             const NavigationDestination(
                 icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Hesabım'),
           ],
+        ),
+        ),
         ),
       ),
     );

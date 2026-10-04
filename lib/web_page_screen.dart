@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'app_state.dart';
 import 'config.dart';
 import 'main.dart';
 import 'notices.dart';
@@ -55,8 +56,11 @@ class _WebPageScreenState extends State<WebPageScreen> {
           if (mounted) setState(() => _progress = p);
         },
         onPageFinished: (url) {
-          if (!widget.homeAfterLogin) return;
           final route = Uri.tryParse(url)?.queryParameters['route'] ?? '';
+          // Üyelik durumu: hesap sayfası yalnızca giriş yapılmışken açılır (değilse site girişe yönlendirir)
+          if (route == 'account/account' || route == 'account/success') appState.setMember(true);
+          if (route == 'account/logout') appState.setMember(false);
+          if (!widget.homeAfterLogin) return;
           // Başarılı girişte site hesap sayfasına, üyelikte başarı sayfasına yönlendirir
           if (route == 'account/account' || route == 'account/success') {
             _leaveToHome(message: 'Giriş yapıldı, hoş geldin!');
