@@ -59,11 +59,12 @@ def main():
         # Klasik simge (eski Android'ler)
         d = RES / f'mipmap-{name}'
         d.mkdir(parents=True, exist_ok=True)
-        centered(logo, int(48 * k), 0.92).save(d / 'ic_launcher.png')
-        # Uyarlanabilir simgenin ön katmanı (108dp tuval, logo güvenli alanda)
+        centered(logo, int(48 * k), 1.0).save(d / 'ic_launcher.png')
+        # Uyarlanabilir simgenin ön katmanı (108dp tuval). Yuvarlak maske tuvalin ~%67'sini gösterir;
+        # logo %74 ile halat çerçevesi görünür alanın kenarına oturur, beyaz boşluk kalmaz.
         d = RES / f'drawable-{name}'
         d.mkdir(parents=True, exist_ok=True)
-        centered(logo, int(108 * k), 0.62).save(d / 'ic_launcher_foreground.png')
+        centered(logo, int(108 * k), 0.74).save(d / 'ic_launcher_foreground.png')
         fish(int(24 * k)).save(d / 'ic_stat_notify.png')
 
     any_dir = RES / 'mipmap-anydpi-v26'
@@ -77,7 +78,7 @@ def main():
     (RES / 'values').mkdir(parents=True, exist_ok=True)
     (RES / 'values' / 'ic_launcher_background.xml').write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
-        '    <color name="ic_launcher_background">#FFFFFF</color>\n'
+        '    <color name="ic_launcher_background">#3A2416</color>\n'
         '    <color name="bildirim_rengi">#F46C22</color>\n</resources>\n')
     # Kod küçültme (R8) bildirim simgesini silmesin
     (RES / 'raw').mkdir(parents=True, exist_ok=True)
