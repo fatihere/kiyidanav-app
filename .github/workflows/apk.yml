@@ -35,6 +35,12 @@ jobs:
           curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
           pip install --quiet pillow
 
+      - name: Ortam seslerini üret (rüzgâr, yağmur, dalga, sakin deniz)
+        run: |
+          which ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          pip install --quiet numpy scipy
+          python3 tool/make_sounds.py assets/sounds
+
       - name: Firebase ayarı
         run: cp google-services.json android/app/google-services.json
 
@@ -88,6 +94,10 @@ jobs:
           echo "== Firebase: tamam"
           echo "== İzinler"; "$BT/aapt2" dump permissions "$APK"
           if "$BT/aapt2" dump permissions "$APK" | grep -q "FOREGROUND_SERVICE"; then echo "::error::Gereksiz ön plan hizmeti izni APK'da"; exit 1; fi
+          if "$BT/aapt2" dump permissions "$APK" | grep -qE "ACCESS_FINE_LOCATION|ACCESS_BACKGROUND_LOCATION"; then echo "::error::Gereksiz hassas/arka plan konum izni"; exit 1; fi
+          "$BT/aapt2" dump resources "$APK" | grep -q "raw/kalama" || { echo "::error::Bildirim sesi (raw/kalama) APK'da yok"; exit 1; }
+          echo "== Bildirim sesi: tamam"
+          unzip -l "$APK" | grep -q "assets/flutter_assets/assets/sounds/dalga.ogg" || { echo "::error::Ortam sesleri APK'da yok"; exit 1; }
           if "$BT/apksigner" verify --print-certs "$APK" | grep -q "CN=Android Debug"; then echo "::warning::APK/AAB hata ayıklama anahtarıyla imzalı — Google Play'e yüklenemez. KEYSTORE_B64 ve KEYSTORE_PASS secrets eklenmeli."; fi
           echo "== APK imzası"; "$BT/apksigner" verify --print-certs "$APK" | grep -iE "DN:|SHA-256" | head -3
           echo "== AAB imzası"; keytool -printcert -jarfile "$AAB" | grep -E "Owner:|SHA256:" | head -2
@@ -114,6 +124,6 @@ jobs:
       - name: Dosyaları indirilebilir yap
         uses: actions/upload-artifact@v4
         with:
-          name: KiyidanAv-v1.2
+          name: KiyidanAv-v1.6
           path: cikti/
           retention-days: 30
