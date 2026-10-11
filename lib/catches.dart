@@ -1,0 +1,236 @@
+import 'dart:convert';
+
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'config.dart';
+
+/// Üyelerin gönderdiği, yönetici onaylı av bildirimi
+class CatchReport {
+  final String id;
+  final String spot;
+  final String fish;
+  final int count;
+  final double kg;
+  final String bait;
+  final String note;
+  final String name; // "Fatih Y."
+  final DateTime? time;
+  final List<String> photos;
+
+  const CatchReport({
+    required this.id,
+    required this.spot,
+    required this.fish,
+    this.count = 0,
+    this.kg = 0,
+    this.bait = '',
+    this.note = '',
+    this.name = '',
+    this.time,
+    this.photos = const [],
+  });
+
+  factory CatchReport.fromJson(Map<String, dynamic> j) => CatchReport(
+        id: '${j['id'] ?? ''}',
+        spot: '${j['mera'] ?? ''}',
+        fish: '${j['balik'] ?? ''}',
+        count: j['adet'] is num ? (j['adet'] as num).toInt() : int.tryParse('${j['adet']}') ?? 0,
+        kg: j['kg'] is num ? (j['kg'] as num).toDouble() : double.tryParse('${j['kg']}') ?? 0,
+        bait: '${j['yem'] ?? ''}',
+        note: '${j['not'] ?? ''}',
+        name: '${j['ad'] ?? ''}',
+        time: DateTime.tryParse('${j['saat'] ?? ''}'),
+        photos: ((j['fotolar'] as List?) ?? const [])
+            .map((e) => '$e')
+            .where((u) => u.startsWith('https://'))
+            .take(3)
+            .toList(),
+      );
+
+  /// "3 adet · 1,2 kg"
+  String get amount {
+    final p = <String>[];
+    if (count > 0) p.add('$count adet');
+    if (kg > 0) p.add('${kg.toStringAsFixed(kg < 10 ? 1 : 0).replaceAll('.', ',')} kg');
+    return p.join(' · ');
+  }
+
+  /// "5 saat önce"
+  String ago([DateTime? now]) {
+    final t = time;
+    if (t == null) return '';
+    final d = (now ?? DateTime.now()).difference(t);
+    if (d.inMinutes < 60) return '${d.inMinutes < 1 ? 1 : d.inMinutes} dk önce';
+    if (d.inHours < 24) return '${d.inHours} saat önce';
+    return '${d.inDays} gün önce';
+  }
+}
+
+class CatchService {
+  static List<CatchReport>? _all;
+  static DateTime? _at;
+
+  /// Son 48 saatin onaylı avları (1 dakika önbellek)
+  static Future<List<CatchReport>> recent({bool force = false}) async {
+    if (!force && _all != null && _at != null && DateTime.now().difference(_at!).inSeconds < 60) return _all!;
+    final uri = Uri.parse(AppConfig.apiUrl).replace(queryParameters: {'a': 'avlar'});
+    final r = await http.get(uri, headers: const {'Accept': 'application/json'}).timeout(const Duration(seconds: 12));
+    final j = jsonDecode(utf8.decode(r.bodyBytes));
+    if (j is! Map || j['ok'] != true) return _all ?? const [];
+    _all = ((j['items'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((e) => CatchReport.fromJson(Map<String, dynamic>.from(e)))
+        .where((c) => c.id.isNotEmpty && c.fish.isNotEmpty)
+        .toList();
+    _at = DateTime.now();
+    return _all!;
+  }
+
+  static Future<List<CatchReport>> forSpot(String spot) async {
+    try {
+      return (await recent()).where((c) => c.spot == spot).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  // ---------------- Üyelik anahtarı ----------------
+  static const _tokenKey = 'av_anahtar_v1';
+  static const sessionPath = 'mobil-av.php?oturum=1';
+
+  static Future<String?> token() async {
+    try {
+      final t = (await SharedPreferences.getInstance()).getString(_tokenKey);
+      if (t == null || !t.contains('.')) return null;
+      // Süresi geçmiş mi? (gövde base64url JSON: {"e": son geçerlilik})
+      final body = t.split('.').first;
+      final pad = body.padRight((body.length + 3) ~/ 4 * 4, '=');
+      final d = jsonDecode(utf8.decode(base64Url.decode(pad)));
+      final exp = d is Map && d['e'] is num ? (d['e'] as num).toInt() : 0;
+      if (exp * 1000 < DateTime.now().millisecondsSinceEpoch + 3600 * 1000) return null;
+      return t;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> saveToken(String? t) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (t == null || t.isEmpty) {
+        await p.remove(_tokenKey);
+      } else {
+        await p.setString(_tokenKey, t);
+      }
+    } catch (_) {}
+  }
+
+  /// Av bildirimi gönderir. Hata mesajını döndürür (başarıda null).
+  /// [needsLogin] sunucu üyeliği doğrulayamadıysa true olur.
+  static Future<(String? error, bool needsLogin, String? message)> submit({
+    required String token,
+    required String spot,
+    required String fish,
+    int count = 0,
+    double kg = 0,
+    String bait = '',
+    String note = '',
+    DateTime? time,
+    List<String> photoPaths = const [],
+  }) async {
+    final uri = Uri.parse('${AppConfig.siteUrl}mobil-av.php');
+    final req = http.MultipartRequest('POST', uri)
+      ..headers['X-Av-Anahtar'] = token
+      ..headers['Accept'] = 'application/json'
+      ..fields['mera'] = spot
+      ..fields['balik'] = fish
+      ..fields['adet'] = '$count'
+      ..fields['kg'] = kg.toStringAsFixed(2)
+      ..fields['yem'] = bait
+      ..fields['not'] = note
+      ..fields['saat'] = (time ?? DateTime.now()).toIso8601String().substring(0, 16);
+    for (final p in photoPaths.take(3)) {
+      req.files.add(await http.MultipartFile.fromPath('foto[]', p, filename: 'av.jpg'));
+    }
+    try {
+      final res = await http.Response.fromStream(await req.send().timeout(const Duration(seconds: 60)));
+      final j = jsonDecode(utf8.decode(res.bodyBytes));
+      if (j is Map && j['ok'] == true) {
+        _all = null; // listeyi tazele
+        return (null, false, '${j['mesaj'] ?? 'Av bildirimin alındı.'}');
+      }
+      final login = j is Map && j['giris'] == true;
+      if (login) await saveToken(null);
+      return ('${j is Map ? j['error'] ?? 'Gönderilemedi.' : 'Gönderilemedi.'}', login, null);
+    } catch (_) {
+      return ('Gönderilemedi. İnternet bağlantını kontrol edip tekrar dene.', false, null);
+    }
+  }
+}
+
+/// Uydu verisi: deniz suyu sıcaklığı eğilimi ve klorofil (yem balığı göstergesi)
+class SatInfo {
+  final double? sst;
+  final double? sstChange5d; // °C, son 5 gün
+  final double? chl; // mg/m³
+  final int? chlChangePct; // son 3 gün ile önceki hafta karşılaştırması
+  final String source;
+  const SatInfo({this.sst, this.sstChange5d, this.chl, this.chlChangePct, this.source = ''});
+
+  bool get isEmpty => sst == null && chl == null;
+
+  factory SatInfo.fromJson(Map<String, dynamic> j) {
+    final s = j['sst'] is Map ? j['sst'] as Map : const {};
+    final k = j['klorofil'] is Map ? j['klorofil'] as Map : const {};
+    double? d(dynamic v) => v is num ? v.toDouble() : null;
+    return SatInfo(
+      sst: d(s['deger']),
+      sstChange5d: d(s['degisim5']),
+      chl: d(k['deger']),
+      chlChangePct: k['degisim_yuzde'] is num ? (k['degisim_yuzde'] as num).toInt() : null,
+      source: '${j['kaynak'] ?? ''}',
+    );
+  }
+
+  /// "Su soğuyor" / "Yem balığı artıyor" gibi kısa yorum
+  String comment(int month) {
+    final parts = <String>[];
+    final c = sstChange5d;
+    if (c != null) {
+      if (c <= -0.8) {
+        parts.add(month >= 9 && month <= 12 ? 'Su soğuyor: palamut/lüfer göçü için olumlu' : 'Su soğuyor');
+      } else if (c >= 0.8) {
+        parts.add('Su ısınıyor');
+      }
+    }
+    final p = chlChangePct;
+    if (p != null && p >= 15) parts.add('Klorofil artıyor: yem balığı yoğunlaşabilir');
+    if (p != null && p <= -20) parts.add('Klorofil azalıyor');
+    return parts.join(' · ');
+  }
+}
+
+class SatService {
+  static final Map<String, SatInfo> _cache = {};
+
+  static Future<SatInfo?> of(double lat, double lon) async {
+    final key = '${lat.toStringAsFixed(2)},${lon.toStringAsFixed(2)}';
+    if (_cache.containsKey(key)) return _cache[key];
+    try {
+      final uri = Uri.parse(AppConfig.apiUrl).replace(queryParameters: {
+        'a': 'uydu',
+        'lat': lat.toStringAsFixed(2),
+        'lon': lon.toStringAsFixed(2),
+      });
+      final r = await http.get(uri, headers: const {'Accept': 'application/json'}).timeout(const Duration(seconds: 20));
+      final j = jsonDecode(utf8.decode(r.bodyBytes));
+      if (j is! Map || j['ok'] != true) return null;
+      final s = SatInfo.fromJson(Map<String, dynamic>.from(j));
+      if (s.isEmpty) return null;
+      return _cache[key] = s;
+    } catch (_) {
+      return null;
+    }
+  }
+}

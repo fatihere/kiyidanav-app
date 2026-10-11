@@ -18,31 +18,30 @@ class BaitCard extends StatelessWidget {
     if (cfg.bait.isEmpty) return const SizedBox.shrink();
     final month = cfg.month >= 1 && cfg.month <= 12 ? ayAdlari[cfg.month] : 'Bu ay';
     final rows = cfg.bait.take(max).toList();
+    final ui = cfg.ui;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE6E2D6)),
+        border: Border.all(color: ui.yemCerceve, width: 1.5),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Container(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-          decoration: const BoxDecoration(
-            color: Tide.zeytin,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-          ),
+          color: ui.yemBaslikZemin,
           child: Row(children: [
-            const Icon(Icons.set_meal, color: Colors.white, size: 20),
+            Icon(Icons.set_meal, color: ui.yemBaslikYazi, size: ui.yemBaslikBoyut + 4),
             const SizedBox(width: 8),
             Expanded(
               child: Text('$month ayı: hangi balık, hangi yem?',
-                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                  style: TextStyle(color: ui.yemBaslikYazi, fontSize: ui.yemBaslikBoyut, fontWeight: FontWeight.w800)),
             ),
           ]),
         ),
         for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+          if (i > 0) Divider(height: 1, thickness: 1, indent: 16, endIndent: 16, color: ui.yemAyirici),
           _BaitRowView(rows[i]),
         ],
       ]),
@@ -56,38 +55,41 @@ class _BaitRowView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ui = Api.config.ui;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(r.fish, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Tide.zeytinKoyu)),
+            Text(r.fish,
+                style: TextStyle(fontSize: ui.yemBalikBoyut, fontWeight: FontWeight.w800, color: ui.yemBalikYazi)),
             const SizedBox(height: 4),
             if (r.live.isNotEmpty && r.live != '-')
-              _line(Icons.eco_outlined, 'Canlı yem', r.live),
-            _line(Icons.phishing, 'Sahte yem', r.lure),
+              _line(Icons.eco_outlined, 'Canlı yem', r.live, ui.yemMetinBoyut),
+            _line(Icons.phishing, 'Sahte yem', r.lure, ui.yemMetinBoyut),
           ]),
         ),
         if (r.search.isNotEmpty)
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Tide.turuncu),
+            style: TextButton.styleFrom(foregroundColor: ui.vurgu),
             onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => SearchResultsScreen(query: r.search, title: '${r.fish} için ürünler'))),
+                builder: (_) => SearchResultsScreen(
+                    query: r.search, title: '${r.fish} için ürünler', bait: true, category: r.category))),
             child: const Text('Ürünleri gör'),
           ),
       ]),
     );
   }
 
-  Widget _line(IconData icon, String k, String v) => Padding(
+  Widget _line(IconData icon, String k, String v, double size) => Padding(
         padding: const EdgeInsets.only(top: 3),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Icon(icon, size: 15, color: Tide.misina),
           const SizedBox(width: 6),
           Expanded(
             child: Text.rich(TextSpan(children: [
-              TextSpan(text: '$k: ', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              TextSpan(text: v, style: const TextStyle(fontSize: 13)),
+              TextSpan(text: '$k: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: size)),
+              TextSpan(text: v, style: TextStyle(fontSize: size)),
             ])),
           ),
         ]),
@@ -98,7 +100,10 @@ class _BaitRowView extends StatelessWidget {
 class SearchResultsScreen extends StatefulWidget {
   final String query;
   final String title;
-  const SearchResultsScreen({super.key, required this.query, required this.title});
+  final bool bait;
+  final int category;
+  const SearchResultsScreen(
+      {super.key, required this.query, required this.title, this.bait = false, this.category = 0});
 
   @override
   State<SearchResultsScreen> createState() => _SearchResultsScreenState();
@@ -121,7 +126,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     if (_loading || !_hasMore) return;
     setState(() => _loading = true);
     try {
-      final r = await Api.search(widget.query, page: _page + 1);
+      final r = await Api.search(widget.query, page: _page + 1, bait: widget.bait, category: widget.category);
       if (!mounted) return;
       setState(() {
         _items.addAll(r.items);

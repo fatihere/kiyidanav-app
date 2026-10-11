@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'api.dart';
 import 'app_state.dart';
 import 'format.dart';
 import 'models.dart';
@@ -39,7 +40,7 @@ class PriceView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final main = TextStyle(
-      fontSize: large ? 26 : 16,
+      fontSize: large ? 26 : Api.config.ui.urunFiyatBoyut,
       fontWeight: FontWeight.w800,
       letterSpacing: -0.4,
       color: special != null ? Tide.mercan : Tide.kaya,
@@ -123,7 +124,7 @@ class ProductTile extends StatelessWidget {
                   Text(p.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13.5, height: 1.3)),
+                      style: TextStyle(fontSize: Api.config.ui.urunAdBoyut, height: 1.3)),
                   const SizedBox(height: 6),
                   PriceView(price: p.price, special: p.special),
                 ],

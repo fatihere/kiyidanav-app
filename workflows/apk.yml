@@ -1,0 +1,129 @@
+name: APK ve AAB derle
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # derlenen APK/AAB için sürüm (Release) sayfası
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Android iskeletini oluştur
+        run: flutter create --org com.kiyidanav --project-name kiyidanav --platforms android .
+
+      - name: Logo ve yazı tipini indir (kiyidanav.com + Google Fonts)
+        run: |
+          mkdir -p assets/brand assets/fonts
+          curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png"
+          curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
+          pip install --quiet pillow
+
+      - name: Ortam seslerini üret (rüzgâr, yağmur, dalga, sakin deniz)
+        run: |
+          which ffmpeg || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+          pip install --quiet numpy scipy
+          python3 tool/make_sounds.py assets/sounds
+
+      - name: Firebase ayarı
+        run: cp google-services.json android/app/google-services.json
+
+      - name: Simgeleri üret (uygulama, bildirim, Play Store)
+        run: python3 tool/make_icons.py
+
+      - name: Android ayarları (API 36, imza, izinler)
+        run: python3 tool/android_patch.py
+
+      - name: Paketleri indir
+        run: flutter pub get
+
+      - name: Kod analizi
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+
+      - name: Testler
+        run: flutter test --reporter expanded
+
+      - name: İmza anahtarını hazırla
+        env:
+          KS_B64: ${{ secrets.KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASS }}
+        run: |
+          if [ -z "$KS_B64" ] || [ -z "$KS_PASS" ]; then
+            echo "::warning::KEYSTORE_B64 / KEYSTORE_PASS eklenmemiş. APK geçici anahtarla imzalanır; AAB Google Play'e YÜKLENEMEZ."
+            exit 0
+          fi
+          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/ks.jks"
+          echo "KS_FILE=$RUNNER_TEMP/ks.jks" >> "$GITHUB_ENV"
+          echo "KS_PASS=$KS_PASS" >> "$GITHUB_ENV"
+
+      - name: APK derle
+        run: flutter build apk --release --obfuscate --split-debug-info=build/symbols
+
+      - name: Google Play paketi (AAB) derle
+        run: flutter build appbundle --release --obfuscate --split-debug-info=build/symbols
+
+      - name: Son kontroller (logo, simge, hedef API, imza)
+        run: |
+          set -e
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          AAB=build/app/outputs/bundle/release/app-release.aab
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          echo "== Uygulama bilgisi"; "$BT/aapt2" dump badging "$APK" | grep -E "^package|targetSdkVersion|minSdkVersion|application-label:|application-icon-640" || true
+          "$BT/aapt2" dump badging "$APK" | grep -q "targetSdkVersion:'36'" || { echo "::error::targetSdk 36 değil"; exit 1; }
+          echo "== Uygulama içi logo"; unzip -l "$APK" | grep -q "assets/flutter_assets/assets/brand/logo.png" || { echo "::error::Logo APK içinde yok"; exit 1; }
+          echo "== Simge kaynakları"; "$BT/aapt2" dump resources "$APK" | grep -E "drawable/ic_launcher_foreground|drawable/ic_stat_notify|mipmap/ic_launcher" | head
+          "$BT/aapt2" dump resources "$APK" | grep -q "drawable/ic_launcher_foreground" || { echo "::error::KıyıdanAv simgesi APK'da yok"; exit 1; }
+          "$BT/aapt2" dump resources "$APK" | grep -q "drawable/ic_stat_notify" || { echo "::error::Bildirim simgesi APK'da yok"; exit 1; }
+          "$BT/aapt2" dump resources "$APK" | grep -q "string/google_app_id" || { echo "::error::Firebase ayarı APK'da yok"; exit 1; }
+          echo "== Firebase: tamam"
+          echo "== İzinler"; "$BT/aapt2" dump permissions "$APK"
+          if "$BT/aapt2" dump permissions "$APK" | grep -q "FOREGROUND_SERVICE"; then echo "::error::Gereksiz ön plan hizmeti izni APK'da"; exit 1; fi
+          if "$BT/aapt2" dump permissions "$APK" | grep -qE "ACCESS_FINE_LOCATION|ACCESS_BACKGROUND_LOCATION"; then echo "::error::Gereksiz hassas/arka plan konum izni"; exit 1; fi
+          "$BT/aapt2" dump resources "$APK" | grep -q "raw/kalama" || { echo "::error::Bildirim sesi (raw/kalama) APK'da yok"; exit 1; }
+          echo "== Bildirim sesi: tamam"
+          unzip -l "$APK" | grep -q "assets/flutter_assets/assets/sounds/dalga.ogg" || { echo "::error::Ortam sesleri APK'da yok"; exit 1; }
+          if "$BT/apksigner" verify --print-certs "$APK" | grep -q "CN=Android Debug"; then echo "::warning::APK/AAB hata ayıklama anahtarıyla imzalı — Google Play'e yüklenemez. KEYSTORE_B64 ve KEYSTORE_PASS secrets eklenmeli."; fi
+          echo "== APK imzası"; "$BT/apksigner" verify --print-certs "$APK" | grep -iE "DN:|SHA-256" | head -3
+          echo "== AAB imzası"; keytool -printcert -jarfile "$AAB" | grep -E "Owner:|SHA256:" | head -2
+          mkdir -p cikti && cp "$APK" cikti/KiyidanAv.apk && cp "$AAB" cikti/KiyidanAv-GooglePlay.aab && cp build/store/*.png cikti/
+          ls -la cikti
+
+      - name: Sürüm numarası
+        id: surum
+        run: echo "v=$(grep '^version:' pubspec.yaml | awk '{print $2}' | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: İndirme sayfası (GitHub Release)
+        if: ${{ env.KS_FILE != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.surum.outputs.v }}-${{ github.run_number }}
+          name: KıyıdanAv ${{ steps.surum.outputs.v }} (derleme ${{ github.run_number }})
+          body: |
+            KiyidanAv.apk → telefona doğrudan kurulum (test)
+            KiyidanAv-GooglePlay.aab → Google Play Console'a yüklenecek dosya
+            play-simge-512.png / play-tanitim-1024x500.png → mağaza görselleri
+          files: cikti/*
+          make_latest: true
+
+      - name: Dosyaları indirilebilir yap
+        uses: actions/upload-artifact@v4
+        with:
+          name: KiyidanAv-v1.6
+          path: cikti/
+          retention-days: 30

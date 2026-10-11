@@ -27,11 +27,11 @@ class Tide {
 
   static const font = 'Armata';
 
-  static ThemeData theme() {
+  static ThemeData theme({Color background = zemin, Color accent = turuncu}) {
     final scheme = ColorScheme.fromSeed(seedColor: zeytin).copyWith(
       primary: zeytinKoyu,
       onPrimary: Colors.white,
-      secondary: turuncu,
+      secondary: accent,
       onSecondary: Colors.white,
       surface: Colors.white,
       onSurface: kaya,
@@ -41,14 +41,14 @@ class Tide {
       useMaterial3: true,
       fontFamily: font,
       colorScheme: scheme,
-      scaffoldBackgroundColor: zemin,
-      appBarTheme: const AppBarTheme(
-        backgroundColor: zemin,
+      scaffoldBackgroundColor: background,
+      appBarTheme: AppBarTheme(
+        backgroundColor: background,
         foregroundColor: kaya,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
             fontFamily: font, color: kaya, fontSize: 19, fontWeight: FontWeight.w700),
       ),
       textTheme: const TextTheme(

@@ -55,7 +55,14 @@ class FishingScore {
   /// Ay + hava koşullarına göre av verimliliği (%10 – %98)
   /// [pressureTrend]: önümüzdeki 6 saatteki basınç değişimi (hPa)
   static int compute(DateTime day,
-      {double? windKmh, double? waveM, double? pressureTrend, double? rainMm}) {
+      {double? windKmh,
+      double? waveM,
+      double? pressureTrend,
+      double? rainMm,
+      double? currentKmh,
+      int recentCatches = 0,
+      double? sstChange5d,
+      int? chlChangePct}) {
     var s = Moon.baseScore(day).toDouble();
     final w = windKmh;
     if (w != null) {
@@ -90,6 +97,22 @@ class FishingScore {
         s -= 8;
       }
     }
+    // Akıntı: hafif akan su yemi taşır ve balığı hareketlendirir; çok sert akıntı takımı sürükler
+    final c = currentKmh;
+    if (c != null) {
+      if (c >= 3) {
+        s -= 6;
+      } else if (c >= 0.5 && c < 2) {
+        s += 3;
+      }
+    }
+    // Topluluk: bu merada son 48 saatte onaylı av bildirimi (her biri +3, en fazla +9)
+    if (recentCatches > 0) s += (recentCatches * 3).clamp(0, 9);
+    // Uydu: sonbaharda suyun soğuması göçü hızlandırır; klorofil artışı yem balığını toplar
+    final sc = sstChange5d;
+    if (sc != null && sc <= -0.8 && day.month >= 9 && day.month <= 12) s += 3;
+    final ch = chlChangePct;
+    if (ch != null && ch >= 15) s += 3;
     return s.round().clamp(10, 98);
   }
 

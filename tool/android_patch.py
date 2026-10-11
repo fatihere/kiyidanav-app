@@ -95,7 +95,9 @@ def patch_settings():
 def patch_manifest():
     m = APP / 'src/main/AndroidManifest.xml'
     s = m.read_text()
-    perms = ['android.permission.INTERNET', 'android.permission.POST_NOTIFICATIONS']
+    # Konum: yalnızca yaklaşık (en yakın merayı seçmek için, telefonda kalır)
+    perms = ['android.permission.INTERNET', 'android.permission.POST_NOTIFICATIONS',
+             'android.permission.ACCESS_COARSE_LOCATION']
     for p in perms:
         if p not in s:
             s = s.replace('<application', f'<uses-permission android:name="{p}"/>\n    <application', 1)
@@ -111,7 +113,8 @@ def patch_manifest():
     if 'default_notification_icon' not in s:
         meta = ('        <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_notify"/>\n'
                 '        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/bildirim_rengi"/>\n'
-                '        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="kiyidanav_duyuru"/>\n'
+                '        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="kiyidanav_kalama"/>\n'
+                '        <service android:name="com.baseflow.geolocator.GeolocatorLocationService" tools:node="remove"/>\n'
                 '    </application>')
         s = s.replace('    </application>', meta, 1) if '    </application>' in s else s.replace('</application>', meta, 1)
     s, n = re.subn(r'android:label="[^"]*"',
@@ -123,7 +126,23 @@ def patch_manifest():
     print(s)
 
 
+def patch_sound():
+    """Bildirim sesi: olta makinesi kalama sesi (res/raw/kalama.ogg) + küçültmede silinmesin"""
+    import shutil
+    raw = APP / 'src/main/res/raw'
+    raw.mkdir(parents=True, exist_ok=True)
+    src = Path('tool/android/kalama.ogg')
+    if not src.exists():
+        fail('tool/android/kalama.ogg yok (bildirim sesi)')
+    shutil.copy(src, raw / 'kalama.ogg')
+    (raw / 'keep.xml').write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@raw/kalama"/>\n')
+    print('bildirim sesi eklendi:', (raw / 'kalama.ogg').stat().st_size, 'bayt')
+
+
 if __name__ == '__main__':
     patch_gradle()
     patch_settings()
     patch_manifest()
+    patch_sound()

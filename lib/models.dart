@@ -1,3 +1,5 @@
+import 'ui.dart';
+
 double _d(dynamic v) =>
     v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
 int _i(dynamic v) => v is num ? v.toInt() : int.tryParse('$v') ?? 0;
@@ -192,11 +194,14 @@ class HomeSection {
   final int id;
   final String title;
   final List<ProductCard> items;
-  const HomeSection({required this.id, required this.title, required this.items});
+  /// Kamp ekipmanı gibi her açılışta rastgele gelen satır
+  final bool random;
+  const HomeSection({required this.id, required this.title, required this.items, this.random = false});
 
   factory HomeSection.fromJson(Map<String, dynamic> j) => HomeSection(
         id: _i(j['id']),
         title: _s(j['title']) ?? '',
+        random: j['random'] == true,
         items: ((j['items'] as List?) ?? [])
             .map((e) => ProductCard.fromJson(e as Map<String, dynamic>))
             .toList(),
@@ -207,9 +212,11 @@ class HomeData {
   final List<Category> categories;
   final List<HomeSection> sections;
   final List<ProductCard> newArrivals;
+  /// Kamp ekipmanlarından rastgele satırlar (vitrin bölümlerinin arasına yerleşir)
+  final List<HomeSection> camp;
 
   const HomeData(
-      {required this.categories, this.sections = const [], required this.newArrivals});
+      {required this.categories, this.sections = const [], required this.newArrivals, this.camp = const []});
 
   factory HomeData.fromJson(Map<String, dynamic> j) => HomeData(
         categories: ((j['categories'] as List?) ?? [])
@@ -221,7 +228,26 @@ class HomeData {
         newArrivals: ((j['new'] as List?) ?? [])
             .map((e) => ProductCard.fromJson(e as Map<String, dynamic>))
             .toList(),
+        camp: ((j['camp'] as List?) ?? [])
+            .map((e) => HomeSection.fromJson(e as Map<String, dynamic>))
+            .where((s) => s.items.isNotEmpty)
+            .toList(),
       );
+
+  /// Vitrin bölümleri ile kamp satırlarını karıştırır: 1. ve 3. bölümden sonra birer kamp satırı.
+  /// [pick] kamp gruplarından hangilerinin (ve hangi sırayla) gösterileceğini belirler.
+  List<HomeSection> mixed(List<HomeSection> pick) {
+    final out = <HomeSection>[];
+    var c = 0;
+    for (var i = 0; i < sections.length; i++) {
+      out.add(sections[i]);
+      if ((i == 0 || i == 2) && c < pick.length) out.add(pick[c++]);
+    }
+    while (c < pick.length) {
+      out.add(pick[c++]);
+    }
+    return out;
+  }
 }
 
 /// Aylık balık/yem önerisi satırı (yönetim panelinden)
@@ -230,13 +256,17 @@ class BaitRow {
   final String live;
   final String lure;
   final String search;
-  const BaitRow({required this.fish, required this.live, required this.lure, required this.search});
+  /// İsteğe bağlı: ürünler yalnızca bu kategoriden (ve alt kategorilerinden) gelsin
+  final int category;
+  const BaitRow(
+      {required this.fish, required this.live, required this.lure, required this.search, this.category = 0});
 
   factory BaitRow.fromJson(Map<String, dynamic> j) => BaitRow(
         fish: _s(j['balik']) ?? '',
         live: _s(j['canli']) ?? '',
         lure: _s(j['sahte']) ?? '',
         search: _s(j['ara']) ?? '',
+        category: _i(j['kategori']),
       );
 }
 
@@ -248,6 +278,9 @@ class RemoteConfig {
   final String phone;
   final int month;
   final List<BaitRow> bait;
+  final Ui ui;
+  /// Balıkçı düğümleri bölümü açık mı (panelden)
+  final bool knots;
 
   const RemoteConfig({
     this.announcement = '',
@@ -256,6 +289,8 @@ class RemoteConfig {
     this.phone = '+90 549 301 30 01',
     this.month = 0,
     this.bait = const [],
+    this.ui = const Ui(),
+    this.knots = true,
   });
 
   factory RemoteConfig.fromJson(Map<String, dynamic> j) => RemoteConfig(
@@ -269,6 +304,8 @@ class RemoteConfig {
         bait: ((j['yem'] as List?) ?? [])
             .map((e) => BaitRow.fromJson(e as Map<String, dynamic>))
             .toList(),
+        knots: j['dugum_acik'] != false,
+        ui: Ui.fromJson(j['tema'] is Map ? Map<String, dynamic>.from(j['tema'] as Map) : null),
       );
 }
 

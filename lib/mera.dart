@@ -175,49 +175,6 @@ void showMemberPrompt(BuildContext context, String what) {
   );
 }
 
-/// Deniz kartındaki sarı alan: yalnızca üyelere ve verisi olan meralarda görünür
-class MeraStat extends StatelessWidget {
-  final Spot spot;
-  const MeraStat({super.key, required this.spot});
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<bool>(
-      valueListenable: memberNotifier,
-      builder: (context, member, _) {
-        if (!member) return const SizedBox.shrink();
-        return FutureBuilder<MeraInfo?>(
-          future: MeraService.of(spot),
-          builder: (context, snap) {
-            final info = snap.data;
-            if (info == null) return const SizedBox.shrink();
-            return InkWell(
-              borderRadius: BorderRadius.circular(8),
-              onTap: () => showMeraSheet(context, spot, info),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFFFD54F)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text('Dip / derinlik', style: TextStyle(color: Color(0xFFFFD54F), fontSize: 11.5)),
-                    SizedBox(width: 3),
-                    Icon(Icons.chevron_right, color: Color(0xFFFFD54F), size: 14),
-                  ]),
-                  Text(info.summary,
-                      style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
-                ]),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
 void showMeraSheet(BuildContext context, Spot spot, MeraInfo info) {
   showModalBottomSheet(
     context: context,

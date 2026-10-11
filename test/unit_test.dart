@@ -1,10 +1,14 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kiyidanav/catches.dart';
 import 'package:kiyidanav/format.dart';
 import 'package:kiyidanav/models.dart';
 import 'package:kiyidanav/sea.dart';
+import 'package:kiyidanav/screens/knots_screen.dart';
 import 'package:kiyidanav/solunar.dart';
+import 'package:kiyidanav/ui.dart';
+import 'package:flutter/material.dart' show Color;
 
 // Aşağıdaki JSON'lar sunucudaki mobil-api.php'nin test veritabanında
 // ürettiği GERÇEK çıktılardır (sözleşme testi).
@@ -173,6 +177,89 @@ void main() {
     test('yağış verimliliği düşürür', () {
       final d = DateTime.utc(2026, 9, 26, 18);
       expect(FishingScore.compute(d, windKmh: 10, rainMm: 25), lessThan(FishingScore.compute(d, windKmh: 10, rainMm: 0)));
+    });
+  });
+
+  group('v1.6: panelden görünüm, kamp, düğüm, akıntı', () {
+    test('tema: boş gelirse varsayılan, gelen renk/boyut uygulanır, aralık dışı sınırlanır', () {
+      const d = Ui();
+      final u = Ui.fromJson({'yem_baslik_zemin': '#E65100', 'bolum_baslik_boyut': '99', 'mera_ses_acik': true, 'vurgu': 'bozuk'});
+      expect(u.yemBaslikZemin, const Color(0xFFE65100));
+      expect(u.bolumBaslikBoyut, 28);
+      expect(u.meraSesAcik, isTrue);
+      expect(u.vurgu, d.vurgu);
+      final c = RemoteConfig.fromJson(jsonDecode('{"ok":true,"tema":{"zemin":"#ffffff"},"dugum_acik":false}'));
+      expect(c.ui.zemin, const Color(0xFFFFFFFF));
+      expect(c.knots, isFalse);
+      expect(RemoteConfig.fromJson(jsonDecode('{"ok":true}')).knots, isTrue);
+    });
+    test('kamp satırları vitrinlerin arasına yerleşir', () {
+      HomeSection s(int id) => HomeSection(id: id, title: '$id', items: const []);
+      final h = HomeData(categories: const [], newArrivals: const [], sections: [s(1), s(2), s(3), s(4)]);
+      final camp = [HomeSection(id: 90, title: 'Çadır', items: const [], random: true), HomeSection(id: 91, title: 'Termos', items: const [], random: true)];
+      expect(h.mixed(camp).map((e) => e.id).toList(), [1, 90, 2, 3, 91, 4]);
+      expect(HomeData(categories: const [], newArrivals: const []).mixed(camp).length, 2);
+      final j = HomeData.fromJson(jsonDecode('{"categories":[],"new":[],"camp":[{"id":315,"title":"Çadırlar","random":true,"items":[{"id":1,"name":"Çadır","price":10}]},{"id":1,"title":"Boş","items":[]}]}'));
+      expect(j.camp.single.title, 'Çadırlar');
+      expect(j.camp.single.random, isTrue);
+    });
+    test('yem satırında kategori', () {
+      final r = BaitRow.fromJson({'balik': 'Çinekop', 'canli': '-', 'sahte': 'Kaşık', 'ara': 'kaşık', 'kategori': 405});
+      expect(r.category, 405);
+      expect(BaitRow.fromJson({'balik': 'L'}).category, 0);
+    });
+    test('düğüm çözümlenir, video kimliği doğrulanır', () {
+      final k = Knot.fromJson({'ad': 'Palomar', 'grup': 'İğne', 'kullanim': 'x', 'adimlar': ['a', '', 'b'], 'video': 'OITMtq9Jdgw', 'zorluk': 7});
+      expect(k.steps, ['a', 'b']);
+      expect(k.level, 3);
+      expect(k.videoUri.queryParameters['v'], 'OITMtq9Jdgw');
+      final bad = Knot.fromJson({'ad': 'X', 'video': 'javascript:alert(1)'});
+      expect(bad.video, isEmpty);
+      expect(bad.videoUri.host, 'www.youtube.com');
+    });
+    test('üç model uyumu', () {
+      final now = DateTime(2026, 10, 12, 10);
+      final times = List.generate(8, (i) => '2026-10-12T${(10 + i).toString().padLeft(2, '0')}:00');
+      final c = ModelConsensus.fromHourly({
+        'time': times,
+        'wind_speed_10m_icon_seamless': [10, 12, 11, 9, 8, 7, 30, 30],
+        'wind_speed_10m_gfs_seamless': [11, 13, 12, 10, 9, 8, 30, 30],
+        'wind_speed_10m_ecmwf_ifs025': [9, 10, 14, 10, 9, 8, 30, 30],
+      }, now: now)!;
+      expect(c.count, 3);
+      expect(c.windMax['ECMWF'], 14);
+      expect(c.level, 'Yüksek');
+      expect(ModelConsensus.fromHourly({'time': times}, now: now), isNull);
+    });
+    test('hafif akıntı verimliliği artırır, sert akıntı düşürür', () {
+      final d = DateTime.utc(2026, 10, 3, 12);
+      final base = FishingScore.compute(d, windKmh: 12);
+      expect(base, lessThan(95));
+      expect(FishingScore.compute(d, windKmh: 12, currentKmh: 1.0), greaterThan(base));
+      expect(FishingScore.compute(d, windKmh: 12, currentKmh: 4.0), lessThan(base));
+    });
+  });
+
+  group('av bildirimleri ve uydu', () {
+    test('av çözümlenir; en fazla 3 güvenli fotoğraf', () {
+      final c = CatchReport.fromJson(jsonDecode(
+          '{"id":"a1","mera":"Kartal","balik":"Lüfer","adet":3,"kg":1.25,"yem":"Maket","ad":"Fatih Y.","saat":"2026-10-12T06:30","fotolar":["https://kiyidanav.com/a.jpg","http://x/b.jpg","https://kiyidanav.com/c.jpg","https://kiyidanav.com/d.jpg","https://kiyidanav.com/e.jpg"]}'));
+      expect(c.photos.length, 3);
+      expect(c.photos.every((p) => p.startsWith('https://')), isTrue);
+      expect(c.amount, '3 adet · 1,3 kg');
+      expect(c.ago(DateTime(2026, 10, 12, 11, 30)), '5 saat önce');
+    });
+    test('uydu yorumu ve puana etkisi', () {
+      final s = SatInfo.fromJson(jsonDecode('{"ok":true,"sst":{"deger":18.4,"degisim5":-1.1},"klorofil":{"deger":2.7,"degisim_yuzde":22}}'));
+      expect(s.comment(10), contains('göçü'));
+      expect(s.comment(10), contains('Klorofil artıyor'));
+      expect(SatInfo.fromJson(jsonDecode('{"ok":true,"sst":null,"klorofil":null}')).isEmpty, isTrue);
+      final d = DateTime(2026, 10, 3, 12);
+      final base = FishingScore.compute(d, windKmh: 12);
+      expect(FishingScore.compute(d, windKmh: 12, recentCatches: 5), base + 9 > 98 ? 98 : base + 9);
+      expect(FishingScore.compute(d, windKmh: 12, sstChange5d: -1.0, chlChangePct: 20), greaterThan(base));
+      expect(FishingScore.compute(DateTime(2026, 6, 3, 12), windKmh: 12, sstChange5d: -1.0),
+          FishingScore.compute(DateTime(2026, 6, 3, 12), windKmh: 12));
     });
   });
 }

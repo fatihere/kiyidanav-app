@@ -141,6 +141,10 @@ class SeaReport {
   final double? rainNow;
   final double? rainDay;
   final bool strait;
+  /// Ek veriler: deniz akıntısı (km/s), dalga periyodu (sn), bulutluluk (%)
+  final double? currentKmh;
+  final double? wavePeriod;
+  final int? cloud;
 
   const SeaReport(
       {this.windKmh,
@@ -153,7 +157,10 @@ class SeaReport {
       this.pressure,
       this.rainNow,
       this.rainDay,
-      this.strait = false});
+      this.strait = false,
+      this.currentKmh,
+      this.wavePeriod,
+      this.cloud});
 
   /// Hamleleri de hesaba katan etkin rüzgâr (kıyıda atışı asıl zorlayan hamlelerdir)
   double get effectiveWind {
@@ -231,12 +238,49 @@ class DayForecast {
   }
 }
 
+/// Üç ayrı hava modelinin (ICON, GFS, ECMWF) önümüzdeki 6 saatlik rüzgâr tahmini.
+/// Modeller birbirine yakınsa tahmin güvenilirdir; açılıyorsa hava değişken demektir.
+class ModelConsensus {
+  final Map<String, double> windMax; // model adı → 6 saatteki en yüksek rüzgâr (km/s)
+  const ModelConsensus(this.windMax);
+
+  int get count => windMax.length;
+  double get mean => windMax.values.fold<double>(0, (a, b) => a + b) / (count == 0 ? 1 : count);
+  double get spread {
+    if (count < 2) return 0;
+    final v = windMax.values;
+    return v.reduce((a, b) => a > b ? a : b) - v.reduce((a, b) => a < b ? a : b);
+  }
+
+  /// "Yüksek" / "Orta" / "Düşük" güven
+  String get level {
+    if (count < 2) return '—';
+    final sp = spread;
+    if (sp <= 6 || sp <= mean * 0.25) return 'Yüksek';
+    if (sp <= 12) return 'Orta';
+    return 'Düşük';
+  }
+
+  static const models = {'icon_seamless': 'ICON', 'gfs_seamless': 'GFS', 'ecmwf_ifs025': 'ECMWF'};
+
+  static ModelConsensus? fromHourly(Map hourly, {DateTime? now}) {
+    final out = <String, double>{};
+    models.forEach((key, label) {
+      final v = SeaService.maxNextHours(hourly, 'wind_speed_10m_$key', 6, now: now);
+      if (v != null) out[label] = v;
+    });
+    return out.isEmpty ? null : ModelConsensus(out);
+  }
+}
+
 class SpotForecast {
   final Spot spot;
   final SeaReport now;
   final List<DayForecast> days;
   final double? pressureTrend; // önümüzdeki 6 saat (hPa)
-  const SpotForecast({required this.spot, required this.now, this.days = const [], this.pressureTrend});
+  final ModelConsensus? consensus;
+  const SpotForecast(
+      {required this.spot, required this.now, this.days = const [], this.pressureTrend, this.consensus});
 }
 
 class SeaService {
@@ -329,7 +373,8 @@ class SeaService {
     final wx = Uri.https('api.open-meteo.com', '/v1/forecast', {
       'latitude': '${s.lat}',
       'longitude': '${s.lon}',
-      'current': 'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,precipitation',
+      'current':
+          'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,precipitation,cloud_cover',
       'hourly': 'surface_pressure',
       'daily': 'wind_speed_10m_max,wind_gusts_10m_max,precipitation_sum,sunrise,sunset,temperature_2m_max,temperature_2m_min',
       'forecast_days': '7',
@@ -339,16 +384,32 @@ class SeaService {
     final mr = Uri.https('marine-api.open-meteo.com', '/v1/marine', {
       'latitude': '${s.lat}',
       'longitude': '${s.lon}',
-      'current': 'wave_height,sea_surface_temperature',
+      'current': 'wave_height,sea_surface_temperature,wave_period,ocean_current_velocity',
       'hourly': 'wave_height',
       'daily': 'wave_height_max',
       'forecast_days': '7',
       'timezone': 'Europe/Istanbul',
     });
+    // Üç modelin rüzgâr tahmini (karşılaştırma için; alınamazsa rapor yine çıkar)
+    final ens = Uri.https('api.open-meteo.com', '/v1/forecast', {
+      'latitude': '${s.lat}',
+      'longitude': '${s.lon}',
+      'hourly': 'wind_speed_10m',
+      'models': ModelConsensus.models.keys.join(','),
+      'forecast_days': '2',
+      'wind_speed_unit': 'kmh',
+      'timezone': 'Europe/Istanbul',
+    });
     final res = await Future.wait([
       http.get(wx).timeout(const Duration(seconds: 12)),
       http.get(mr).timeout(const Duration(seconds: 12)).catchError((_) => http.Response('{}', 200)),
+      http.get(ens).timeout(const Duration(seconds: 12)).catchError((_) => http.Response('{}', 200)),
     ]);
+    ModelConsensus? consensus;
+    try {
+      final e = jsonDecode(res[2].body);
+      if (e is Map && e['hourly'] is Map) consensus = ModelConsensus.fromHourly(e['hourly'] as Map);
+    } catch (_) {}
     final w = jsonDecode(res[0].body) as Map<String, dynamic>;
     Map<String, dynamic> m = {};
     try {
@@ -406,9 +467,13 @@ class SeaService {
         waveMax6h: s.strait ? null : maxNextHours((m['hourly'] ?? {}) as Map, 'wave_height', 6),
         seaC: _n(mc['sea_surface_temperature']),
         strait: s.strait,
+        currentKmh: _n(mc['ocean_current_velocity']),
+        wavePeriod: s.strait ? null : _n(mc['wave_period']),
+        cloud: _n(wc['cloud_cover'])?.round(),
       ),
       days: days,
       pressureTrend: trend,
+      consensus: consensus,
     );
   }
 }

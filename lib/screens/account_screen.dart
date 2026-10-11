@@ -9,6 +9,7 @@ import '../share.dart';
 import '../theme.dart';
 import '../web_page_screen.dart';
 import 'favorites_screen.dart';
+import 'knots_screen.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -84,6 +85,13 @@ class AccountScreen extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: 16),
+          if (Api.config.knots) ...[
+            _group([
+              _tile(Icons.gesture, 'Balıkçı düğümleri',
+                  () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const KnotsScreen()))),
+            ]),
+            const SizedBox(height: 16),
+          ],
           _group([
             _tile(Icons.chat_outlined, 'WhatsApp destek hattı', () {
               launchUrl(Uri.parse('https://wa.me/${AppConfig.whatsapp}'), mode: LaunchMode.externalApplication);

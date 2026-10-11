@@ -112,9 +112,16 @@ class Api {
         () => DemoData.products(category: category, sort: sort),
       );
 
-  static Future<PageResult> search(String q, {int page = 1}) => _withDemo(
-        () async => PageResult.fromJson(
-            await _get({'a': 'search', 'q': q, 'page': '$page'})),
+  /// [bait]: yem önerisinden gelen arama — sunucu tatlı su (alabalık vb.) ürünlerini eler.
+  /// [category]: verilirse sonuçlar yalnızca o kategori ve alt kategorilerinden gelir.
+  static Future<PageResult> search(String q, {int page = 1, bool bait = false, int category = 0}) => _withDemo(
+        () async => PageResult.fromJson(await _get({
+              'a': 'search',
+              'q': q,
+              'page': '$page',
+              if (bait) 'yem': '1',
+              if (category > 0) 'category': '$category',
+            })),
         () => DemoData.search(q),
       );
 

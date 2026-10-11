@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../api.dart';
@@ -9,6 +11,8 @@ import '../sea_card.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'category_screen.dart';
+import 'catch_screens.dart';
+import 'knots_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +24,22 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late Future<HomeData> _future;
   final _scroll = ScrollController();
+
+  /// Kamp satırları: her açılışta (ve yenilemede) rastgele 2 grup, ürünler karışık
+  List<HomeSection>? _campPick;
+  HomeData? _campFor;
+
+  List<HomeSection> _camp(HomeData d) {
+    if (identical(_campFor, d) && _campPick != null) return _campPick!;
+    final rnd = math.Random();
+    final groups = [...d.camp]..shuffle(rnd);
+    _campPick = groups.take(2).map((g) {
+      final items = [...g.items]..shuffle(rnd);
+      return HomeSection(id: g.id, title: g.title, items: items.take(12).toList(), random: true);
+    }).toList();
+    _campFor = d;
+    return _campPick!;
+  }
 
   @override
   void initState() {
@@ -95,17 +115,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   _title('Kategoriler'),
                   SliverToBoxAdapter(child: _CategoryGrid(data!.categories)),
                   const SliverToBoxAdapter(child: BaitCard(max: 4)),
-                  for (final s in data.sections) ...[
-                    _title(s.title, onMore: () {
-                      final c = data.categories.where((c) => c.id == s.id);
-                      Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => CategoryScreen(
-                              category: c.isNotEmpty ? c.first : Category(id: s.id, name: s.title))));
-                    }),
-                    SliverToBoxAdapter(child: ProductCarousel(s.items)),
-                  ],
+                  if (Api.config.knots) const SliverToBoxAdapter(child: KnotsEntry()),
+                  const SliverToBoxAdapter(child: RecentCatchesStrip()),
+                  for (final s in data.mixed(_camp(data)))
+                    SliverToBoxAdapter(
+                      child: HomeSectionBox(
+                        title: s.title,
+                        icon: s.random ? Icons.cabin_outlined : null,
+                        onMore: () {
+                          final c = data.categories.where((c) => c.id == s.id);
+                          Navigator.of(context).push(MaterialPageRoute(
+                              builder: (_) => CategoryScreen(
+                                  category: c.isNotEmpty ? c.first : Category(id: s.id, name: s.title))));
+                        },
+                        child: ProductCarousel(s.items),
+                      ),
+                    ),
                   if (data.newArrivals.isNotEmpty) ...[
-                    _title('Yeni gelen balıkçılık ürünleri'),
+                    const SliverToBoxAdapter(child: HomeSectionBox(title: 'Yeni gelen balıkçılık ürünleri')),
+                    const SliverToBoxAdapter(child: SizedBox(height: 12)),
                     ProductGrid(data.newArrivals),
                   ],
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),
@@ -196,9 +224,10 @@ class _MenuBarDelegate extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     // Yükseklik her durumda sabit olmalı: kategoriler yüklenmeden (açılışta / bağlantı yokken)
     // boş kutu 0 yükseklikte kalırsa Flutter'ın yerleşim kuralı bozulur.
+    final ui = Api.config.ui;
     return Container(
       height: maxExtent,
-      color: Tide.zeytin,
+      color: ui.menuZemin,
       child: cats.isEmpty
           ? const SizedBox.shrink()
           : ListView.builder(
@@ -212,8 +241,11 @@ class _MenuBarDelegate extends SliverPersistentHeaderDelegate {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Center(
                     child: Text(cats[i].name.toLocaleUpperCaseTr(),
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.3)),
+                        style: TextStyle(
+                            color: ui.menuYazi,
+                            fontSize: ui.menuYaziBoyut,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.3)),
                   ),
                 ),
               ),
@@ -296,6 +328,77 @@ class _CategoryGrid extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+/// Ana sayfa bölümü: çerçeveli kutu + dikkat çeken (ama bağırmayan) başlık şeridi.
+/// Renkler ve boyutlar yönetim panelinden (Görünüm) değiştirilebilir.
+class HomeSectionBox extends StatelessWidget {
+  final String title;
+  /// Boşsa yalnızca başlık şeridi çizilir (altındaki ızgara kutunun dışında kalır)
+  final Widget? child;
+  final VoidCallback? onMore;
+  final IconData? icon;
+  const HomeSectionBox({super.key, required this.title, this.child, this.onMore, this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = Api.config.ui;
+    final r = Radius.circular(ui.bolumKose);
+    return Container(
+      margin: EdgeInsets.fromLTRB(12, ui.bolumAralik, 12, 0),
+      decoration: BoxDecoration(
+        color: ui.bolumZemin,
+        borderRadius: BorderRadius.all(r),
+        border: Border.all(color: ui.bolumCerceve),
+        boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2))],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Container(
+          decoration: BoxDecoration(
+            color: ui.bolumBaslikZemin,
+            border: child == null ? null : Border(bottom: BorderSide(color: ui.bolumCerceve)),
+          ),
+          padding: const EdgeInsets.fromLTRB(0, 10, 4, 10),
+          child: Row(children: [
+            Container(
+              width: 5,
+              height: ui.bolumBaslikBoyut + 8,
+              decoration: BoxDecoration(
+                color: ui.bolumBaslikCizgi,
+                borderRadius: const BorderRadius.horizontal(right: Radius.circular(4)),
+              ),
+            ),
+            const SizedBox(width: 11),
+            if (icon != null) ...[
+              Icon(icon, size: ui.bolumBaslikBoyut + 2, color: ui.bolumBaslikCizgi),
+              const SizedBox(width: 6),
+            ],
+            Expanded(
+              child: Text(title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: ui.bolumBaslikBoyut,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.2,
+                      color: ui.bolumBaslikYazi)),
+            ),
+            if (onMore != null)
+              TextButton(
+                style: TextButton.styleFrom(foregroundColor: ui.vurgu, visualDensity: VisualDensity.compact),
+                onPressed: onMore,
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('Tümü', style: TextStyle(fontWeight: FontWeight.w700)),
+                  Icon(Icons.chevron_right, size: 18),
+                ]),
+              ),
+          ]),
+        ),
+        if (child != null) Padding(padding: const EdgeInsets.only(top: 12, bottom: 12), child: child),
+      ]),
     );
   }
 }

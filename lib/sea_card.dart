@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
 import 'app_state.dart';
-import 'mera.dart';
+import 'locate.dart';
 import 'sea.dart';
 import 'theme.dart';
 
@@ -243,7 +243,6 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                                 if (r.rainDay != null && r.rainDay! >= 1) _stat('Yağış', '${r.rainDay!.round()} mm'),
                                 if (r.seaC != null) _stat('Su', '${r.seaC!.round()}°'),
                                 if (r.airC != null) _stat('Hava', '${r.airC!.round()}°'),
-                                MeraStat(spot: cur!.spot),
                               ]),
                             ]),
                 ),
@@ -265,7 +264,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                     final hi = !f.now.strait && f.now.effectiveWave >= _threshold;
                     return InkWell(
                       borderRadius: BorderRadius.circular(10),
-                      onTap: () => saveSelectedSpot(f.spot),
+                      onTap: () => Locate.manualPick(f.spot),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(

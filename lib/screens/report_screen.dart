@@ -2,12 +2,18 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../app_state.dart';
+import '../ambience.dart';
+import '../api.dart';
 import '../bait_card.dart';
+import '../catches.dart';
+import 'catch_screens.dart';
+import '../locate.dart';
+import '../main.dart';
 import '../mera.dart';
 import '../sea.dart';
 import '../sea_card.dart';
 import '../share.dart';
+import '../app_state.dart';
 import '../solunar.dart';
 import '../theme.dart';
 
@@ -26,15 +32,54 @@ class ReportScreen extends StatefulWidget {
 
 class _ReportScreenState extends State<ReportScreen> {
   final _shotKey = GlobalKey();
-  Future<SpotForecast>? _future;
+  Future<_ReportData>? _future;
   String? _forSpot;
   bool _sharing = false;
+  SeaMood? _mood;
+
+  @override
+  void initState() {
+    super.initState();
+    shellTab.addListener(_onTab);
+    Ambience.on.addListener(_syncSound);
+    Ambience.load(defaultOn: Api.config.ui.meraSesAcik);
+  }
+
+  @override
+  void dispose() {
+    shellTab.removeListener(_onTab);
+    Ambience.on.removeListener(_syncSound);
+    Ambience.stop();
+    super.dispose();
+  }
+
+  bool get _visible => shellTab.value == Shell.tabReport;
+
+  void _onTab() => _syncSound();
+
+  /// Ses yalnızca bu sekme açıkken, kullanıcı açtıysa ve üye içeriği görünürken çalar
+  void _syncSound() {
+    final m = _mood;
+    if (_visible && m != null && Ambience.on.value && memberNotifier.value) {
+      Ambience.play(m, volume: Api.config.ui.meraSesSeviye);
+    } else {
+      Ambience.stop();
+    }
+  }
 
   void _ensure(Spot s) {
     if (_forSpot != s.name) {
       _forSpot = s.name;
-      _future = SeaService.fetchWeek(s);
+      _future = _load(s);
     }
+  }
+
+  /// Deniz/hava tahmini + bu meranın son avları + uydu verisi (ek veriler gecikirse rapor beklemez)
+  Future<_ReportData> _load(Spot s) async {
+    final sat = SatService.of(s.lat, s.lon).timeout(const Duration(seconds: 10), onTimeout: () => null);
+    final catches = CatchService.forSpot(s.name).timeout(const Duration(seconds: 8), onTimeout: () => const []);
+    final f = await SeaService.fetchWeek(s);
+    return _ReportData(f, await catches, await sat);
   }
 
   Future<void> _share(SpotForecast f, int score) async {
@@ -62,23 +107,19 @@ class _ReportScreenState extends State<ReportScreen> {
           appBar: AppBar(
             title: const Text('Günlük Mera Balık Bilgisi'),
             actions: [
-              PopupMenuButton<Spot>(
-                tooltip: 'Kıyı seç',
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: Tide.zeytinKoyu),
+                onPressed: () => showSpotPicker(context),
                 icon: const Icon(Icons.place_outlined),
-                onSelected: saveSelectedSpot,
-                itemBuilder: (_) => [
-                  for (final side in Side.values.where((e) => e.public || appState.isMember)) ...[
-                    PopupMenuItem(enabled: false, child: Text(side.label)),
-                    for (final s in spotsOf(side)) PopupMenuItem(value: s, child: Text('   ${s.name}')),
-                  ],
-                ],
+                label: const Text('Konum', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
+              const SizedBox(width: 4),
             ],
           ),
           body: MemberGate(
            child: Builder(builder: (context) {
             _ensure(spot);
-            return FutureBuilder<SpotForecast>(
+            return FutureBuilder<_ReportData>(
             future: _future,
             builder: (context, snap) {
               if (snap.connectionState != ConnectionState.done) {
@@ -92,21 +133,38 @@ class _ReportScreenState extends State<ReportScreen> {
                   ),
                 );
               }
-              final f = snap.data!;
+              final data = snap.data!;
+              final f = data.f;
               final now = DateTime.now();
               final today = f.days.isNotEmpty ? f.days.first : null;
               final score = FishingScore.compute(now,
-                  windKmh: f.now.effectiveWind, waveM: f.now.effectiveWave, pressureTrend: f.pressureTrend, rainMm: f.now.rainDay);
+                  windKmh: f.now.effectiveWind,
+                  waveM: f.now.effectiveWave,
+                  pressureTrend: f.pressureTrend,
+                  rainMm: f.now.rainDay,
+                  currentKmh: f.now.currentKmh,
+                  recentCatches: data.catches.length,
+                  sstChange5d: data.sat?.sstChange5d,
+                  chlChangePct: data.sat?.chlChangePct);
+              final mood = SeaMood.of(f.now, waveThreshold: Api.config.waveThreshold);
+              if (_mood != mood) {
+                _mood = mood;
+                WidgetsBinding.instance.addPostFrameCallback((_) => _syncSound());
+              }
               return ListView(
-                padding: const EdgeInsets.only(bottom: 32),
+                padding: const EdgeInsets.only(bottom: 32, top: 4),
                 children: [
+                  const LocationBar(),
                   RepaintBoundary(
                     key: _shotKey,
-                    child: _ReportCard(f: f, score: score, today: today, now: now),
+                    child: _ReportCard(
+                        f: f, score: score, today: today, now: now, mood: mood, sat: data.sat, catches: data.catches),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                    child: SizedBox(
+                    child: Row(children: [
+                      Expanded(
+                        child: SizedBox(
                       height: 50,
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
@@ -114,17 +172,39 @@ class _ReportScreenState extends State<ReportScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                         onPressed: _sharing ? null : () => _share(f, score),
                         icon: const Icon(Icons.ios_share),
-                        label: Text(_sharing ? 'Hazırlanıyor…' : 'Raporu paylaş (Instagram, WhatsApp, Facebook)'),
+                        label: Text(_sharing ? 'Hazırlanıyor…' : 'Raporu paylaş',
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
                       ),
-                    ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      ValueListenableBuilder<bool>(
+                        valueListenable: Ambience.on,
+                        builder: (_, on, __) => SizedBox(
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Tide.zeytinKoyu,
+                              side: BorderSide(color: on ? Tide.turuncu : const Color(0xFFD9D5C7)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            onPressed: Ambience.toggle,
+                            icon: Icon(on ? Icons.volume_up : Icons.volume_off,
+                                color: on ? Tide.turuncu : Tide.misina),
+                            label: Text(on ? mood.label : 'Ses'),
+                          ),
+                        ),
+                      ),
+                    ]),
                   ),
+                  SpotCatchesCard(spot: f.spot),
                   _MeraTile(spot: f.spot),
                   const BaitCard(),
                   const Padding(
                     padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Text(
-                      'Hava ve deniz verileri Open-Meteo modellerinden alınır. Av verimliliği; ay evresi, rüzgâr, '
-                      'dalga ve basınç eğiliminden hesaplanan bir tahmindir.',
+                      'Av verimliliği; ay evresi, rüzgâr, dalga, akıntı, basınç eğilimi, uydudan deniz suyu sıcaklığı ve '
+                      'klorofil ile üyelerin onaylı av bildirimlerinden hesaplanan bir tahmindir.',
                       style: TextStyle(fontSize: 12, color: Color(0xFF77766A)),
                     ),
                   ),
@@ -190,22 +270,39 @@ class _ReportCard extends StatelessWidget {
   final int score;
   final DayForecast? today;
   final DateTime now;
-  const _ReportCard({required this.f, required this.score, required this.today, required this.now});
+  final SeaMood mood;
+  final SatInfo? sat;
+  final List<CatchReport> catches;
+  const _ReportCard(
+      {required this.f,
+      required this.score,
+      required this.today,
+      required this.now,
+      required this.mood,
+      this.sat,
+      this.catches = const []});
 
   @override
   Widget build(BuildContext context) {
     final r = f.now;
     final trend = f.pressureTrend;
+    final dynamicBg = Api.config.ui.meraDinamikZemin;
+    final colors = dynamicBg ? mood.colors : fixedMoodColors;
+    final intensity = ((r.effectiveWind / 45) + (r.effectiveWave / 2) + ((r.rainNow ?? 0) / 3)).clamp(0.2, 1.0);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0xFF0B2530), Color(0xFF0E3B43), Color(0xFF123F3A)],
+          colors: colors,
         ),
       ),
+      child: Stack(children: [
+        if (dynamicBg) Positioned.fill(child: MoodOverlay(mood: mood, intensity: intensity.toDouble())),
+        Padding(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         // Başlık
@@ -246,7 +343,7 @@ class _ReportCard extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('AV VERİMLİLİĞİ',
-                  style: TextStyle(color: Color(0xFF8FB0AA), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+                  style: TextStyle(color: Color(0xFFCFE3E0), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               Row(children: [
                 SizedBox(width: 34, height: 34, child: CustomPaint(painter: MoonPainter(now))),
@@ -256,7 +353,7 @@ class _ReportCard extends StatelessWidget {
                     Text(Moon.phaseName(now),
                         style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
                     Text('%${(Moon.illumination(now) * 100).round()} aydınlık',
-                        style: const TextStyle(color: Color(0xFF9FC4BD), fontSize: 12)),
+                        style: const TextStyle(color: Color(0xFFD6E9E6), fontSize: 12)),
                   ]),
                 ),
               ]),
@@ -268,6 +365,17 @@ class _ReportCard extends StatelessWidget {
         const SizedBox(height: 16),
         Text(r.verdict,
             style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+        if ((sat?.comment(now.month) ?? '').isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Row(children: [
+            const Icon(Icons.satellite_alt_outlined, size: 15, color: Color(0xFFFFD54F)),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(sat!.comment(now.month),
+                  style: const TextStyle(color: Color(0xFFFFF3C4), fontSize: 12.5, fontWeight: FontWeight.w700)),
+            ),
+          ]),
+        ],
         const SizedBox(height: 12),
         // Hava / deniz ölçümleri
         Wrap(spacing: 10, runSpacing: 10, children: [
@@ -279,11 +387,26 @@ class _ReportCard extends StatelessWidget {
           _chip(Icons.thermostat, 'Su / Hava', '${r.seaC?.round() ?? '-'}° / ${r.airC?.round() ?? '-'}°'),
           _chip(Icons.speed, 'Basınç',
               r.pressure == null ? '—' : '${r.pressure!.round()} hPa ${trend == null ? '' : (trend < -0.8 ? '↘' : trend > 0.8 ? '↗' : '→')}'),
+          if (r.currentKmh != null) _chip(Icons.swap_horiz, 'Akıntı', '${r.currentKmh!.toStringAsFixed(1)} km/s'),
+          if (r.wavePeriod != null && r.wavePeriod! > 0)
+            _chip(Icons.timelapse, 'Dalga periyodu', '${r.wavePeriod!.toStringAsFixed(1)} sn'),
+          if (r.cloud != null) _chip(Icons.cloud_outlined, 'Bulut', '%${r.cloud}'),
+          if (sat?.sst != null)
+            _chip(Icons.satellite_alt_outlined, 'Uydu su sıcaklığı (5 gün)',
+                '${sat!.sst!.toStringAsFixed(1)}° ${sat!.sstChange5d == null ? '' : '(${sat!.sstChange5d! > 0 ? '+' : ''}${sat!.sstChange5d!.toStringAsFixed(1)}°)'}'),
+          if (sat?.chl != null)
+            _chip(Icons.grass_outlined, 'Klorofil (yem balığı)',
+                '${sat!.chl!.toStringAsFixed(1)} mg/m³ ${sat!.chlChangePct == null ? '' : '(${sat!.chlChangePct! > 0 ? '+' : ''}%${sat!.chlChangePct})'}'),
+          if (catches.isNotEmpty)
+            _chip(Icons.groups_outlined, 'Son 48 saat üye avı', '${catches.length} bildirim · ${catches.first.fish}'),
+          if (f.consensus != null && f.consensus!.count >= 2)
+            _chip(Icons.fact_check_outlined, 'Model uyumu (${f.consensus!.count} model)',
+                '${f.consensus!.level} · ort. ${f.consensus!.mean.round()} km/s'),
         ]),
         const SizedBox(height: 16),
         // En iyi saatler
         const Text('EN VERİMLİ SAATLER',
-            style: TextStyle(color: Color(0xFF8FB0AA), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+            style: TextStyle(color: Color(0xFFCFE3E0), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
         const SizedBox(height: 8),
         Row(children: [
           Expanded(child: _window('Sabah', today?.sunrise, Icons.wb_twilight)),
@@ -293,7 +416,7 @@ class _ReportCard extends StatelessWidget {
         const SizedBox(height: 16),
         // 7 günlük tablo
         const Text('7 GÜNLÜK TAHMİN',
-            style: TextStyle(color: Color(0xFF8FB0AA), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+            style: TextStyle(color: Color(0xFFCFE3E0), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         for (final d in f.days) _dayRow(d),
         const SizedBox(height: 12),
@@ -301,8 +424,10 @@ class _ReportCard extends StatelessWidget {
           Icon(Icons.phishing, color: Tide.turuncu, size: 16),
           SizedBox(width: 6),
           Text('KıyıdanAv · kiyidanav.com',
-              style: TextStyle(color: Color(0xFFBFD6D1), fontWeight: FontWeight.w700, fontSize: 12.5)),
+              style: TextStyle(color: Color(0xFFD7E6E3), fontWeight: FontWeight.w700, fontSize: 12.5)),
         ]),
+      ]),
+        ),
       ]),
     );
   }
@@ -311,10 +436,10 @@ class _ReportCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(color: const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(10)),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(i, color: const Color(0xFF9FC4BD), size: 16),
+          Icon(i, color: const Color(0xFFD6E9E6), size: 16),
           const SizedBox(width: 6),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(k, style: const TextStyle(color: Color(0xFF8FB0AA), fontSize: 10.5)),
+            Text(k, style: const TextStyle(color: Color(0xFFCFE3E0), fontSize: 10.5)),
             Text(v, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
           ]),
         ]),
@@ -358,7 +483,7 @@ class _ReportCard extends StatelessWidget {
         Expanded(
           child: Text(
             '${d.windMax?.round() ?? '-'}/${d.gustMax?.round() ?? '-'} km/s · ${d.waveMax == null ? '—' : '${d.waveMax!.toStringAsFixed(1)} m'}${(d.rainSum ?? 0) >= 1 ? ' · ${d.rainSum!.round()} mm' : ''}',
-            style: const TextStyle(color: Color(0xFF9FC4BD), fontSize: 12),
+            style: const TextStyle(color: Color(0xFFD6E9E6), fontSize: 12),
           ),
         ),
         Container(
@@ -463,4 +588,11 @@ class MoonPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(MoonPainter old) => old.t != t;
+}
+
+class _ReportData {
+  final SpotForecast f;
+  final List<CatchReport> catches;
+  final SatInfo? sat;
+  const _ReportData(this.f, this.catches, this.sat);
 }

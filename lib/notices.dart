@@ -72,14 +72,22 @@ class Notices {
   static final items = ValueNotifier<List<Notice>>(const []);
   static final unread = ValueNotifier<int>(0);
 
+  /// Bildirim sesi: olta makinesi kalama sesi (res/raw/kalama.ogg, iki kez çalar).
+  /// Android'de kanal sesi sonradan değiştirilemediği için yeni kanal açıldı; eski kanal silinir.
+  static const channelId = 'kiyidanav_kalama';
+  static const _oldChannelId = 'kiyidanav_duyuru';
+  static const _sound = RawResourceAndroidNotificationSound('kalama');
+
   static const _channel = AndroidNotificationDetails(
-    'kiyidanav_duyuru',
+    channelId,
     'Kampanyalar ve mera bilgisi',
     channelDescription: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri',
     importance: Importance.high,
     priority: Priority.high,
     icon: 'ic_stat_notify',
     color: Tide.turuncu,
+    sound: _sound,
+    playSound: true,
   );
 
   // ---------------- Sunucu ----------------
@@ -110,11 +118,16 @@ class Notices {
       await initPlugin(foreground: true);
       // Firebase bildirimleri de bu kanalı kullanır; önceden oluşturulmalı
       await _android?.createNotificationChannel(const AndroidNotificationChannel(
-        'kiyidanav_duyuru',
+        channelId,
         'Kampanyalar ve mera bilgisi',
         description: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri',
         importance: Importance.high,
+        sound: _sound,
+        playSound: true,
       ));
+      try {
+        await _android?.deleteNotificationChannel(channelId: _oldChannelId);
+      } catch (_) {}
       final launch = await plugin.getNotificationAppLaunchDetails();
       if (launch?.didNotificationLaunchApp ?? false) {
         final payload = launch?.notificationResponse?.payload;
@@ -422,6 +435,8 @@ class Notices {
             priority: Priority.high,
             icon: 'ic_stat_notify',
             color: Tide.turuncu,
+            sound: _sound,
+            playSound: true,
             styleInformation: style,
           );
     await plugin.show(
@@ -441,7 +456,11 @@ class Notices {
       final spot = match.isNotEmpty ? match.first : spots[5];
       final f = await SeaService.fetchWeek(spot);
       final score = FishingScore.compute(DateTime.now(),
-          windKmh: f.now.effectiveWind, waveM: f.now.effectiveWave, pressureTrend: f.pressureTrend, rainMm: f.now.rainDay);
+          windKmh: f.now.effectiveWind,
+          waveM: f.now.effectiveWave,
+          pressureTrend: f.pressureTrend,
+          rainMm: f.now.rainDay,
+          currentKmh: f.now.currentKmh);
       return '${spot.name}: av verimliliği %$score (${FishingScore.label(score)}) — ${f.now.verdict}';
     } catch (_) {
       return null;

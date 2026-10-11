@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'api.dart';
 import 'app_state.dart';
+import 'locate.dart';
 import 'notices.dart';
 import 'push.dart';
 import 'sea_card.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await appState.load();
   await loadSelectedSpot();
+  await Locate.loadPref();
   // Yönetim panelindeki ayarlar (en fazla birkaç saniye beklenir)
   await Api.loadConfig().timeout(const Duration(seconds: 4), onTimeout: () => Api.config);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -28,6 +30,7 @@ Future<void> main() async {
   Notices.enabled = true;
   runApp(const KiyidanAvApp());
   Notices.start().whenComplete(Push.start);
+  Locate.silentUpdate(); // izin daha önce verildiyse en yakın merayı seç
 }
 
 class KiyidanAvApp extends StatefulWidget {
@@ -84,7 +87,7 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
       title: 'KıyıdanAv',
       debugShowCheckedModeBanner: false,
       navigatorKey: navKey,
-      theme: Tide.theme(),
+      theme: Tide.theme(background: Api.config.ui.zemin, accent: Api.config.ui.vurgu),
       home: const Shell(),
     );
   }

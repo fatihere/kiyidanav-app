@@ -1,0 +1,668 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+
+import '../app_state.dart';
+import '../catches.dart';
+import '../config.dart';
+import '../mera.dart';
+import '../sea.dart';
+import '../theme.dart';
+
+/// Yaygın kıyı balıkları (hızlı seçim); listede yoksa elle yazılır
+const commonFish = [
+  'Lüfer', 'Palamut', 'Çinekop', 'Sarıkanat', 'İstavrit', 'Levrek', 'Çipura', 'Kefal',
+  'Mezgit', 'İzmarit', 'Karagöz', 'Sarpan', 'Kalamar', 'Barbunya', 'Zargana', 'Kolyoz',
+];
+
+/// Üyelik anahtarı: yoksa sitedeki oturumla (uygulama içi tarayıcı) doğrulanır.
+/// Üye değilse veya giriş yapılmamışsa null döner.
+Future<String?> ensureCatchToken(BuildContext context) async {
+  final t = await CatchService.token();
+  if (t != null) return t;
+  if (!context.mounted) return null;
+  return Navigator.of(context).push<String>(MaterialPageRoute(builder: (_) => const _MemberCheckScreen()));
+}
+
+/// Sitedeki oturumu okuyup anahtarı alan kısa ekran
+class _MemberCheckScreen extends StatefulWidget {
+  const _MemberCheckScreen();
+
+  @override
+  State<_MemberCheckScreen> createState() => _MemberCheckScreenState();
+}
+
+class _MemberCheckScreenState extends State<_MemberCheckScreen> {
+  late final WebViewController _web;
+  bool _needLogin = false;
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _web = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(Tide.zemin)
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (url) async {
+          if (_done || !url.contains('mobil-av.php')) return;
+          try {
+            final r = await _web.runJavaScriptReturningResult(
+                "(document.getElementById('t')||{}).textContent||''");
+            var t = '$r';
+            if (t.startsWith('"')) t = jsonDecode(t) as String; // Android sonucu tırnaklı döndürür
+            t = t.trim();
+            if (!mounted) return;
+            if (t.contains('.')) {
+              _done = true;
+              await CatchService.saveToken(t);
+              await appState.setMember(true);
+              if (mounted) Navigator.of(context).pop(t);
+            } else {
+              setState(() => _needLogin = true);
+            }
+          } catch (_) {
+            if (mounted) setState(() => _needLogin = true);
+          }
+        },
+        onNavigationRequest: (r) {
+          final u = Uri.tryParse(r.url);
+          return (u != null && u.scheme == 'https' && u.host.endsWith(AppConfig.siteHost))
+              ? NavigationDecision.navigate
+              : NavigationDecision.prevent;
+        },
+      ))
+      ..loadRequest(Uri.parse('${AppConfig.siteUrl}${CatchService.sessionPath}'));
+  }
+
+  Future<void> _retry() async {
+    setState(() => _needLogin = false);
+    await _web.loadRequest(Uri.parse('${AppConfig.siteUrl}${CatchService.sessionPath}'));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Üyelik doğrulanıyor')),
+      body: Stack(children: [
+        Opacity(opacity: 0.01, child: WebViewWidget(controller: _web)),
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: _needLogin
+                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.lock_outline, size: 44, color: Tide.turuncu),
+                    const SizedBox(height: 12),
+                    const Text('Av bildirmek için üye girişi yapmalısın.',
+                        textAlign: TextAlign.center, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 16),
+                    FilledButton(
+                      style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
+                      onPressed: () async {
+                        openLogin(context);
+                      },
+                      child: const Text('Giriş yap / Üye ol'),
+                    ),
+                    TextButton(onPressed: _retry, child: const Text('Giriş yaptım, tekrar dene')),
+                  ])
+                : const Column(mainAxisSize: MainAxisSize.min, children: [
+                    CircularProgressIndicator(color: Tide.zeytin),
+                    SizedBox(height: 14),
+                    Text('Üyeliğin kontrol ediliyor…'),
+                  ]),
+          ),
+        ),
+      ]),
+    );
+  }
+}
+
+/// "Av bildir" formu
+class CatchFormScreen extends StatefulWidget {
+  final Spot spot;
+  final String token;
+  const CatchFormScreen({super.key, required this.spot, required this.token});
+
+  /// Üye kontrolü yapıp formu açar
+  static Future<void> open(BuildContext context, Spot spot) async {
+    if (!appState.isMember) {
+      showMemberPrompt(context, 'Av bildirmek');
+      return;
+    }
+    final t = await ensureCatchToken(context);
+    if (t == null || !context.mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CatchFormScreen(spot: spot, token: t)));
+  }
+
+  @override
+  State<CatchFormScreen> createState() => _CatchFormScreenState();
+}
+
+class _CatchFormScreenState extends State<CatchFormScreen> {
+  late Spot _spot = widget.spot;
+  final _fish = TextEditingController();
+  final _count = TextEditingController();
+  final _kg = TextEditingController();
+  final _bait = TextEditingController();
+  final _note = TextEditingController();
+  final List<XFile> _photos = [];
+  DateTime _time = DateTime.now();
+  bool _sending = false;
+
+  static const maxPhotos = 3;
+
+  @override
+  void dispose() {
+    for (final c in [_fish, _count, _kg, _bait, _note]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _addPhoto(ImageSource src) async {
+    final left = maxPhotos - _photos.length;
+    if (left <= 0) return;
+    final picker = ImagePicker();
+    try {
+      if (src == ImageSource.camera) {
+        final x = await picker.pickImage(source: src, maxWidth: 1800, imageQuality: 85);
+        if (x != null) setState(() => _photos.add(x));
+      } else {
+        final xs = await picker.pickMultiImage(maxWidth: 1800, imageQuality: 85, limit: left > 1 ? left : null);
+        if (xs.isNotEmpty) setState(() => _photos.addAll(xs.take(left)));
+      }
+    } catch (_) {
+      _say('Fotoğraf seçilemedi.');
+    }
+  }
+
+  void _say(String m) {
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  Future<void> _pickTime() async {
+    final now = DateTime.now();
+    final d = await showDatePicker(
+        context: context, initialDate: _time, firstDate: now.subtract(const Duration(days: 2)), lastDate: now);
+    if (d == null || !mounted) return;
+    final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_time));
+    if (t == null) return;
+    final v = DateTime(d.year, d.month, d.day, t.hour, t.minute);
+    setState(() => _time = v.isAfter(now) ? now : v);
+  }
+
+  Future<void> _send() async {
+    final fish = _fish.text.trim();
+    if (fish.isEmpty) {
+      _say('Balık türünü seç veya yaz.');
+      return;
+    }
+    setState(() => _sending = true);
+    final (err, login, msg) = await CatchService.submit(
+      token: widget.token,
+      spot: _spot.name,
+      fish: fish,
+      count: int.tryParse(_count.text.trim()) ?? 0,
+      kg: double.tryParse(_kg.text.trim().replaceAll(',', '.')) ?? 0,
+      bait: _bait.text.trim(),
+      note: _note.text.trim(),
+      time: _time,
+      photoPaths: _photos.map((p) => p.path).toList(),
+    );
+    if (!mounted) return;
+    setState(() => _sending = false);
+    if (err != null) {
+      _say(err);
+      if (login) Navigator.of(context).pop();
+      return;
+    }
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.check_circle, color: Color(0xFF1F8B4C), size: 40),
+        title: const Text('Teşekkürler!'),
+        content: Text(msg ?? 'Av bildirimin alındı.'),
+        actions: [FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Tamam'))],
+      ),
+    );
+    if (mounted) Navigator.of(context).pop(true);
+  }
+
+  String _two(int v) => v.toString().padLeft(2, '0');
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Av bildir')),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+        children: [
+          const Text('Avın yönetici onayından sonra 48 saat boyunca meranın kartında görünür ve diğer balıkçılara yol gösterir.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF6D6C60))),
+          const SizedBox(height: 14),
+          _label('Mera'),
+          DropdownButtonFormField<String>(
+            initialValue: _spot.name,
+            isExpanded: true,
+            decoration: _dec(),
+            items: [
+              for (final side in Side.values.where((s) => s.public || appState.isMember))
+                for (final s in spotsOf(side))
+                  DropdownMenuItem(value: s.name, child: Text('${s.name} · ${side.label}', overflow: TextOverflow.ellipsis)),
+            ],
+            onChanged: (v) {
+              final m = spots.where((s) => s.name == v);
+              if (m.isNotEmpty) setState(() => _spot = m.first);
+            },
+          ),
+          _label('Balık'),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final f in commonFish)
+              ChoiceChip(
+                label: Text(f),
+                selected: _fish.text == f,
+                selectedColor: Tide.somon,
+                onSelected: (_) => setState(() => _fish.text = f),
+              ),
+          ]),
+          const SizedBox(height: 8),
+          TextField(controller: _fish, maxLength: 40, decoration: _dec(hint: 'Listede yoksa yaz'), onChanged: (_) => setState(() {})),
+          Row(children: [
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _label('Adet'),
+                TextField(controller: _count, keyboardType: TextInputType.number, decoration: _dec(hint: 'Örn. 3')),
+              ]),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                _label('Toplam kg (isteğe bağlı)'),
+                TextField(
+                    controller: _kg,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: _dec(hint: 'Örn. 1,5')),
+              ]),
+            ),
+          ]),
+          _label('Yem / teknik'),
+          TextField(controller: _bait, maxLength: 80, decoration: _dec(hint: 'Örn. maket balık, LRF silikon, çapari')),
+          _label('Av saati'),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(foregroundColor: Tide.zeytinKoyu, alignment: Alignment.centerLeft),
+            onPressed: _pickTime,
+            icon: const Icon(Icons.schedule),
+            label: Text('${_two(_time.day)}.${_two(_time.month)} · ${_two(_time.hour)}:${_two(_time.minute)}'),
+          ),
+          _label('Not (isteğe bağlı)'),
+          TextField(controller: _note, maxLength: 300, maxLines: 3, decoration: _dec(hint: 'Hava, akıntı, saat… kısa bir not')),
+          _label('Fotoğraflar (en fazla $maxPhotos)'),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (var i = 0; i < _photos.length; i++)
+              Stack(children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(File(_photos[i].path), width: 96, height: 96, fit: BoxFit.cover),
+                ),
+                Positioned(
+                  right: 2,
+                  top: 2,
+                  child: InkWell(
+                    onTap: () => setState(() => _photos.removeAt(i)),
+                    child: const CircleAvatar(radius: 12, backgroundColor: Colors.black54, child: Icon(Icons.close, size: 15, color: Colors.white)),
+                  ),
+                ),
+              ]),
+            if (_photos.length < maxPhotos) ...[
+              _photoButton(Icons.photo_camera_outlined, 'Kamera', () => _addPhoto(ImageSource.camera)),
+              _photoButton(Icons.photo_library_outlined, 'Galeri', () => _addPhoto(ImageSource.gallery)),
+            ],
+          ]),
+          const SizedBox(height: 6),
+          const Text('Fotoğraflardaki konum bilgisi sunucuda silinir. Yüz ve plaka içeren fotoğraf göndermemeni öneririz.',
+              style: TextStyle(fontSize: 12, color: Color(0xFF77766A))),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 52,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                  backgroundColor: Tide.turuncu, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              onPressed: _sending ? null : _send,
+              icon: _sending
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send),
+              label: Text(_sending ? 'Gönderiliyor…' : 'Onaya gönder'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _photoButton(IconData icon, String text, VoidCallback onTap) => InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          width: 96,
+          height: 96,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFD9D5C7)),
+            color: Colors.white,
+          ),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(icon, color: Tide.zeytinKoyu),
+            const SizedBox(height: 4),
+            Text(text, style: const TextStyle(fontSize: 12.5)),
+          ]),
+        ),
+      );
+
+  Widget _label(String t) => Padding(
+        padding: const EdgeInsets.only(top: 12, bottom: 6),
+        child: Text(t, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+      );
+
+  InputDecoration _dec({String? hint}) => InputDecoration(
+        hintText: hint,
+        isDense: true,
+        filled: true,
+        fillColor: Colors.white,
+        counterText: '',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      );
+}
+
+/// Mera Bilgisi'ndeki "Bu merada son avlar" kartı + "Av bildir" düğmesi
+class SpotCatchesCard extends StatefulWidget {
+  final Spot spot;
+  const SpotCatchesCard({super.key, required this.spot});
+
+  @override
+  State<SpotCatchesCard> createState() => _SpotCatchesCardState();
+}
+
+class _SpotCatchesCardState extends State<SpotCatchesCard> {
+  late Future<List<CatchReport>> _f = CatchService.forSpot(widget.spot.name);
+
+  @override
+  void didUpdateWidget(SpotCatchesCard old) {
+    super.didUpdateWidget(old);
+    if (old.spot.name != widget.spot.name) _f = CatchService.forSpot(widget.spot.name);
+  }
+
+  Future<void> _report() async {
+    await CatchFormScreen.open(context, widget.spot);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE6E2D6)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: FutureBuilder<List<CatchReport>>(
+        future: _f,
+        builder: (context, snap) {
+          final list = snap.data ?? const <CatchReport>[];
+          return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              const Icon(Icons.set_meal, color: Tide.turuncu),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(list.isEmpty ? 'Bu merada son 48 saatte bildirilen av yok' : 'Bu merada son avlar',
+                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+              ),
+              if (list.isNotEmpty)
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: Tide.turuncu),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CatchesFeedScreen())),
+                  child: const Text('Tümü'),
+                ),
+            ]),
+            for (final c in list.take(3)) CatchTile(c),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Tide.zeytinKoyu,
+                side: const BorderSide(color: Tide.turuncu),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: _report,
+              icon: const Icon(Icons.add_a_photo_outlined),
+              label: Text('Av bildir (${widget.spot.name})'),
+            ),
+          ]);
+        },
+      ),
+    );
+  }
+}
+
+/// Tek bir av satırı (fotoğraf küçük resmi + bilgiler)
+class CatchTile extends StatelessWidget {
+  final CatchReport c;
+  final bool showSpot;
+  const CatchTile(this.c, {super.key, this.showSpot = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => showCatchSheet(context, c),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 58,
+              height: 58,
+              child: c.photos.isNotEmpty
+                  ? Image.network(c.photos.first, fit: BoxFit.cover, errorBuilder: (_, __, ___) => _ph())
+                  : _ph(),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${c.fish}${c.amount.isNotEmpty ? ' · ${c.amount}' : ''}',
+                  style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
+              Text([if (showSpot) c.spot, if (c.bait.isNotEmpty) c.bait].join(' · '),
+                  maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12.5)),
+              Text('${c.name} · ${c.ago()}', style: const TextStyle(fontSize: 12, color: Tide.misina)),
+            ]),
+          ),
+          if (c.photos.length > 1)
+            Text('+${c.photos.length - 1} foto', style: const TextStyle(fontSize: 11.5, color: Tide.misina)),
+        ]),
+      ),
+    );
+  }
+
+  Widget _ph() => Container(
+      color: const Color(0xFFF1EFE6), child: const Icon(Icons.set_meal, color: Tide.misina));
+}
+
+void showCatchSheet(BuildContext context, CatchReport c) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (ctx) => SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('${c.fish} · ${c.spot}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text([if (c.amount.isNotEmpty) c.amount, c.name, c.ago()].join(' · '),
+              style: const TextStyle(color: Color(0xFF6D6C60))),
+          if (c.photos.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 220,
+              child: PageView(children: [
+                for (final p in c.photos)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: InteractiveViewer(child: Image.network(p, fit: BoxFit.cover))),
+                  ),
+              ]),
+            ),
+          ],
+          if (c.bait.isNotEmpty) ...[const SizedBox(height: 12), Text('Yem / teknik: ${c.bait}')],
+          if (c.note.isNotEmpty) ...[const SizedBox(height: 6), Text(c.note)],
+        ]),
+      ),
+    ),
+  );
+}
+
+/// Tüm meralardaki son avlar
+class CatchesFeedScreen extends StatefulWidget {
+  const CatchesFeedScreen({super.key});
+
+  @override
+  State<CatchesFeedScreen> createState() => _CatchesFeedScreenState();
+}
+
+class _CatchesFeedScreenState extends State<CatchesFeedScreen> {
+  late Future<List<CatchReport>> _f = CatchService.recent(force: true);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Son 48 saatin avları')),
+      body: RefreshIndicator(
+        color: Tide.turuncu,
+        onRefresh: () async {
+          setState(() => _f = CatchService.recent(force: true));
+          await _f.catchError((_) => const <CatchReport>[]);
+        },
+        child: FutureBuilder<List<CatchReport>>(
+          future: _f,
+          builder: (context, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator(color: Tide.zeytin));
+            }
+            final list = snap.data ?? const <CatchReport>[];
+            if (list.isEmpty) {
+              return ListView(children: const [
+                Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text('Son 48 saatte onaylanmış av bildirimi yok. İlk bildiren sen ol!', textAlign: TextAlign.center),
+                ),
+              ]);
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (_, i) => CatchTile(list[i], showSpot: true),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+/// Keşfet'te: son 48 saatin onaylı avlarından yatay şerit (av yoksa görünmez)
+class RecentCatchesStrip extends StatefulWidget {
+  const RecentCatchesStrip({super.key});
+
+  @override
+  State<RecentCatchesStrip> createState() => _RecentCatchesStripState();
+}
+
+class _RecentCatchesStripState extends State<RecentCatchesStrip> {
+  late final Future<List<CatchReport>> _f = CatchService.recent();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<CatchReport>>(
+      future: _f,
+      builder: (context, snap) {
+        final list = snap.data ?? const <CatchReport>[];
+        if (list.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 8, 6),
+              child: Row(children: [
+                const Icon(Icons.groups_outlined, color: Tide.turuncu, size: 20),
+                const SizedBox(width: 6),
+                const Expanded(
+                    child: Text('Balıkçılarımızın son avları', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
+                TextButton(
+                  style: TextButton.styleFrom(foregroundColor: Tide.turuncu),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CatchesFeedScreen())),
+                  child: const Text('Tümü'),
+                ),
+              ]),
+            ),
+            SizedBox(
+              height: 150,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: list.length > 12 ? 12 : list.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 10),
+                itemBuilder: (_, i) {
+                  final c = list[i];
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => showCatchSheet(context, c),
+                    child: Container(
+                      width: 130,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE6E2D6)),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        SizedBox(
+                          height: 84,
+                          width: double.infinity,
+                          child: c.photos.isNotEmpty
+                              ? Image.network(c.photos.first,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Container(color: const Color(0xFFF1EFE6)))
+                              : Container(
+                                  color: const Color(0xFFF1EFE6),
+                                  child: const Icon(Icons.set_meal, color: Tide.misina, size: 32)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+                          child: Text(c.fish,
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text('${c.spot} · ${c.ago()}',
+                              maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: Tide.misina)),
+                        ),
+                      ]),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ]),
+        );
+      },
+    );
+  }
+}
