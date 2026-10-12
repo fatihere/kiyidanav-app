@@ -7,6 +7,7 @@ import '../api.dart';
 import '../bait_card.dart';
 import '../catches.dart';
 import 'catch_screens.dart';
+import 'freshwater_screen.dart';
 import 'knots_screen.dart';
 import '../locate.dart';
 import '../main.dart';
@@ -216,6 +217,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   if (Api.config.features.catchList || Api.config.features.catchSubmit) SpotCatchesCard(spot: f.spot),
                   _MeraTile(spot: f.spot),
                   if (Api.config.features.baitCard) const BaitCard(),
+                  if (Api.config.features.freshwater) const FreshwaterEntry(),
                   if (Api.config.knots) const KnotsEntry(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),

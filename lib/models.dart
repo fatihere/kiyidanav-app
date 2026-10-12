@@ -297,6 +297,7 @@ class Features {
   bool get baitCard => _on('yem_karti');
   bool get camp => _on('kamp');
   bool get knots => _on('dugum');
+  bool get freshwater => _on('tatli_su');
   bool get notificationSound => _on('bildirim_sesi');
   bool get homeWidget => _on('widget');
 }

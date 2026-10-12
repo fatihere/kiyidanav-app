@@ -1,0 +1,1672 @@
+{
+ "surum": 1,
+ "not": "Alan ve derinlik değerleri yaklaşıktır; su seviyesine göre değişir. Avlanmadan önce güncel amatör balıkçılık tebliğini ve il/ilçe yasaklarını kontrol edin.",
+ "yerler": [
+  {
+   "id": "sapanca",
+   "ad": "Sapanca Gölü",
+   "tur": "Doğal göl",
+   "il": "Sakarya",
+   "ilce": "Sapanca, Serdivan",
+   "lat": 40.717,
+   "lon": 30.298,
+   "alan": "~47 km²",
+   "derinlik": "Ort. ~30 m, en derin ~52 m",
+   "cevre": "Ormanlık",
+   "cevreNot": "Güney kıyısı Samanlı Dağları'nın ormanlık yamaçları; kuzey kıyısı yerleşim ve tesis.",
+   "ulasim": "TEM ya da D-100 Sapanca çıkışı; göl çevresi asfalt yolla dolaşılır.",
+   "kamp": "Çevrede çok sayıda otel, bungalov ve özel kamp alanı; günübirlik piknik alanları var.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "kizilkanat",
+    "akbalik",
+    "yayin"
+   ],
+   "not": "Sazan için sonbahar akşamları dip avı; turna için sazlık kenarlarında spin.",
+   "uyari": "Adapazarı ve İzmit'in içme suyu kaynağı: bazı kıyılarda avlanma ve araç girişi yasak. Tabelalara uyun.",
+   "yasak": false
+  },
+  {
+   "id": "iznik",
+   "ad": "İznik Gölü",
+   "tur": "Doğal göl",
+   "il": "Bursa",
+   "ilce": "İznik, Orhangazi",
+   "lat": 40.44,
+   "lon": 29.52,
+   "alan": "~298 km²",
+   "derinlik": "En derin ~80 m",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Kıyılar zeytinlik ve tarım arazisi; kuzey ve güneydeki dağ yamaçları ormanlık.",
+   "ulasim": "İstanbul–İzmir Otoyolu Orhangazi çıkışı; gölün çevresi asfalt.",
+   "kamp": "Kıyı boyunca kamp alanları ve pansiyonlar (İznik, Sölöz, Boyalıca çevresi).",
+   "baliklar": [
+    "sazan",
+    "yayin",
+    "kizilkanat",
+    "akbalik"
+   ],
+   "not": "Sığ kuzey kıyısında feeder; derin güney kıyısında sabah ve akşam.",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "ulubat",
+   "ad": "Ulubat (Uluabat) Gölü",
+   "tur": "Doğal göl",
+   "il": "Bursa",
+   "ilce": "Nilüfer, Karacabey, Mustafakemalpaşa",
+   "lat": 40.17,
+   "lon": 28.58,
+   "alan": "~136 km²",
+   "derinlik": "Sığ: ortalama ~2,5 m",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Sazlık ve tarım alanı; ağaçlık değil. Gölyazı yarımadası gölün içine uzanır.",
+   "ulasim": "Bursa–Karacabey yolundan Gölyazı sapağı; asfalt.",
+   "kamp": "Gölyazı'da pansiyonlar; resmi kamp alanı sınırlı.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "sudak",
+    "yayin",
+    "kizilkanat"
+   ],
+   "not": "Turna ve sudak için sonbahar; sazlık ağızlarında kaşık ve silikon.",
+   "uyari": "Ramsar alanı: üreme döneminde av yasaklarına ve koruma bölgelerine dikkat edin.",
+   "yasak": false
+  },
+  {
+   "id": "kus",
+   "ad": "Kuş (Manyas) Gölü",
+   "tur": "Doğal göl",
+   "il": "Balıkesir",
+   "ilce": "Bandırma, Manyas",
+   "lat": 40.19,
+   "lon": 27.96,
+   "alan": "~166 km²",
+   "derinlik": "Sığ: en derin ~5 m",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Sazlık ve tarım alanları; ağaçlık değil.",
+   "ulasim": "Bandırma–Balıkesir yolundan Kuşcenneti yönü; asfalt.",
+   "kamp": "Bandırma ve Manyas'ta konaklama; kıyıda kamp sınırlı.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "sudak",
+    "yayin",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "Kuşcenneti Milli Parkı sınırları içinde avlanma yasaktır; park dışındaki kıyılarda il kurallarına uyun.",
+   "yasak": false
+  },
+  {
+   "id": "kucukcekmece",
+   "ad": "Küçükçekmece Gölü",
+   "tur": "Lagün",
+   "il": "İstanbul",
+   "ilce": "Küçükçekmece, Avcılar",
+   "lat": 41.01,
+   "lon": 28.74,
+   "alan": "~16 km²",
+   "derinlik": "En derin ~20 m",
+   "cevre": "Açık arazi",
+   "cevreNot": "Kentsel çevre; kıyıda yürüyüş yolu.",
+   "ulasim": "D-100 (E-5) Avcılar – Küçükçekmece; toplu taşımayla da ulaşılır.",
+   "kamp": "Kamp yok; şehir içi konaklama.",
+   "baliklar": [
+    "kefal",
+    "levrek",
+    "sazan"
+   ],
+   "not": "Kanal ağzında (Menekşe) levrek ve kefal.",
+   "uyari": "Su kalitesi değişken: yakalanan balığı tüketirken dikkatli olun.",
+   "yasak": false
+  },
+  {
+   "id": "terkos",
+   "ad": "Terkos (Durusu) Gölü",
+   "tur": "Doğal göl",
+   "il": "İstanbul",
+   "ilce": "Arnavutköy, Çatalca",
+   "lat": 41.342,
+   "lon": 28.56,
+   "alan": "~25 km²",
+   "derinlik": "En derin ~11 m",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Kuzeyi kum tepeleri ve Karadeniz kıyısı; güneyi orman ve tarım.",
+   "ulasim": "Arnavutköy – Durusu yolu; asfalt.",
+   "kamp": "Durusu köyünde günübirlik tesisler.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "İSKİ içme suyu havzası: baraj gölünde ve kıyı koruma alanında balık avı yasaktır. Bilgi amaçlı listelenmiştir.",
+   "yasak": true
+  },
+  {
+   "id": "buyukcekmece",
+   "ad": "Büyükçekmece Barajı",
+   "tur": "Baraj gölü",
+   "il": "İstanbul",
+   "ilce": "Büyükçekmece, Çatalca",
+   "lat": 41.06,
+   "lon": 28.57,
+   "alan": "~29 km²",
+   "derinlik": "",
+   "cevre": "Açık arazi",
+   "cevreNot": "Tarım alanı ve kentsel çevre.",
+   "ulasim": "TEM / D-100 Büyükçekmece çıkışları.",
+   "kamp": "Kamp yok.",
+   "baliklar": [
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "İSKİ içme suyu havzası: baraj gölünde ve kıyı koruma alanında balık avı yasaktır. Bilgi amaçlı listelenmiştir.",
+   "yasak": true
+  },
+  {
+   "id": "omerli",
+   "ad": "Ömerli Barajı",
+   "tur": "Baraj gölü",
+   "il": "İstanbul",
+   "ilce": "Çekmeköy, Pendik, Sancaktepe",
+   "lat": 41.04,
+   "lon": 29.36,
+   "alan": "~23 km²",
+   "derinlik": "",
+   "cevre": "Ormanlık",
+   "cevreNot": "Çevresi orman ve koruma alanı.",
+   "ulasim": "Şile yolu üzerinden.",
+   "kamp": "Kamp yok.",
+   "baliklar": [
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "İSKİ içme suyu havzası: baraj gölünde ve kıyı koruma alanında balık avı yasaktır. Bilgi amaçlı listelenmiştir.",
+   "yasak": true
+  },
+  {
+   "id": "alibey",
+   "ad": "Alibey Barajı",
+   "tur": "Baraj gölü",
+   "il": "İstanbul",
+   "ilce": "Eyüpsultan, Sultangazi",
+   "lat": 41.12,
+   "lon": 28.92,
+   "alan": "~4,7 km²",
+   "derinlik": "",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Kentsel çevre ve orman.",
+   "ulasim": "Kemerburgaz yolu.",
+   "kamp": "Kamp yok.",
+   "baliklar": [
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "İSKİ içme suyu havzası: baraj gölünde ve kıyı koruma alanında balık avı yasaktır. Bilgi amaçlı listelenmiştir.",
+   "yasak": true
+  },
+  {
+   "id": "gala",
+   "ad": "Gala Gölü",
+   "tur": "Doğal göl",
+   "il": "Edirne",
+   "ilce": "Enez",
+   "lat": 40.77,
+   "lon": 26.18,
+   "alan": "~5,6 km² (sulak alanla daha geniş)",
+   "derinlik": "Sığ: ~1–3 m",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Meriç deltasında sazlık ve subasar ormanı; çevresi çeltik tarlaları.",
+   "ulasim": "Keşan – Enez yolu; asfalt, son kısım toprak yol.",
+   "kamp": "Enez'de pansiyon ve sahil kampları.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "kadife",
+    "yayin"
+   ],
+   "not": "Turna için sonbahar sabahları.",
+   "uyari": "Gala Gölü Milli Parkı: av kurallarına ve yasak alanlara uyun.",
+   "yasak": false
+  },
+  {
+   "id": "poyrazlar",
+   "ad": "Poyrazlar Gölü",
+   "tur": "Doğal göl",
+   "il": "Sakarya",
+   "ilce": "Adapazarı",
+   "lat": 40.84,
+   "lon": 30.47,
+   "alan": "~0,8 km²",
+   "derinlik": "Sığ",
+   "cevre": "Ormanlık",
+   "cevreNot": "Subasar ormanıyla çevrili tabiat parkı.",
+   "ulasim": "Adapazarı merkezden ~10 km; asfalt.",
+   "kamp": "Günübirlik tabiat parkı; konaklama Adapazarı'nda.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "kadife"
+   ],
+   "not": "",
+   "uyari": "Tabiat parkı: avlanma kurallarını park yönetiminden öğrenin.",
+   "yasak": false
+  },
+  {
+   "id": "efteni",
+   "ad": "Efteni Gölü",
+   "tur": "Doğal göl",
+   "il": "Düzce",
+   "ilce": "Gölyaka",
+   "lat": 40.77,
+   "lon": 30.99,
+   "alan": "~1,5 km² (mevsime göre büyür)",
+   "derinlik": "Sığ",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Sazlık ve subasar ormanı.",
+   "ulasim": "Düzce – Gölyaka yolu; asfalt.",
+   "kamp": "Konaklama Düzce'de.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "kadife"
+   ],
+   "not": "",
+   "uyari": "Yaban hayatı sahası: avlanma kısıtlı olabilir.",
+   "yasak": false
+  },
+  {
+   "id": "yenicaga",
+   "ad": "Yeniçağa Gölü",
+   "tur": "Doğal göl",
+   "il": "Bolu",
+   "ilce": "Yeniçağa",
+   "lat": 40.78,
+   "lon": 32.03,
+   "alan": "~1,5 km²",
+   "derinlik": "Sığ: ~2 m",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Sazlık; çevresi çayır ve tarım.",
+   "ulasim": "TEM / D-100 Yeniçağa çıkışı; göle 2 km.",
+   "kamp": "Yeniçağa ve Gerede'de konaklama.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "kadife"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "abant",
+   "ad": "Abant Gölü",
+   "tur": "Doğal göl",
+   "il": "Bolu",
+   "ilce": "Merkez",
+   "lat": 40.61,
+   "lon": 31.28,
+   "alan": "~1,3 km²",
+   "derinlik": "En derin ~18 m",
+   "cevre": "Ormanlık",
+   "cevreNot": "Çam ve köknar ormanlarıyla çevrili, ~1330 m rakımda.",
+   "ulasim": "Bolu – Abant yolu (~30 km); asfalt.",
+   "kamp": "Göl kıyısında oteller; tabiat parkında günübirlik alan.",
+   "baliklar": [
+    "alabalik",
+    "sazan"
+   ],
+   "not": "",
+   "uyari": "Abant Tabiat Parkı: gölde av yasak ya da izne bağlıdır; endemik Abant alabalığı koruma altındadır.",
+   "yasak": false
+  },
+  {
+   "id": "bafa",
+   "ad": "Bafa Gölü",
+   "tur": "Doğal göl",
+   "il": "Aydın",
+   "ilce": "Söke (Muğla Milas sınırı)",
+   "lat": 37.5,
+   "lon": 27.45,
+   "alan": "~67 km²",
+   "derinlik": "En derin ~25 m",
+   "cevre": "Dağlık / kayalık",
+   "cevreNot": "Beşparmak (Latmos) Dağları'nın kayalık yamaçları ve zeytinlikler.",
+   "ulasim": "Söke – Milas karayolu gölün güney kıyısından geçer.",
+   "kamp": "Kapıkırı (Herakleia) köyünde pansiyon ve kamp; Serçin'de tesisler.",
+   "baliklar": [
+    "kefal",
+    "levrek",
+    "sazan"
+   ],
+   "not": "",
+   "uyari": "Tabiat parkı; kooperatif ağ alanlarından uzak durun.",
+   "yasak": false
+  },
+  {
+   "id": "koycegiz",
+   "ad": "Köyceğiz Gölü",
+   "tur": "Doğal göl",
+   "il": "Muğla",
+   "ilce": "Köyceğiz, Ortaca",
+   "lat": 36.93,
+   "lon": 28.65,
+   "alan": "~55 km²",
+   "derinlik": "En derin ~30 m",
+   "cevre": "Ormanlık",
+   "cevreNot": "Sığla (günlük) ve çam ormanlarıyla çevrili.",
+   "ulasim": "Muğla – Fethiye yolu (D-400) Köyceğiz kavşağı.",
+   "kamp": "Köyceğiz, Sultaniye ve Dalyan'da çok sayıda konaklama.",
+   "baliklar": [
+    "kefal",
+    "levrek",
+    "sazan"
+   ],
+   "not": "",
+   "uyari": "Özel Çevre Koruma Bölgesi: Dalyan kanalı ve dalyan çevresinde avlanma yasaktır.",
+   "yasak": false
+  },
+  {
+   "id": "golcuk-odemis",
+   "ad": "Gölcük Gölü (Bozdağ)",
+   "tur": "Doğal göl",
+   "il": "İzmir",
+   "ilce": "Ödemiş",
+   "lat": 38.31,
+   "lon": 28.03,
+   "alan": "~0,8 km²",
+   "derinlik": "",
+   "cevre": "Ormanlık",
+   "cevreNot": "Bozdağlar'da, ~1050 m rakımda, çam ormanı ve yaylalar.",
+   "ulasim": "Ödemiş – Bozdağ yolu (~20 km), virajlı asfalt.",
+   "kamp": "Kıyıda piknik alanları ve köy pansiyonları.",
+   "baliklar": [
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "demirkopru",
+   "ad": "Demirköprü Barajı",
+   "tur": "Baraj gölü",
+   "il": "Manisa",
+   "ilce": "Salihli, Köprübaşı",
+   "lat": 38.642,
+   "lon": 28.348,
+   "alan": "~48 km²",
+   "derinlik": "",
+   "cevre": "Açık arazi",
+   "cevreNot": "Tarım ve maki; yer yer kayalık kıyılar.",
+   "ulasim": "Salihli – Köprübaşı yolu; asfalt.",
+   "kamp": "Salihli ve Kula'da konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "tahtali",
+   "ad": "Tahtalı Barajı",
+   "tur": "Baraj gölü",
+   "il": "İzmir",
+   "ilce": "Menderes",
+   "lat": 38.1,
+   "lon": 27.1,
+   "alan": "",
+   "derinlik": "",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Çam ve maki.",
+   "ulasim": "Menderes – Değirmendere yolu.",
+   "kamp": "Kamp yok.",
+   "baliklar": [
+    "sazan"
+   ],
+   "not": "",
+   "uyari": "İzmir'in içme suyu kaynağı: avlanma yasaktır.",
+   "yasak": true
+  },
+  {
+   "id": "oymapinar",
+   "ad": "Oymapınar Barajı",
+   "tur": "Baraj gölü",
+   "il": "Antalya",
+   "ilce": "Manavgat",
+   "lat": 36.95,
+   "lon": 31.55,
+   "alan": "~47 km²",
+   "derinlik": "Kanyon; en derin ~185 m",
+   "cevre": "Ormanlık",
+   "cevreNot": "Toros eteklerinde çam ormanlı derin kanyon.",
+   "ulasim": "Manavgat'tan ~12 km asfalt; baraj üstüne çıkılır.",
+   "kamp": "Manavgat ve çevresinde konaklama; tekne turları.",
+   "baliklar": [
+    "sazan",
+    "yayin"
+   ],
+   "not": "Dik kıyılar: sabit duruş için uygun nokta seçin.",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "karacaoren",
+   "ad": "Karacaören I Barajı",
+   "tur": "Baraj gölü",
+   "il": "Burdur",
+   "ilce": "Bucak",
+   "lat": 37.42,
+   "lon": 30.85,
+   "alan": "~40 km²",
+   "derinlik": "",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Çam ormanı ve kayalık yamaçlar.",
+   "ulasim": "Burdur – Antalya yolu (D-650) yakınında.",
+   "kamp": "Bucak'ta konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "alabalik"
+   ],
+   "not": "Kafes balıkçılığı bölgelerinden kaçan alabalık tutulabilir.",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "seyhan",
+   "ad": "Seyhan Barajı",
+   "tur": "Baraj gölü",
+   "il": "Adana",
+   "ilce": "Sarıçam, Çukurova",
+   "lat": 37.08,
+   "lon": 35.31,
+   "alan": "~68 km²",
+   "derinlik": "En derin ~45 m",
+   "cevre": "Açık arazi",
+   "cevreNot": "Kent çevresi, parklar ve tarım.",
+   "ulasim": "Adana merkezden ~10 km; asfalt.",
+   "kamp": "Baraj gölü çevresinde mesire alanları; şehir içi konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "yayin"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "catalan",
+   "ad": "Çatalan Barajı",
+   "tur": "Baraj gölü",
+   "il": "Adana",
+   "ilce": "Karaisalı, Sarıçam",
+   "lat": 37.25,
+   "lon": 35.33,
+   "alan": "~82 km²",
+   "derinlik": "",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Kızılçam ve maki; kayalık koylar.",
+   "ulasim": "Adana – Karaisalı yolu; asfalt.",
+   "kamp": "Karaisalı'da konaklama ve mesire alanları.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "yayin"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "aslantas",
+   "ad": "Aslantaş Barajı",
+   "tur": "Baraj gölü",
+   "il": "Osmaniye",
+   "ilce": "Kadirli, Düziçi",
+   "lat": 37.28,
+   "lon": 36.28,
+   "alan": "~49 km²",
+   "derinlik": "",
+   "cevre": "Ormanlık",
+   "cevreNot": "Karatepe–Aslantaş Milli Parkı'nın çam ormanları.",
+   "ulasim": "Osmaniye – Kadirli yolu; asfalt.",
+   "kamp": "Milli park mesire alanları; Kadirli'de konaklama.",
+   "baliklar": [
+    "sazan",
+    "yayin"
+   ],
+   "not": "",
+   "uyari": "Milli park sınırlarında avlanma kurallarına uyun.",
+   "yasak": false
+  },
+  {
+   "id": "menzelet",
+   "ad": "Menzelet Barajı",
+   "tur": "Baraj gölü",
+   "il": "Kahramanmaraş",
+   "ilce": "Dulkadiroğlu",
+   "lat": 37.714,
+   "lon": 36.874,
+   "alan": "~42 km²",
+   "derinlik": "",
+   "cevre": "Dağlık / kayalık",
+   "cevreNot": "Ceyhan Nehri kanyonu; kayalık yamaçlar.",
+   "ulasim": "Kahramanmaraş – Kayseri yolu üzerinden.",
+   "kamp": "Kahramanmaraş'ta konaklama.",
+   "baliklar": [
+    "sazan",
+    "yayin",
+    "alabalik"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "sir",
+   "ad": "Sır Barajı",
+   "tur": "Baraj gölü",
+   "il": "Kahramanmaraş",
+   "ilce": "Dulkadiroğlu",
+   "lat": 37.58,
+   "lon": 36.72,
+   "alan": "~47 km²",
+   "derinlik": "",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Kanyon ve çam ormanı.",
+   "ulasim": "Kahramanmaraş – Andırın yolu; asfalt.",
+   "kamp": "Kahramanmaraş'ta konaklama; kıyıda mesire alanları.",
+   "baliklar": [
+    "sazan",
+    "yayin",
+    "alabalik"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "beysehir",
+   "ad": "Beyşehir Gölü",
+   "tur": "Doğal göl",
+   "il": "Konya",
+   "ilce": "Beyşehir (Isparta Şarkikaraağaç kıyısı)",
+   "lat": 37.75,
+   "lon": 31.52,
+   "alan": "~650 km²",
+   "derinlik": "Sığ: en derin ~10 m",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Batısı Anamas Dağları'nın ormanlık yamaçları; 30'dan fazla ada; milli park.",
+   "ulasim": "Konya – Beyşehir (~95 km) ve Antalya – Seydişehir yolları; kıyı köylerine asfalt.",
+   "kamp": "Milli park günübirlik ve kamp alanları; Beyşehir ve köylerde pansiyon.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "kizilkanat"
+   ],
+   "not": "Sudak için sonbahar akşamları adalar çevresi.",
+   "uyari": "Milli park: üreme dönemi yasaklarına dikkat edin.",
+   "yasak": false
+  },
+  {
+   "id": "egirdir",
+   "ad": "Eğirdir Gölü",
+   "tur": "Doğal göl",
+   "il": "Isparta",
+   "ilce": "Eğirdir",
+   "lat": 38.0,
+   "lon": 30.85,
+   "alan": "~482 km²",
+   "derinlik": "En derin ~13 m",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Dağlarla çevrili; Barla ve Sivri Dağ yamaçlarında orman.",
+   "ulasim": "Isparta'dan ~35 km; göl çevresi asfalt yol.",
+   "kamp": "Altınkum ve Yeşilada'da pansiyon; Kovada Gölü Milli Parkı yakın.",
+   "baliklar": [
+    "sudak",
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "Sudak için sonbahar – kış; Yeşilada ve Barla kıyıları.",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "kovada",
+   "ad": "Kovada Gölü",
+   "tur": "Doğal göl",
+   "il": "Isparta",
+   "ilce": "Eğirdir",
+   "lat": 37.63,
+   "lon": 30.88,
+   "alan": "~9 km²",
+   "derinlik": "Sığ: ~6 m",
+   "cevre": "Ormanlık",
+   "cevreNot": "Milli park; çam ve meşe ormanı.",
+   "ulasim": "Eğirdir – Kovada yolu; asfalt.",
+   "kamp": "Milli park günübirlik alanı; konaklama Eğirdir'de.",
+   "baliklar": [
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "Kovada Gölü Milli Parkı: avlanma izne bağlıdır.",
+   "yasak": false
+  },
+  {
+   "id": "isikli",
+   "ad": "Işıklı Gölü",
+   "tur": "Doğal göl",
+   "il": "Denizli",
+   "ilce": "Çivril",
+   "lat": 38.24,
+   "lon": 29.92,
+   "alan": "~65 km² (mevsime göre değişir)",
+   "derinlik": "Sığ: ~2–7 m",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Sazlık; çevresi tarım arazisi.",
+   "ulasim": "Denizli – Çivril yolu; asfalt.",
+   "kamp": "Çivril'de konaklama.",
+   "baliklar": [
+    "sazan",
+    "turna",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "eber",
+   "ad": "Eber Gölü",
+   "tur": "Doğal göl",
+   "il": "Afyonkarahisar",
+   "ilce": "Bolvadin, Çay",
+   "lat": 38.62,
+   "lon": 31.17,
+   "alan": "~125 km² (büyük kısmı sazlık)",
+   "derinlik": "Sığ",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Geniş sazlık; açık su alanı küçük.",
+   "ulasim": "Afyon – Konya yolu (Bolvadin) üzerinden.",
+   "kamp": "Bolvadin ve Çay'da konaklama.",
+   "baliklar": [
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "mogan",
+   "ad": "Mogan Gölü",
+   "tur": "Doğal göl",
+   "il": "Ankara",
+   "ilce": "Gölbaşı",
+   "lat": 39.77,
+   "lon": 32.8,
+   "alan": "~6 km²",
+   "derinlik": "Sığ: ~3 m",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Kıyılar sazlık ve park; kentsel çevre.",
+   "ulasim": "Ankara – Konya yolu Gölbaşı; asfalt.",
+   "kamp": "Gölbaşı'nda tesisler; kamp yok.",
+   "baliklar": [
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "Özel çevre koruma bölgesi: avlanma kurallarına uyun.",
+   "yasak": false
+  },
+  {
+   "id": "hirfanli",
+   "ad": "Hirfanlı Barajı",
+   "tur": "Baraj gölü",
+   "il": "Kırşehir",
+   "ilce": "Kaman, Merkez (Ankara sınırı)",
+   "lat": 39.2,
+   "lon": 33.65,
+   "alan": "~263 km²",
+   "derinlik": "",
+   "cevre": "Açık arazi",
+   "cevreNot": "Ağaçsız step ve tarım.",
+   "ulasim": "Kırşehir – Kaman yolu; kıyı köylerine asfalt.",
+   "kamp": "Mesire alanları ve Kırşehir tarafında kamp alanları.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "yayin"
+   ],
+   "not": "Sudak için sonbahar; taşlık burunlar.",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "sariyar",
+   "ad": "Sarıyar Barajı",
+   "tur": "Baraj gölü",
+   "il": "Ankara",
+   "ilce": "Nallıhan (Eskişehir Mihalıççık sınırı)",
+   "lat": 40.04,
+   "lon": 31.62,
+   "alan": "~83 km²",
+   "derinlik": "",
+   "cevre": "Dağlık / kayalık",
+   "cevreNot": "Kayalık yamaçlar; yer yer çam.",
+   "ulasim": "Ankara – Nallıhan yolu Sarıyar sapağı.",
+   "kamp": "Nallıhan'da konaklama; Kuş Cenneti yakın.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "yayin"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "porsuk",
+   "ad": "Porsuk Barajı",
+   "tur": "Baraj gölü",
+   "il": "Eskişehir",
+   "ilce": "Merkez (Kütahya sınırı)",
+   "lat": 39.642,
+   "lon": 30.2,
+   "alan": "",
+   "derinlik": "",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Tepelik, yer yer çam.",
+   "ulasim": "Eskişehir – Kütahya yolu yakınında.",
+   "kamp": "Eskişehir ve Kütahya'da konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "turna"
+   ],
+   "not": "",
+   "uyari": "Eskişehir'in içme suyu kaynakları arasındadır: yasak alanlara dikkat edin.",
+   "yasak": false
+  },
+  {
+   "id": "yamula",
+   "ad": "Yamula Barajı",
+   "tur": "Baraj gölü",
+   "il": "Kayseri",
+   "ilce": "Kocasinan",
+   "lat": 38.96,
+   "lon": 35.2,
+   "alan": "~85 km²",
+   "derinlik": "",
+   "cevre": "Açık arazi",
+   "cevreNot": "Ağaçsız step; Kızılırmak vadisi.",
+   "ulasim": "Kayseri – Sarıoğlan yolu; asfalt.",
+   "kamp": "Kıyıda mesire alanları; Kayseri'de konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "yayin"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "altinapa",
+   "ad": "Altınapa Barajı",
+   "tur": "Baraj gölü",
+   "il": "Konya",
+   "ilce": "Meram, Selçuklu",
+   "lat": 37.83,
+   "lon": 32.33,
+   "alan": "~3,5 km²",
+   "derinlik": "",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Ağaçlandırma alanı ve mesire yerleri.",
+   "ulasim": "Konya – Beyşehir yolu (~20 km); asfalt.",
+   "kamp": "Mesire alanları; Konya'da konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "apa",
+   "ad": "Apa Barajı",
+   "tur": "Baraj gölü",
+   "il": "Konya",
+   "ilce": "Çumra",
+   "lat": 37.36,
+   "lon": 32.52,
+   "alan": "",
+   "derinlik": "",
+   "cevre": "Açık arazi",
+   "cevreNot": "Bozkır ve tarım.",
+   "ulasim": "Çumra yolu; asfalt.",
+   "kamp": "Konaklama Çumra ve Konya'da.",
+   "baliklar": [
+    "sazan",
+    "sudak"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "altinkaya",
+   "ad": "Altınkaya Barajı",
+   "tur": "Baraj gölü",
+   "il": "Samsun",
+   "ilce": "Bafra, Vezirköprü",
+   "lat": 41.312,
+   "lon": 35.538,
+   "alan": "~118 km²",
+   "derinlik": "",
+   "cevre": "Ormanlık",
+   "cevreNot": "Kızılırmak vadisi; meşe ve çam ormanı.",
+   "ulasim": "Bafra – Vezirköprü yolu; virajlı asfalt.",
+   "kamp": "Vezirköprü ve Bafra'da konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "yayin",
+    "alabalik"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "boyabat",
+   "ad": "Boyabat Barajı",
+   "tur": "Baraj gölü",
+   "il": "Sinop",
+   "ilce": "Boyabat, Durağan",
+   "lat": 41.27,
+   "lon": 35.25,
+   "alan": "",
+   "derinlik": "",
+   "cevre": "Ormanlık",
+   "cevreNot": "Kızılırmak kanyonu; orman.",
+   "ulasim": "Boyabat – Durağan yolu.",
+   "kamp": "Boyabat'ta konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "yayin"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "almus",
+   "ad": "Almus Barajı",
+   "tur": "Baraj gölü",
+   "il": "Tokat",
+   "ilce": "Almus",
+   "lat": 40.39,
+   "lon": 36.936,
+   "alan": "~31 km²",
+   "derinlik": "",
+   "cevre": "Kısmen ormanlık",
+   "cevreNot": "Yeşilırmak vadisi; meşe ve çam.",
+   "ulasim": "Tokat'tan ~30 km; asfalt.",
+   "kamp": "Kıyıda kamp ve mesire alanları.",
+   "baliklar": [
+    "sazan",
+    "alabalik"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "van",
+   "ad": "Van Gölü",
+   "tur": "Doğal göl (sodalı)",
+   "il": "Van",
+   "ilce": "Tuşba, Edremit, Gevaş, Erciş (Bitlis: Tatvan, Ahlat, Adilcevaz)",
+   "lat": 38.62,
+   "lon": 43.05,
+   "alan": "~3.713 km²",
+   "derinlik": "En derin ~450 m",
+   "cevre": "Açık arazi",
+   "cevreNot": "Volkanik dağlarla (Nemrut, Süphan) çevrili; ağaçsız.",
+   "ulasim": "Güney kıyısında Van – Tatvan (D-300), kuzeyde Erciş – Adilcevaz yolu; asfalt.",
+   "kamp": "Edremit ve Gevaş sahili, Akdamar karşısında kamp alanları; Tatvan ve Ahlat'ta konaklama.",
+   "baliklar": [
+    "inci_kefali"
+   ],
+   "not": "Sodalı suda yalnızca inci kefali yaşar.",
+   "uyari": "İnci kefalinin üreme göçü döneminde (her yıl ilkbahar – yaz başı) av yasaktır; derelerde av her zaman yasaktır.",
+   "yasak": false
+  },
+  {
+   "id": "cildir",
+   "ad": "Çıldır Gölü",
+   "tur": "Doğal göl",
+   "il": "Ardahan",
+   "ilce": "Çıldır (Kars Arpaçay kıyısı)",
+   "lat": 41.05,
+   "lon": 43.25,
+   "alan": "~115 km²",
+   "derinlik": "En derin ~42 m",
+   "cevre": "Açık arazi",
+   "cevreNot": "~1960 m rakımda ağaçsız yayla.",
+   "ulasim": "Kars'tan ~60 km, Ardahan'dan ~50 km; asfalt.",
+   "kamp": "Köy pansiyonları; kışın buz üstü atlı kızak ve buz avı.",
+   "baliklar": [
+    "sazan"
+   ],
+   "not": "Kışın göl donar ve buz avı yapılır.",
+   "uyari": "Buz kalınlığını yerel halktan öğrenmeden buza çıkmayın.",
+   "yasak": false
+  },
+  {
+   "id": "balikgolu",
+   "ad": "Balık Gölü",
+   "tur": "Doğal göl",
+   "il": "Ağrı",
+   "ilce": "Doğubayazıt, Taşlıçay",
+   "lat": 39.77,
+   "lon": 43.56,
+   "alan": "~34 km²",
+   "derinlik": "",
+   "cevre": "Açık arazi",
+   "cevreNot": "~2240 m rakımda ağaçsız yayla.",
+   "ulasim": "Doğubayazıt'tan köy yolu; kısmen stabilize.",
+   "kamp": "Kamp yapılabilir, altyapı yok; yaz ayları önerilir.",
+   "baliklar": [
+    "alabalik"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "hazar",
+   "ad": "Hazar Gölü",
+   "tur": "Doğal göl",
+   "il": "Elazığ",
+   "ilce": "Sivrice",
+   "lat": 38.49,
+   "lon": 39.38,
+   "alan": "~86 km²",
+   "derinlik": "En derin ~216 m",
+   "cevre": "Dağlık / kayalık",
+   "cevreNot": "Hazarbaba Dağı eteklerinde, az ağaçlı.",
+   "ulasim": "Elazığ – Diyarbakır yolu (~30 km) kuzey kıyıdan geçer.",
+   "kamp": "Sivrice sahilinde otel, kamp ve mesire alanları.",
+   "baliklar": [
+    "siraz",
+    "sazan"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "keban",
+   "ad": "Keban Barajı",
+   "tur": "Baraj gölü",
+   "il": "Elazığ",
+   "ilce": "Merkez, Keban, Ağın (Tunceli Pertek, Malatya Arapgir kıyıları)",
+   "lat": 38.836,
+   "lon": 39.092,
+   "alan": "~675 km²",
+   "derinlik": "En derin ~160 m",
+   "cevre": "Dağlık / kayalık",
+   "cevreNot": "Ağaçsız dağlık kıyılar ve koylar.",
+   "ulasim": "Elazığ – Pertek arası feribot; Elazığ – Ağın yolu asfalt.",
+   "kamp": "Ağın ve Pertek kıyılarında günübirlik alanlar; Elazığ'da konaklama.",
+   "baliklar": [
+    "sazan",
+    "sudak",
+    "siraz",
+    "alabalik"
+   ],
+   "not": "Kafes çiftliklerinin yakınında alabalık şansı yüksek.",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "karakaya",
+   "ad": "Karakaya Barajı",
+   "tur": "Baraj gölü",
+   "il": "Malatya",
+   "ilce": "Battalgazi, Yazıhan (Elazığ Baskil, Diyarbakır Çüngüş kıyıları)",
+   "lat": 38.432,
+   "lon": 38.656,
+   "alan": "~268 km²",
+   "derinlik": "",
+   "cevre": "Dağlık / kayalık",
+   "cevreNot": "Kayalık ve ağaçsız yamaçlar.",
+   "ulasim": "Malatya – Elazığ yolu ve köy yolları.",
+   "kamp": "Malatya'da konaklama.",
+   "baliklar": [
+    "sazan",
+    "sabut",
+    "siraz",
+    "alabalik"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "ataturk",
+   "ad": "Atatürk Barajı",
+   "tur": "Baraj gölü",
+   "il": "Şanlıurfa",
+   "ilce": "Bozova (Adıyaman Kâhta, Samsat kıyıları)",
+   "lat": 37.55,
+   "lon": 38.6,
+   "alan": "~817 km²",
+   "derinlik": "En derin ~166 m",
+   "cevre": "Açık arazi",
+   "cevreNot": "Ağaçsız step ve kayalık koylar.",
+   "ulasim": "Şanlıurfa – Adıyaman yolu; kıyı köylerine asfalt/stabilize.",
+   "kamp": "Kâhta ve Samsat kıyılarında günübirlik alanlar; Kâhta'da otel.",
+   "baliklar": [
+    "sazan",
+    "sabut",
+    "yayin",
+    "biyikli",
+    "alabalik"
+   ],
+   "not": "Yazın sıcak: gece ve sabah erken avlanın.",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "birecik",
+   "ad": "Birecik Barajı",
+   "tur": "Baraj gölü",
+   "il": "Şanlıurfa",
+   "ilce": "Birecik, Halfeti",
+   "lat": 37.22,
+   "lon": 37.88,
+   "alan": "~56 km²",
+   "derinlik": "",
+   "cevre": "Dağlık / kayalık",
+   "cevreNot": "Fırat kanyonu; kayalık yamaçlar, fıstık bahçeleri.",
+   "ulasim": "Birecik (D-400) üzerinden Halfeti yolu; asfalt.",
+   "kamp": "Halfeti'de pansiyon ve butik otel; tekne turları.",
+   "baliklar": [
+    "sazan",
+    "sabut",
+    "yayin",
+    "biyikli"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "ilisu",
+   "ad": "Ilısu Barajı",
+   "tur": "Baraj gölü",
+   "il": "Batman",
+   "ilce": "Hasankeyf (Mardin Dargeçit, Siirt, Şırnak kıyıları)",
+   "lat": 37.62,
+   "lon": 41.55,
+   "alan": "~313 km²",
+   "derinlik": "",
+   "cevre": "Açık arazi",
+   "cevreNot": "Dicle vadisi; kayalık ve ağaçsız.",
+   "ulasim": "Batman – Hasankeyf yolu; asfalt.",
+   "kamp": "Yeni Hasankeyf'te tesisler; serbest kamp öncesi yerel bilgi alın.",
+   "baliklar": [
+    "sazan",
+    "sabut",
+    "yayin",
+    "biyikli"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "kralkizi",
+   "ad": "Kralkızı Barajı",
+   "tur": "Baraj gölü",
+   "il": "Diyarbakır",
+   "ilce": "Dicle",
+   "lat": 38.36,
+   "lon": 40.0,
+   "alan": "~57 km²",
+   "derinlik": "",
+   "cevre": "Açık arazi",
+   "cevreNot": "Ağaçsız tepeler.",
+   "ulasim": "Diyarbakır – Dicle yolu; asfalt.",
+   "kamp": "Konaklama Diyarbakır'da.",
+   "baliklar": [
+    "sazan",
+    "sabut",
+    "siraz"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  },
+  {
+   "id": "golbasi-adiyaman",
+   "ad": "Gölbaşı Gölü",
+   "tur": "Doğal göl",
+   "il": "Adıyaman",
+   "ilce": "Gölbaşı",
+   "lat": 37.79,
+   "lon": 37.65,
+   "alan": "Küçük (~1–2 km²)",
+   "derinlik": "Sığ",
+   "cevre": "Sazlık / sulak alan",
+   "cevreNot": "Sazlık; yanında Azaplı ve İnekli gölleri.",
+   "ulasim": "Adıyaman – Kahramanmaraş yolu üzerinde.",
+   "kamp": "Gölbaşı'nda konaklama.",
+   "baliklar": [
+    "sazan",
+    "kizilkanat"
+   ],
+   "not": "",
+   "uyari": "Tabiat parkı: avlanma kurallarına uyun.",
+   "yasak": false
+  },
+  {
+   "id": "tortum",
+   "ad": "Tortum Gölü",
+   "tur": "Doğal göl",
+   "il": "Erzurum",
+   "ilce": "Uzundere",
+   "lat": 40.62,
+   "lon": 41.63,
+   "alan": "~7 km²",
+   "derinlik": "",
+   "cevre": "Dağlık / kayalık",
+   "cevreNot": "Heyelan set gölü; dik yamaçlar, vadide ağaçlık.",
+   "ulasim": "Erzurum – Artvin yolu (D-950) Uzundere.",
+   "kamp": "Tortum Şelalesi tabiat parkı ve Uzundere'de pansiyonlar.",
+   "baliklar": [
+    "alabalik"
+   ],
+   "not": "",
+   "uyari": "",
+   "yasak": false
+  }
+ ],
+ "baliklar": {
+  "sazan": {
+   "ad": "Sazan / Aynalı sazan",
+   "sezon": "En verimli dönem su ısınınca: mayıs sonu – ekim. Sabah erken, akşam ve gece.",
+   "yem": "Mısır, boilie, pellet, sazan hamuru, küspe, solucan",
+   "yontem": [
+    {
+     "baslik": "Feeder / method feeder (dip)",
+     "aciklama": "Yem sepetini sazan küspesi ya da hamurla doldur, 30–80 m at; iğneye mısır, pellet veya küçük boilie tak. Aynı noktaya sürekli atarak yemleme yap."
+    },
+    {
+     "baslik": "Hair rig + boilie (uzun bekleyiş)",
+     "aciklama": "İki–üç kamış, baitrunner makine ve ısırık alarmıyla saatlerce bekleme avı. Yemi önceden bölgeye serpmek tutma şansını artırır."
+    },
+    {
+     "baslik": "Şamandıra",
+     "aciklama": "Sazlık kenarları ve sığ koylarda 1–3 m derinlikte hamur veya mısırla, ince takımla."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Sazan kamışı",
+     "ara": "sazan kamışı"
+    },
+    {
+     "ad": "Feeder / baitrunner makine",
+     "ara": "feeder"
+    },
+    {
+     "ad": "Sazan iğnesi",
+     "ara": "sazan iğnesi"
+    },
+    {
+     "ad": "Sazan yemi, mısır, hamur",
+     "ara": "sazan yemi"
+    },
+    {
+     "ad": "Boilie aksesuarları",
+     "ara": "boilie"
+    },
+    {
+     "ad": "Kepçe",
+     "ara": "kepçe"
+    }
+   ]
+  },
+  "turna": {
+   "ad": "Turna",
+   "sezon": "En iyisi sonbahar ve kış başı; yazın sabah erken ve akşam.",
+   "yem": "Kaşık, maket balık, büyük silikon, silikon kurbağa, canlı küçük balık",
+   "yontem": [
+    {
+     "baslik": "Spin (kaşık, maket, silikon)",
+     "aciklama": "Sazlık ve su bitkisi kenarlarına at, değişken hızda sar. Turnanın dişleri misinayı keser: mutlaka çelik/tel köstek kullan."
+    },
+    {
+     "baslik": "Kurbağa ile yüzey avı",
+     "aciklama": "Yazın nilüfer ve yosun üstünde silikon kurbağa; takılmaz iğne ile."
+    },
+    {
+     "baslik": "Canlı yemli şamandıra",
+     "aciklama": "Küçük balıkla, tel köstekli takımda sazlık ağızlarında bekleme."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Spin kamış ve makine",
+     "ara": "spin"
+    },
+    {
+     "ad": "Turna kaşığı ve silikonları",
+     "ara": "turna"
+    },
+    {
+     "ad": "Kaşık",
+     "ara": "kaşık"
+    },
+    {
+     "ad": "Silikon kurbağa",
+     "ara": "kurbağa"
+    },
+    {
+     "ad": "Maket balık",
+     "ara": "maket balık"
+    },
+    {
+     "ad": "Kepçe",
+     "ara": "kepçe"
+    }
+   ]
+  },
+  "sudak": {
+   "ad": "Sudak",
+   "sezon": "Sonbahar – kış en verimli; alacakaranlık ve gece dibe yakın beslenir.",
+   "yem": "Jig kafalı silikon, maket balık (wobbler), ölü küçük balık",
+   "yontem": [
+    {
+     "baslik": "Jig (dipte zıplatma)",
+     "aciklama": "Jig kafalı silikonu dibe indir, kısa çekişlerle zıplatarak getir. Isırık genelde yem düşerken gelir."
+    },
+    {
+     "baslik": "Maket balık",
+     "aciklama": "Dalış derinliği sığdan orta suya uygun maketlerle yavaş, duraklamalı sarım."
+    },
+    {
+     "baslik": "Ölü yem dip avı",
+     "aciklama": "Gece, kayalık ve batık ağaç çevresinde ölü küçük balıkla."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Spin kamış ve makine",
+     "ara": "spin"
+    },
+    {
+     "ad": "Silikon yem",
+     "ara": "silikon"
+    },
+    {
+     "ad": "Jig head (kafa)",
+     "ara": "jig head"
+    },
+    {
+     "ad": "Maket balık",
+     "ara": "maket balık"
+    },
+    {
+     "ad": "İp misina",
+     "ara": "ip misina"
+    }
+   ]
+  },
+  "tatlisu_levregi": {
+   "ad": "Tatlısu levreği",
+   "sezon": "Yaz ve sonbahar; gün boyu sürü hâlinde.",
+   "yem": "Küçük dönen kaşık, mikro silikon, solucan",
+   "yontem": [
+    {
+     "baslik": "Ultra hafif spin",
+     "aciklama": "Hafif kamış ve ince misinayla küçük kaşık ya da mikro silikon. Bir tane tutunca sürü genelde aynı yerdedir."
+    },
+    {
+     "baslik": "Şamandıra + solucan",
+     "aciklama": "İskele, kayalık ve bitki kenarlarında."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "LRF / ultra hafif kamış",
+     "ara": "lrf"
+    },
+    {
+     "ad": "Kaşık",
+     "ara": "kaşık"
+    },
+    {
+     "ad": "Silikon yem",
+     "ara": "silikon"
+    },
+    {
+     "ad": "Şamandıra",
+     "ara": "şamandıra"
+    }
+   ]
+  },
+  "yayin": {
+   "ad": "Yayın",
+   "sezon": "Su sıcakken (haziran – eylül), özellikle gece ve fırtına öncesi.",
+   "yem": "Canlı ya da ölü balık, sülük, solucan demeti, tavuk ciğeri",
+   "yontem": [
+    {
+     "baslik": "Güçlü dip takımı",
+     "aciklama": "Kalın ip misina ve sağlam iğneyle derin çukur ve batık ağaç önlerinde gece dip avı."
+    },
+    {
+     "baslik": "Yayın şamandırası + canlı yem",
+     "aciklama": "Akıntı ya da rüzgârla sürüklenen canlı yemli takım."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Yayın takımı ve şamandırası",
+     "ara": "yayın"
+    },
+    {
+     "ad": "Güçlü olta makinesi",
+     "ara": "olta makinesi"
+    },
+    {
+     "ad": "İp misina",
+     "ara": "ip misina"
+    },
+    {
+     "ad": "Kepçe",
+     "ara": "kepçe"
+    }
+   ]
+  },
+  "alabalik": {
+   "ad": "Alabalık",
+   "sezon": "İlkbahar ve sonbahar; serin, oksijenli suda gün boyu.",
+   "yem": "Dönen kaşık (spinner), küçük kaşık, sinek, PowerBait",
+   "yontem": [
+    {
+     "baslik": "Ultra hafif spin",
+     "aciklama": "Akıntı girişleri ve serin kıyılarda küçük dönen kaşıkla."
+    },
+    {
+     "baslik": "Sinek / suni yem",
+     "aciklama": "Sakin akşamlarda yüzeye yakın."
+    },
+    {
+     "baslik": "PowerBait (dip / şamandıra)",
+     "aciklama": "Göl ve baraj kıyısında dipten biraz yukarıda yüzen hamur yemle."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Alabalık kaşığı",
+     "ara": "alabalık"
+    },
+    {
+     "ad": "LRF / ultra hafif kamış",
+     "ara": "lrf"
+    },
+    {
+     "ad": "Sinek ve suni yem",
+     "ara": "sinek"
+    },
+    {
+     "ad": "PowerBait",
+     "ara": "powerbait"
+    }
+   ]
+  },
+  "kizilkanat": {
+   "ad": "Kızılkanat / kırmızıgöz",
+   "sezon": "İlkbahar sonundan sonbahara; sığ ve bitkili kıyılar.",
+   "yem": "Ekmek, hamur, kurtçuk, küçük solucan",
+   "yontem": [
+    {
+     "baslik": "Göl kamışı + şamandıra",
+     "aciklama": "İnce misina, küçük iğne ve hassas şamandırayla. Ufak ekmek parçalarıyla yemleme sürüyü toplar."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Göl kamışı",
+     "ara": "göl kamışı"
+    },
+    {
+     "ad": "Şamandıra",
+     "ara": "şamandıra"
+    }
+   ]
+  },
+  "akbalik": {
+   "ad": "Tatlısu kefali (akbalık)",
+   "sezon": "Yıl boyu; yazın yüzeye yakın.",
+   "yem": "Ekmek, kiraz/dut, çekirge, küçük kaşık",
+   "yontem": [
+    {
+     "baslik": "Şamandıra + ekmek",
+     "aciklama": "Akıntı girişleri ve ağaç gölgesinde, yüzeye yakın."
+    },
+    {
+     "baslik": "Ultra hafif spin",
+     "aciklama": "Küçük kaşık ve mikro silikonla."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Göl kamışı",
+     "ara": "göl kamışı"
+    },
+    {
+     "ad": "Şamandıra",
+     "ara": "şamandıra"
+    },
+    {
+     "ad": "Kaşık",
+     "ara": "kaşık"
+    }
+   ]
+  },
+  "kadife": {
+   "ad": "Kadife",
+   "sezon": "Yaz; sazlık ve çamurlu dipli sığlıklar, sabah erken.",
+   "yem": "Solucan, mısır, kurtçuk",
+   "yontem": [
+    {
+     "baslik": "Şamandıra (dipte yem)",
+     "aciklama": "Yemi dibe değecek şekilde ayarlanmış şamandırayla sazlık aralarında."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Göl kamışı",
+     "ara": "göl kamışı"
+    },
+    {
+     "ad": "Şamandıra",
+     "ara": "şamandıra"
+    }
+   ]
+  },
+  "sabut": {
+   "ad": "Şabut",
+   "sezon": "İlkbahar sonu – sonbahar.",
+   "yem": "Hamur, mısır, solucan, kaşık",
+   "yontem": [
+    {
+     "baslik": "Dip avı",
+     "aciklama": "Feeder ya da kurşunlu dip takımıyla derin kıyılarda."
+    },
+    {
+     "baslik": "Spin",
+     "aciklama": "Kaşık ve küçük maketlerle kayalık kıyılarda."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Feeder takımı",
+     "ara": "feeder"
+    },
+    {
+     "ad": "Kaşık",
+     "ara": "kaşık"
+    },
+    {
+     "ad": "Olta makinesi",
+     "ara": "olta makinesi"
+    }
+   ]
+  },
+  "siraz": {
+   "ad": "Siraz (karabalık türü)",
+   "sezon": "İlkbahar ve sonbahar.",
+   "yem": "Hamur, solucan, ekmek",
+   "yontem": [
+    {
+     "baslik": "Dip / şamandıra",
+     "aciklama": "Hafif kurşunlu dip takımı ya da şamandırayla taşlık kıyılarda."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Göl kamışı",
+     "ara": "göl kamışı"
+    },
+    {
+     "ad": "Şamandıra",
+     "ara": "şamandıra"
+    },
+    {
+     "ad": "Feeder takımı",
+     "ara": "feeder"
+    }
+   ]
+  },
+  "biyikli": {
+   "ad": "Bıyıklı balık",
+   "sezon": "Yaz – sonbahar, akıntılı kesimler.",
+   "yem": "Solucan, hamur, mısır",
+   "yontem": [
+    {
+     "baslik": "Dip avı",
+     "aciklama": "Kurşunlu dip takımıyla akıntı girişlerinde."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Feeder takımı",
+     "ara": "feeder"
+    },
+    {
+     "ad": "Olta makinesi",
+     "ara": "olta makinesi"
+    }
+   ]
+  },
+  "inci_kefali": {
+   "ad": "İnci kefali",
+   "sezon": "Göç dönemi (ilkbahar) av yasağına tabidir; göl içinde yaz – sonbahar.",
+   "yem": "Ekmek, hamur, küçük kaşık",
+   "yontem": [
+    {
+     "baslik": "Şamandıra",
+     "aciklama": "Göl kıyısında ince takımla ekmek/hamur."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Göl kamışı",
+     "ara": "göl kamışı"
+    },
+    {
+     "ad": "Şamandıra",
+     "ara": "şamandıra"
+    }
+   ]
+  },
+  "kefal": {
+   "ad": "Kefal (lagün)",
+   "sezon": "İlkbahar – sonbahar.",
+   "yem": "Ekmek, hamur, mantar",
+   "yontem": [
+    {
+     "baslik": "Şamandıra + ekmek",
+     "aciklama": "Hafif takımla yemleme yaparak."
+    },
+    {
+     "baslik": "Kıbrıs takımı",
+     "aciklama": "Ekmek hamuru sarılı Kıbrıs takımıyla dip."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Kefal takımları",
+     "ara": "kefal"
+    },
+    {
+     "ad": "Şamandıra",
+     "ara": "şamandıra"
+    },
+    {
+     "ad": "Göl kamışı",
+     "ara": "göl kamışı"
+    }
+   ]
+  },
+  "levrek": {
+   "ad": "Levrek (lagün)",
+   "sezon": "Sonbahar – kış; gece ve alacakaranlık.",
+   "yem": "Maket balık, silikon, karides",
+   "yontem": [
+    {
+     "baslik": "Spin",
+     "aciklama": "Kanal ağızları ve akıntı geçişlerinde maket balık ve silikonla."
+    }
+   ],
+   "ekipman": [
+    {
+     "ad": "Spin kamış",
+     "ara": "spin"
+    },
+    {
+     "ad": "Maket balık",
+     "ara": "maket balık"
+    },
+    {
+     "ad": "Silikon yem",
+     "ara": "silikon"
+    }
+   ]
+  }
+ }
+}
