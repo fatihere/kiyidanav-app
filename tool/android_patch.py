@@ -146,8 +146,54 @@ def patch_sound():
     print('bildirim sesi eklendi:', (raw / 'kalama.ogg').stat().st_size, 'bayt')
 
 
+def patch_widget():
+    """Ana ekran kartı (Mera Bilgisi widget'ı): yerel sağlayıcı, görünüm ve manifest kaydı"""
+    import shutil
+    src = Path('tool/android/widget')
+    if not src.exists():
+        fail('tool/android/widget yok (ana ekran kartı)')
+    kt = APP / 'src/main/kotlin/com/kiyidanav/kiyidanav'
+    if not (kt / 'MainActivity.kt').exists():
+        fail('MainActivity.kt beklenen yerde değil: ' + str(kt))
+    res = APP / 'src/main/res'
+    for d in ['layout', 'xml', 'drawable', 'values']:
+        (res / d).mkdir(parents=True, exist_ok=True)
+    shutil.copy(src / 'MeraWidgetProvider.kt', kt / 'MeraWidgetProvider.kt')
+    shutil.copy(src / 'mera_widget.xml', res / 'layout/mera_widget.xml')
+    shutil.copy(src / 'mera_widget_info.xml', res / 'xml/mera_widget_info.xml')
+    shutil.copy(src / 'mera_widget_zemin.xml', res / 'drawable/mera_widget_zemin.xml')
+    shutil.copy(src / 'mera_widget_strings.xml', res / 'values/mera_widget_strings.xml')
+
+    m = APP / 'src/main/AndroidManifest.xml'
+    s = m.read_text()
+    if 'MeraWidgetProvider' not in s:
+        receiver = (
+            '        <receiver android:name=".MeraWidgetProvider" android:exported="true" android:label="@string/mera_widget_adi">\n'
+            '            <intent-filter>\n'
+            '                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>\n'
+            '            </intent-filter>\n'
+            '            <meta-data android:name="android.appwidget.provider" android:resource="@xml/mera_widget_info"/>\n'
+            '        </receiver>\n'
+            '    </application>')
+        if '    </application>' in s:
+            s = s.replace('    </application>', receiver, 1)
+        else:
+            s = s.replace('</application>', receiver, 1)
+    # Karta dokunulunca uygulama Mera Bilgisi'nde açılsın
+    launch = '<action android:name="es.antonborri.home_widget.action.LAUNCH"/>'
+    if launch not in s:
+        n = s.count('</activity>')
+        if n < 1:
+            fail('manifest\'te activity yok')
+        s = s.replace('</activity>', '    <intent-filter>\n                ' + launch +
+                      '\n            </intent-filter>\n        </activity>', 1)
+    m.write_text(s)
+    print('ana ekran kartı eklendi')
+
+
 if __name__ == '__main__':
     patch_gradle()
     patch_settings()
     patch_manifest()
     patch_sound()
+    patch_widget()
