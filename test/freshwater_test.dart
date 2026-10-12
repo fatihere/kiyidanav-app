@@ -99,8 +99,13 @@ void main() {
 
     await tester.tap(find.text('Sapanca Gölü'));
     await tester.pumpAndSettle();
-    expect(find.text('Araçla ulaşım'), findsOneWidget);
+    expect(find.text('Sapanca Gölü'), findsWidgets); // detay sayfası başlığı
+    // Test yazı tipi (Ahem) büyük olduğundan bölümler ekran dışında kalabilir: kaydırarak bul
+    final scroll = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Yol tarifi al'), 200, scrollable: scroll);
     expect(find.text('Yol tarifi al'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Araçla ulaşım'), 200, scrollable: scroll);
+    expect(find.text('Araçla ulaşım'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
   });
