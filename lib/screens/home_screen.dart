@@ -12,7 +12,6 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'category_screen.dart';
 import 'catch_screens.dart';
-import 'knots_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -66,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refresh() async {
     await Api.loadConfig();
-    Notices.refresh(popup: false);
+    Notices.refresh();
     setState(() => _future = Api.home());
     await _future.catchError((_) => const HomeData(categories: [], newArrivals: []));
   }
@@ -116,7 +115,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   _title('Kategoriler'),
                   SliverToBoxAdapter(child: _CategoryGrid(data!.categories)),
                   if (Api.config.features.baitCard) const SliverToBoxAdapter(child: BaitCard(max: 4)),
-                  if (Api.config.knots) const SliverToBoxAdapter(child: KnotsEntry()),
                   if (Api.config.features.catchList) const SliverToBoxAdapter(child: RecentCatchesStrip()),
                   for (final s in data.mixed(_camp(data)))
                     SliverToBoxAdapter(

@@ -7,6 +7,7 @@ import '../api.dart';
 import '../bait_card.dart';
 import '../catches.dart';
 import 'catch_screens.dart';
+import 'knots_screen.dart';
 import '../locate.dart';
 import '../main.dart';
 import '../mera.dart';
@@ -17,6 +18,7 @@ import '../share.dart';
 import '../app_state.dart';
 import '../solunar.dart';
 import '../theme.dart';
+import '../weather_icon.dart';
 
 const _gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
@@ -208,6 +210,7 @@ class _ReportScreenState extends State<ReportScreen> {
                   if (Api.config.features.catchList || Api.config.features.catchSubmit) SpotCatchesCard(spot: f.spot),
                   _MeraTile(spot: f.spot),
                   if (Api.config.features.baitCard) const BaitCard(),
+                  if (Api.config.knots) const KnotsEntry(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Text(
@@ -423,8 +426,12 @@ class _ReportCard extends StatelessWidget {
         ]),
         const SizedBox(height: 16),
         // 7 günlük tablo
-        const Text('7 GÜNLÜK TAHMİN',
-            style: TextStyle(color: Color(0xFFCFE3E0), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+        const Row(children: [
+          Text('7 GÜNLÜK TAHMİN',
+              style: TextStyle(color: Color(0xFFCFE3E0), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+          Spacer(),
+          Text('Ayrıntı için güne dokun', style: TextStyle(color: Color(0x99FFFFFF), fontSize: 10.5)),
+        ]),
         const SizedBox(height: 6),
         for (final d in f.days) _dayRow(d),
         const SizedBox(height: 12),
@@ -474,36 +481,7 @@ class _ReportCard extends StatelessWidget {
     );
   }
 
-  Widget _dayRow(DayForecast d) {
-    final s = FishingScore.compute(d.date.add(const Duration(hours: 12)),
-        windKmh: d.effectiveWind, waveM: d.waveMax, rainMm: d.rainSum);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(children: [
-        SizedBox(
-          width: 84,
-          child: Text('${d.day} ${ayAdlari[d.date.month].substring(0, 3)}\n${_gunler[d.date.weekday - 1]}',
-              style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.25, fontWeight: FontWeight.w600)),
-        ),
-        SizedBox(
-            width: 22, height: 22, child: CustomPaint(painter: MoonPainter(d.date.add(const Duration(hours: 21))))),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            '${d.windMax?.round() ?? '-'}/${d.gustMax?.round() ?? '-'} km/s · ${d.waveMax == null ? '—' : '${d.waveMax!.toStringAsFixed(1)} m'}${(d.rainSum ?? 0) >= 1 ? ' · ${d.rainSum!.round()} mm' : ''}',
-            style: const TextStyle(color: Color(0xFFD6E9E6), fontSize: 12),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          decoration: BoxDecoration(color: _scoreColor(s), borderRadius: BorderRadius.circular(7)),
-          child: Text('%$s', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12.5)),
-        ),
-        const SizedBox(width: 6),
-        _FishRow(FishingScore.fishCount(s), size: 12),
-      ]),
-    );
-  }
+  Widget _dayRow(DayForecast d) => _DayRow(d: d, scoreColor: _scoreColor);
 
   Color _scoreColor(int s) {
     if (s >= 80) return const Color(0xFF2E8B57);
@@ -512,8 +490,98 @@ class _ReportCard extends StatelessWidget {
   }
 }
 
-extension on DayForecast {
-  int get day => date.day;
+/// 7 günlük tahminde bir gün: hava simgesi + dokununca açılan kısa ayrıntı
+class _DayRow extends StatefulWidget {
+  final DayForecast d;
+  final Color Function(int) scoreColor;
+  const _DayRow({required this.d, required this.scoreColor});
+
+  @override
+  State<_DayRow> createState() => _DayRowState();
+}
+
+class _DayRowState extends State<_DayRow> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.d;
+    final s = FishingScore.compute(d.date.add(const Duration(hours: 12)),
+        windKmh: d.effectiveWind, waveM: d.waveMax, rainMm: d.rainSum);
+    final w = WeatherLook.of(d.weatherCode);
+    return Material(
+      color: _open ? const Color(0x1FFFFFFF) : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => setState(() => _open = !_open),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 2),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              SizedBox(
+                width: 72,
+                child: Text('${d.date.day} ${ayAdlari[d.date.month].substring(0, 3)}\n${_gunler[d.date.weekday - 1]}',
+                    style: const TextStyle(color: Colors.white, fontSize: 12, height: 1.25, fontWeight: FontWeight.w600)),
+              ),
+              SizedBox(
+                  width: 22, height: 22, child: CustomPaint(painter: MoonPainter(d.date.add(const Duration(hours: 21))))),
+              const SizedBox(width: 6),
+              Icon(w.icon, color: w.color, size: 22),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${d.windMax?.round() ?? '-'}/${d.gustMax?.round() ?? '-'} km/s · ${d.waveMax == null ? '—' : '${d.waveMax!.toStringAsFixed(1)} m'}${(d.rainSum ?? 0) >= 1 ? ' · ${d.rainSum!.round()} mm' : ''}',
+                  style: const TextStyle(color: Color(0xFFD6E9E6), fontSize: 12),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(color: widget.scoreColor(s), borderRadius: BorderRadius.circular(7)),
+                child: Text('%$s', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12.5)),
+              ),
+              const SizedBox(width: 6),
+              _FishRow(FishingScore.fishCount(s), size: 12),
+            ]),
+            AnimatedSize(
+              duration: const Duration(milliseconds: 200),
+              alignment: Alignment.topCenter,
+              child: _open ? _details(d, w, s) : const SizedBox(width: double.infinity),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _details(DayForecast d, WeatherLook w, int s) {
+    String deg(double? v) => v == null ? '-' : '${v.round()}°';
+    final lines = <(IconData, String)>[
+      (w.icon, '${w.label}${d.rainProb != null ? ' · yağış olasılığı %${d.rainProb}' : ''}'
+          '${(d.rainSum ?? 0) >= 0.5 ? ' · ${d.rainSum!.toStringAsFixed(d.rainSum! < 10 ? 1 : 0)} mm' : ''}'),
+      (Icons.thermostat, 'Sıcaklık ${deg(d.tempMin)} / ${deg(d.tempMax)}'),
+      (Icons.air,
+          'Rüzgâr ${d.windFrom.isEmpty ? '' : '${d.windFrom} '}${d.windMax?.round() ?? '-'} km/s, hamle ${d.gustMax?.round() ?? '-'} km/s'),
+      if (d.waveMax != null) (Icons.waves, 'Dalga en fazla ${d.waveMax!.toStringAsFixed(1)} m'),
+      (Icons.wb_twilight, 'Gün doğumu ${_saat(d.sunrise)} · batımı ${_saat(d.sunset)}'),
+      (Icons.nightlight_round, Moon.phaseName(d.date.add(const Duration(hours: 21)))),
+      (Icons.phishing, 'Av verimliliği %$s (${FishingScore.label(s)})'),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 8, 6, 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        for (final (icon, text) in lines)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Icon(icon, size: 15, color: const Color(0xFFFFD54F)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 12.5, height: 1.3))),
+            ]),
+          ),
+      ]),
+    );
+  }
 }
 
 class _FishRow extends StatelessWidget {

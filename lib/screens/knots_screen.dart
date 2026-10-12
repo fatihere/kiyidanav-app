@@ -191,7 +191,7 @@ class _KnotCard extends StatelessWidget {
   }
 }
 
-/// Keşfet ve Hesabım'daki giriş kartı
+/// Mera Bilgisi sekmesindeki giriş kartı
 class KnotsEntry extends StatelessWidget {
   const KnotsEntry({super.key});
 

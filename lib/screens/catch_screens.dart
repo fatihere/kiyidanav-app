@@ -11,6 +11,7 @@ import '../app_state.dart';
 import '../catches.dart';
 import '../config.dart';
 import '../mera.dart';
+import '../overlays.dart';
 import '../sea.dart';
 import '../theme.dart';
 import '../web_page_screen.dart';
@@ -206,15 +207,40 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  Future<void> _pickTime() async {
+  /// Avın günü (bugün / dün / 2 gün önce); saat korunur
+  void _setDay(int daysAgo) {
     final now = DateTime.now();
-    final d = await showDatePicker(
-        context: context, initialDate: _time, firstDate: now.subtract(const Duration(days: 2)), lastDate: now);
-    if (d == null || !mounted) return;
-    final t = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_time));
-    if (t == null) return;
-    final v = DateTime(d.year, d.month, d.day, t.hour, t.minute);
-    setState(() => _time = v.isAfter(now) ? now : v);
+    final d = DateTime(now.year, now.month, now.day).subtract(Duration(days: daysAgo));
+    var v = DateTime(d.year, d.month, d.day, _time.hour, _time.minute);
+    if (v.isAfter(now)) v = now;
+    setState(() => _time = v);
+  }
+
+  int get _daysAgo {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day).difference(DateTime(_time.year, _time.month, _time.day)).inDays;
+  }
+
+  Future<void> _pickTime() async {
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_time),
+      helpText: 'AVLANDIĞIN SAAT',
+      cancelText: 'Vazgeç',
+      confirmText: 'Tamam',
+      initialEntryMode: TimePickerEntryMode.dial,
+      builder: (ctx, child) =>
+          MediaQuery(data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true), child: child!),
+    );
+    if (t == null || !mounted) return;
+    final now = DateTime.now();
+    final v = DateTime(_time.year, _time.month, _time.day, t.hour, t.minute);
+    if (v.isAfter(now)) {
+      _say('İleri bir saat seçilemez. Saat şu ana ayarlandı.');
+      setState(() => _time = now);
+      return;
+    }
+    setState(() => _time = v);
   }
 
   Future<void> _send() async {
@@ -260,9 +286,9 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
     }
     await showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AppDialog(
         icon: const Icon(Icons.check_circle, color: Color(0xFF1F8B4C), size: 40),
-        title: const Text('Teşekkürler!'),
+        title: 'Teşekkürler!',
         content: Text(msg ?? 'Av bildirimin alındı.'),
         actions: [FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Tamam'))],
       ),
@@ -337,12 +363,33 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
               maxLength: 300,
               maxLines: 3,
               decoration: _dec(hint: 'Dip yapısı, derinlik, akıntı, ulaşım… Örn. taşlık dip, 4-5 m, mendirek ucu')),
-          _label('Av saati'),
+          _label('Av günü ve saati'),
+          Wrap(spacing: 6, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center, children: [
+            for (final (i, t) in const [(0, 'Bugün'), (1, 'Dün'), (2, '2 gün önce')])
+              ChoiceChip(
+                label: Text(t),
+                selected: _daysAgo == i,
+                selectedColor: Tide.somon,
+                onSelected: (_) => _setDay(i),
+              ),
+          ]),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(foregroundColor: Tide.zeytinKoyu, alignment: Alignment.centerLeft),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Tide.zeytinKoyu,
+              alignment: Alignment.centerLeft,
+              minimumSize: const Size.fromHeight(50),
+              side: const BorderSide(color: Tide.turuncu),
+            ),
             onPressed: _pickTime,
-            icon: const Icon(Icons.schedule),
-            label: Text('${_two(_time.day)}.${_two(_time.month)} · ${_two(_time.hour)}:${_two(_time.minute)}'),
+            icon: const Icon(Icons.schedule, color: Tide.turuncu),
+            label: Row(children: [
+              Text('Saat ${_two(_time.hour)}:${_two(_time.minute)}',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+              const Spacer(),
+              const Text('Değiştir', style: TextStyle(color: Tide.turuncu, fontWeight: FontWeight.w700)),
+              const Icon(Icons.edit, size: 16, color: Tide.turuncu),
+            ]),
           ),
           _label('Not (isteğe bağlı)'),
           TextField(controller: _note, maxLength: 300, maxLines: 3, decoration: _dec(hint: 'Hava, akıntı, saat… kısa bir not')),
@@ -581,7 +628,11 @@ void showCatchSheet(BuildContext context, CatchReport c) {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('${c.fish} · ${c.spot}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          Row(children: [
+            Expanded(
+                child: Text('${c.fish} · ${c.spot}', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
+            CloseX(onTap: () => Navigator.of(ctx).pop()),
+          ]),
           const SizedBox(height: 4),
           Text([if (c.amount.isNotEmpty) c.amount, c.name, c.ago()].join(' · '),
               style: const TextStyle(color: Color(0xFF6D6C60))),
