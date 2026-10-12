@@ -96,17 +96,19 @@ if __name__ == '__main__':
     import subprocess
     import tempfile
     out = sys.argv[1]
+    sadece_m4a = '--ios' in sys.argv  # macOS derlemesi: Homebrew ffmpeg'de Vorbis yok, iPhone'a .m4a yeter
     os.makedirs(out, exist_ok=True)
     for name, fn in [('ruzgar', wind), ('yagmur', rain), ('dalga', lambda: waves(1.0)), ('sakin', lambda: waves(0.35))]:
         y = fn()
         with tempfile.TemporaryDirectory() as td:
             wav = os.path.join(td, name + '.wav')
             wavfile.write(wav, SR, (y * 32767).astype(np.int16))
-            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', wav,
-                            '-af', 'loudnorm=I=-22:TP=-3', '-ar', str(SR), '-c:a', 'libvorbis', '-q:a', '2',
-                            os.path.join(out, name + '.ogg')], check=True)
+            if not sadece_m4a:
+                subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', wav,
+                                '-af', 'loudnorm=I=-22:TP=-3', '-ar', str(SR), '-c:a', 'libvorbis', '-q:a', '2',
+                                os.path.join(out, name + '.ogg')], check=True)
             # iPhone için AAC (.m4a) — iOS Vorbis (.ogg) çalamaz
             subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', wav,
                             '-af', 'loudnorm=I=-22:TP=-3', '-ar', str(SR), '-c:a', 'aac', '-b:a', '64k',
                             os.path.join(out, name + '.m4a')], check=True)
-        print(name, round(len(y) / SR, 1), 's', os.path.getsize(os.path.join(out, name + '.ogg')), 'bayt')
+        print(name, round(len(y) / SR, 1), 's', os.path.getsize(os.path.join(out, name + '.m4a')), 'bayt (m4a)')
