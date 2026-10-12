@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'api.dart';
 import 'app_state.dart';
 import 'mera.dart';
 import 'sea.dart';
@@ -170,6 +171,7 @@ Future<void> showSpotPicker(BuildContext context) {
             padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: Text('Konum seç', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           ),
+          if (Api.config.features.location) ...[
           ListTile(
             leading: const CircleAvatar(
                 backgroundColor: Tide.turuncu, child: Icon(Icons.my_location, color: Colors.white)),
@@ -181,6 +183,7 @@ Future<void> showSpotPicker(BuildContext context) {
             },
           ),
           const Divider(),
+          ],
           for (final side in Side.values) ...[
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),

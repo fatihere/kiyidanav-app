@@ -78,6 +78,12 @@ class Notices {
   static const _oldChannelId = 'kiyidanav_duyuru';
   static const _sound = RawResourceAndroidNotificationSound('kalama');
 
+  /// Panelde "Olta makinesi bildirim sesi" kapatılırsa telefonun standart sesiyle çalan kanal
+  static const plainChannelId = 'kiyidanav_genel';
+
+  /// Sunucudan gelir (bildirimler yanıtındaki "ses"); varsayılan kalama sesi
+  static bool reelSound = true;
+
   static const _channel = AndroidNotificationDetails(
     channelId,
     'Kampanyalar ve mera bilgisi',
@@ -97,6 +103,7 @@ class Notices {
     if (res.statusCode != 200) return const [];
     final j = jsonDecode(res.body);
     if (j is! Map || j['ok'] != true) return const [];
+    reelSound = j['ses'] != false;
     return ((j['items'] as List?) ?? [])
         .whereType<Map>()
         .map((e) => Notice.fromJson(Map<String, dynamic>.from(e)))
@@ -123,6 +130,13 @@ class Notices {
         description: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri',
         importance: Importance.high,
         sound: _sound,
+        playSound: true,
+      ));
+      await _android?.createNotificationChannel(const AndroidNotificationChannel(
+        plainChannelId,
+        'Kampanyalar ve mera bilgisi (standart ses)',
+        description: 'KıyıdanAv bildirimleri, telefonun standart bildirim sesiyle',
+        importance: Importance.high,
         playSound: true,
       ));
       try {
@@ -425,17 +439,17 @@ class Notices {
       }
     }
     if (style == null && body.length > 40) style = BigTextStyleInformation(body);
-    final details = style == null
+    final details = (style == null && reelSound)
         ? _channel
         : AndroidNotificationDetails(
-            _channel.channelId,
-            _channel.channelName,
+            reelSound ? _channel.channelId : plainChannelId,
+            reelSound ? _channel.channelName : 'Kampanyalar ve mera bilgisi (standart ses)',
             channelDescription: _channel.channelDescription,
             importance: Importance.high,
             priority: Priority.high,
             icon: 'ic_stat_notify',
             color: Tide.turuncu,
-            sound: _sound,
+            sound: reelSound ? _sound : null,
             playSound: true,
             styleInformation: style,
           );

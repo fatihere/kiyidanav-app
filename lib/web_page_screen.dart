@@ -17,7 +17,15 @@ class WebPageScreen extends StatefulWidget {
   final String? path; // ör. mobil-gizlilik.php (sitenin kökünde bir sayfa)
   /// Giriş/üyelik sayfası: başarılı olunca uygulamanın ana ekranına dön
   final bool homeAfterLogin;
-  const WebPageScreen({super.key, required this.title, this.route = '', this.path, this.homeAfterLogin = false});
+  /// Giriş başarılı olunca yalnızca bu sayfayı kapat (çağıran ekrana `true` döner)
+  final bool popAfterLogin;
+  const WebPageScreen(
+      {super.key,
+      required this.title,
+      this.route = '',
+      this.path,
+      this.homeAfterLogin = false,
+      this.popAfterLogin = false});
 
   @override
   State<WebPageScreen> createState() => _WebPageScreenState();
@@ -63,6 +71,13 @@ class _WebPageScreenState extends State<WebPageScreen> {
           if (route == 'account/logout') {
             appState.setMember(false);
             CatchService.saveToken(null); // av bildirimi anahtarı da silinsin
+          }
+          if (widget.popAfterLogin && (route == 'account/account' || route == 'account/success')) {
+            if (!_left && mounted) {
+              _left = true;
+              Navigator.of(context).pop(true);
+            }
+            return;
           }
           if (!widget.homeAfterLogin) return;
           // Başarılı girişte site hesap sayfasına, üyelikte başarı sayfasına yönlendirir

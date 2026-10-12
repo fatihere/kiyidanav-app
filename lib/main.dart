@@ -30,7 +30,7 @@ Future<void> main() async {
   Notices.enabled = true;
   runApp(const KiyidanAvApp());
   Notices.start().whenComplete(Push.start);
-  Locate.silentUpdate(); // izin daha önce verildiyse en yakın merayı seç
+  if (Api.config.features.location) Locate.silentUpdate(); // izin daha önce verildiyse en yakın merayı seç
 }
 
 class KiyidanAvApp extends StatefulWidget {

@@ -15,6 +15,9 @@ class CatchReport {
   final String bait;
   final String note;
   final String name; // "Fatih Y."
+  final String spotInfo; // gönderenin yazdığı mera bilgisi (dip, derinlik, akıntı…)
+  final String instagram; // kullanıcı adı, @ olmadan
+  final String igLink; // KıyıdanAv Instagram paylaşımı (varsa)
   final DateTime? time;
   final List<String> photos;
 
@@ -27,6 +30,9 @@ class CatchReport {
     this.bait = '',
     this.note = '',
     this.name = '',
+    this.spotInfo = '',
+    this.instagram = '',
+    this.igLink = '',
     this.time,
     this.photos = const [],
   });
@@ -40,6 +46,9 @@ class CatchReport {
         bait: '${j['yem'] ?? ''}',
         note: '${j['not'] ?? ''}',
         name: '${j['ad'] ?? ''}',
+        spotInfo: '${j['mera_bilgi'] ?? ''}',
+        instagram: CatchService.normalizeInstagram('${j['instagram'] ?? ''}') ?? '',
+        igLink: '${j['ig_link'] ?? ''}'.startsWith('https://www.instagram.com/') ? '${j['ig_link']}' : '',
         time: DateTime.tryParse('${j['saat'] ?? ''}'),
         photos: ((j['fotolar'] as List?) ?? const [])
             .map((e) => '$e')
@@ -99,6 +108,35 @@ class CatchService {
   static const _tokenKey = 'av_anahtar_v1';
   static const sessionPath = 'mobil-av.php?oturum=1';
 
+  // ---------------- Instagram hesabı ----------------
+  static const _igKey = 'ig_hesap_v1';
+
+  /// "@ad", "ad" veya "instagram.com/ad" → "ad" (geçersizse null)
+  static String? normalizeInstagram(String v) {
+    var s = v.trim();
+    final m = RegExp(r'instagram\.com/([A-Za-z0-9._]+)', caseSensitive: false).firstMatch(s);
+    if (m != null) s = m.group(1)!;
+    s = s.replaceFirst(RegExp(r'^@+'), '').replaceAll(RegExp(r'/+$'), '').toLowerCase();
+    if (!RegExp(r'^[a-z0-9._]{1,30}$').hasMatch(s) || s.startsWith('.') || s.endsWith('.') || s.contains('..')) {
+      return null;
+    }
+    return s;
+  }
+
+  static Future<String> savedInstagram() async {
+    try {
+      return (await SharedPreferences.getInstance()).getString(_igKey) ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  static Future<void> saveInstagram(String v) async {
+    try {
+      await (await SharedPreferences.getInstance()).setString(_igKey, v);
+    } catch (_) {}
+  }
+
   static Future<String?> token() async {
     try {
       final t = (await SharedPreferences.getInstance()).getString(_tokenKey);
@@ -136,6 +174,9 @@ class CatchService {
     double kg = 0,
     String bait = '',
     String note = '',
+    String spotInfo = '',
+    required String instagram,
+    bool instagramConsent = false,
     DateTime? time,
     List<String> photoPaths = const [],
   }) async {
@@ -149,6 +190,9 @@ class CatchService {
       ..fields['kg'] = kg.toStringAsFixed(2)
       ..fields['yem'] = bait
       ..fields['not'] = note
+      ..fields['mera_bilgi'] = spotInfo
+      ..fields['instagram'] = instagram
+      ..fields['ig_izin'] = instagramConsent ? '1' : '0'
       ..fields['saat'] = (time ?? DateTime.now()).toIso8601String().substring(0, 16);
     for (final p in photoPaths.take(3)) {
       req.files.add(await http.MultipartFile.fromPath('foto[]', p, filename: 'av.jpg'));

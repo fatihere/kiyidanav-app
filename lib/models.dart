@@ -270,6 +270,46 @@ class BaitRow {
       );
 }
 
+/// Panelden aç/kapa yapılabilen ek özellikler (bilinmeyen/eksik anahtar = açık)
+class Features {
+  final Map<String, bool> _m;
+  const Features([this._m = const {}]);
+
+  factory Features.fromJson(dynamic j) {
+    final m = <String, bool>{};
+    if (j is Map) {
+      j.forEach((k, v) {
+        if (v is bool) m['$k'] = v;
+      });
+    }
+    return Features(m);
+  }
+
+  bool _on(String k) => _m[k] ?? true;
+  bool get catchSubmit => _on('av_bildirim');
+  bool get catchList => _on('av_listesi');
+  bool get satellite => _on('uydu');
+  bool get modelConsensus => _on('model_uyum');
+  bool get extraSea => _on('ek_deniz');
+  bool get location => _on('konum');
+  bool get dynamicBackground => _on('dinamik_zemin');
+  bool get ambientSound => _on('ortam_ses');
+  bool get baitCard => _on('yem_karti');
+  bool get camp => _on('kamp');
+  bool get knots => _on('dugum');
+  bool get notificationSound => _on('bildirim_sesi');
+}
+
+/// Rapor altındaki açıklama: yalnızca açık olan veri kaynaklarını sayar
+String scoreSourcesText(Features fx) {
+  final parts = <String>['ay evresi', 'rüzgâr', 'dalga'];
+  if (fx.extraSea) parts.add('akıntı');
+  parts.add('basınç eğilimi');
+  if (fx.satellite) parts.add('uydudan deniz suyu sıcaklığı ve klorofil');
+  if (fx.catchList) parts.add('üyelerin onaylı av bildirimleri');
+  return 'Av verimliliği şu verilerden hesaplanan bir tahmindir: ${parts.join(', ')}.';
+}
+
 /// Yönetim panelinden gelen uygulama ayarları
 class RemoteConfig {
   final String announcement;
@@ -281,6 +321,7 @@ class RemoteConfig {
   final Ui ui;
   /// Balıkçı düğümleri bölümü açık mı (panelden)
   final bool knots;
+  final Features features;
 
   const RemoteConfig({
     this.announcement = '',
@@ -291,6 +332,7 @@ class RemoteConfig {
     this.bait = const [],
     this.ui = const Ui(),
     this.knots = true,
+    this.features = const Features(),
   });
 
   factory RemoteConfig.fromJson(Map<String, dynamic> j) => RemoteConfig(
@@ -304,7 +346,8 @@ class RemoteConfig {
         bait: ((j['yem'] as List?) ?? [])
             .map((e) => BaitRow.fromJson(e as Map<String, dynamic>))
             .toList(),
-        knots: j['dugum_acik'] != false,
+        knots: j['dugum_acik'] != false && Features.fromJson(j['eklentiler']).knots,
+        features: Features.fromJson(j['eklentiler']),
         ui: Ui.fromJson(j['tema'] is Map ? Map<String, dynamic>.from(j['tema'] as Map) : null),
       );
 }
