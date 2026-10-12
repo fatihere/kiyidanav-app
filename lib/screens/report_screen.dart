@@ -17,6 +17,7 @@ import '../models.dart';
 import '../sea.dart';
 import '../sea_card.dart';
 import '../share.dart';
+import '../share_card.dart';
 import '../app_state.dart';
 import '../solunar.dart';
 import '../theme.dart';
@@ -93,20 +94,69 @@ class _ReportScreenState extends State<ReportScreen> {
     return _ReportData(f, await catches, await sat);
   }
 
-  Future<void> _share(SpotForecast f, int score) async {
+  Future<void> _share(SpotForecast f, int score, SeaMood mood, SatInfo? sat) async {
     setState(() => _sharing = true);
+    final text = '${f.spot.name} günlük mera balık bilgisi: av verimliliği %$score, '
+        '${Moon.phaseName(DateTime.now())}. KıyıdanAv uygulamasıyla hazırlandı 🎣 kiyidanav.com';
     try {
-      await Sharer.widgetImage(_shotKey,
-          text: '${f.spot.name} günlük mera balık bilgisi: av verimliliği %$score, '
-              '${Moon.phaseName(DateTime.now())}. KıyıdanAv uygulamasıyla hazırlandı 🎣 kiyidanav.com');
+      final bytes = await ShareCard.render(_cardData(f, score, mood, sat)).timeout(const Duration(seconds: 12));
+      if (bytes == null) throw StateError('görsel boş');
+      Sharer.imageBytes(bytes, text: text);
     } catch (_) {
+      // Görsel hazırlanamazsa (ya da çok uzun sürerse) en azından yazılı rapor paylaşılsın
+      Sharer.textOnly(text);
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Rapor görseli hazırlanamadı.')));
+            .showSnackBar(const SnackBar(content: Text('Rapor görseli hazırlanamadı, yazılı rapor paylaşılıyor.')));
       }
     } finally {
       if (mounted) setState(() => _sharing = false);
     }
+  }
+
+  /// Paylaşım kartı içeriği (ekrandaki raporla aynı veriler, sade düzen)
+  ShareCardData _cardData(SpotForecast f, int score, SeaMood mood, SatInfo? sat) {
+    final r = f.now;
+    final now = DateTime.now();
+    final trend = f.pressureTrend;
+    final today = f.days.isNotEmpty ? f.days.first : null;
+    final dynamicBg = Api.config.ui.meraDinamikZemin && Api.config.features.dynamicBackground;
+    String win(DateTime? t) =>
+        '${_saat(t?.subtract(const Duration(hours: 1)))} – ${_saat(t?.add(const Duration(hours: 1)))}';
+    const kisa = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+    return ShareCardData(
+      place: '${f.spot.name} · ${f.spot.side.label}',
+      date: '${_tarih(now)} · ${_gunler[now.weekday - 1]}',
+      score: score,
+      scoreLabel: FishingScore.label(score),
+      moonName: Moon.phaseName(now),
+      moonPct: (Moon.illumination(now) * 100).round(),
+      verdict: r.verdict,
+      moon: MoonPainter(now),
+      colors: dynamicBg ? mood.colors : fixedMoodColors,
+      chips: [
+        (Icons.air, 'Rüzgâr', '${r.windKmh?.round() ?? '-'} km/s ${r.windFrom}'),
+        (Icons.waves, 'Dalga', r.strait ? '${f.spot.shelter} içi' : (r.waveM == null ? '—' : '${r.waveM!.toStringAsFixed(1)} m')),
+        (Icons.thermostat, 'Su / Hava', '${r.seaC?.round() ?? '-'}° / ${r.airC?.round() ?? '-'}°'),
+        (Icons.speed, 'Basınç',
+            r.pressure == null ? '—' : '${r.pressure!.round()} hPa ${trend == null ? '' : (trend < -0.8 ? '↘' : trend > 0.8 ? '↗' : '→')}'),
+        if (r.gustKmh != null) (Icons.storm, 'Hamle', '${r.gustKmh!.round()} km/s'),
+        if (sat?.sst != null) (Icons.satellite_alt_outlined, 'Uydu su sıcaklığı', '${sat!.sst!.toStringAsFixed(1)}°'),
+        if (r.rainDay != null) (Icons.water_drop_outlined, 'Yağış (gün)', '${r.rainDay!.toStringAsFixed(r.rainDay! < 10 ? 1 : 0)} mm'),
+      ],
+      morning: win(today?.sunrise),
+      evening: win(today?.sunset),
+      days: [
+        for (final d in f.days.take(7))
+          (
+            kisa[d.date.weekday - 1],
+            FishingScore.compute(d.date.add(const Duration(hours: 12)),
+                windKmh: d.effectiveWind, waveM: d.waveMax, rainMm: d.rainSum),
+            WeatherLook.of(d.weatherCode).icon,
+            WeatherLook.of(d.weatherCode).color,
+          ),
+      ],
+    );
   }
 
   @override
@@ -185,7 +235,7 @@ class _ReportScreenState extends State<ReportScreen> {
                         style: FilledButton.styleFrom(
                             backgroundColor: Tide.turuncu,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                        onPressed: _sharing ? null : () => _share(f, score),
+                        onPressed: _sharing ? null : () => _share(f, score, mood, data.sat),
                         icon: const Icon(Icons.ios_share),
                         label: Text(_sharing ? 'Hazırlanıyor…' : 'Raporu paylaş',
                             maxLines: 1, overflow: TextOverflow.ellipsis),
