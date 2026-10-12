@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'dart:math' as math;
 
 import 'package:audioplayers/audioplayers.dart';
@@ -195,7 +196,8 @@ class Ambience {
       await p.stop();
       await p.setReleaseMode(ReleaseMode.loop);
       await p.setVolume(volume);
-      await p.play(AssetSource('sounds/${mood.sound}.ogg'));
+      // iPhone .ogg çalamaz; orada AAC (.m4a) kullanılır
+      await p.play(AssetSource('sounds/${mood.sound}.${Platform.isIOS ? 'm4a' : 'ogg'}'));
       _playing = mood.sound;
     } catch (e) {
       debugPrint('ortam sesi: $e');

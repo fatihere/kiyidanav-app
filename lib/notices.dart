@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -114,7 +115,12 @@ class Notices {
   // ---------------- Başlatma ----------------
   static Future<void> initPlugin({bool foreground = false}) async {
     await plugin.initialize(
-      settings: const InitializationSettings(android: AndroidInitializationSettings('ic_stat_notify')),
+      settings: const InitializationSettings(
+        android: AndroidInitializationSettings('ic_stat_notify'),
+        // iPhone: izin, açılışta değil askPermission() ile istenir
+        iOS: DarwinInitializationSettings(
+            requestAlertPermission: false, requestBadgePermission: false, requestSoundPermission: false),
+      ),
       onDidReceiveNotificationResponse: foreground ? (r) => _openPayload(r.payload) : null,
     );
   }
@@ -150,6 +156,8 @@ class Notices {
     } catch (e) {
       debugPrint('bildirim eklentisi: $e');
     }
+    // iPhone'da düzenli arka plan kontrolü yok; bildirimler Firebase (APNs) ile gelir
+    if (!Platform.isAndroid) return;
     try {
       await Workmanager().initialize(noticeDispatcher);
       await Workmanager().registerPeriodicTask(
@@ -170,6 +178,9 @@ class Notices {
       await plugin
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.requestNotificationsPermission();
+      await plugin
+          .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>()
+          ?.requestPermissions(alert: true, badge: true, sound: true);
     } catch (_) {}
     // Yedek yol: Firebase'in izin isteği (bazı üreticilerde sistem penceresini bu açar)
     if (await permissionEnabled() != true) {
@@ -280,7 +291,7 @@ class Notices {
       id: 1,
       title: 'Bildirimler açık ✅',
       body: 'KıyıdanAv kampanya ve mera balık bilgisi bildirimlerini alacaksın.',
-      notificationDetails: const NotificationDetails(android: _channel),
+      notificationDetails: const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(sound: 'kalama.caf')),
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -457,7 +468,8 @@ class Notices {
       id: n.id.hashCode & 0x7fffffff,
       title: n.title,
       body: body,
-      notificationDetails: NotificationDetails(android: details),
+      notificationDetails: NotificationDetails(
+          android: details, iOS: DarwinNotificationDetails(sound: reelSound ? 'kalama.caf' : null)),
       payload: jsonEncode(n.toJson()),
     );
   }
