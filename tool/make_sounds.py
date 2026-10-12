@@ -105,4 +105,8 @@ if __name__ == '__main__':
             subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', wav,
                             '-af', 'loudnorm=I=-22:TP=-3', '-ar', str(SR), '-c:a', 'libvorbis', '-q:a', '2',
                             os.path.join(out, name + '.ogg')], check=True)
+            # iPhone için AAC (.m4a) — iOS Vorbis (.ogg) çalamaz
+            subprocess.run(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-y', '-i', wav,
+                            '-af', 'loudnorm=I=-22:TP=-3', '-ar', str(SR), '-c:a', 'aac', '-b:a', '64k',
+                            os.path.join(out, name + '.m4a')], check=True)
         print(name, round(len(y) / SR, 1), 's', os.path.getsize(os.path.join(out, name + '.ogg')), 'bayt')
