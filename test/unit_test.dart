@@ -262,4 +262,53 @@ void main() {
           FishingScore.compute(DateTime(2026, 6, 3, 12), windKmh: 12));
     });
   });
+
+  group('Eklentiler (aç/kapa)', () {
+    test('eksik anahtar açık sayılır, kapatılan kapanır', () {
+      final c = RemoteConfig.fromJson({
+        'eklentiler': {'uydu': false, 'kamp': false, 'dugum': false, 'av_bildirim': true},
+      });
+      expect(c.features.satellite, isFalse);
+      expect(c.features.camp, isFalse);
+      expect(c.features.catchSubmit, isTrue);
+      expect(c.features.ambientSound, isTrue);
+      expect(c.knots, isFalse);
+    });
+    test('eski sunucu (eklentiler yok) her şeyi açık bırakır', () {
+      final c = RemoteConfig.fromJson({'dugum_acik': true});
+      expect(c.features.catchList, isTrue);
+      expect(c.features.notificationSound, isTrue);
+      expect(c.knots, isTrue);
+    });
+    test('rapor açıklaması kapalı kaynakları saymaz', () {
+      final t = scoreSourcesText(const Features({'uydu': false, 'av_listesi': false}));
+      expect(t.contains('klorofil'), isFalse);
+      expect(t.contains('av bildirim'), isFalse);
+      expect(t.contains('rüzgâr'), isTrue);
+    });
+  });
+
+  group('Instagram hesabı', () {
+    test('@, bağlantı ve büyük harf temizlenir', () {
+      expect(CatchService.normalizeInstagram('@KiyidanAv'), 'kiyidanav');
+      expect(CatchService.normalizeInstagram('https://www.instagram.com/kiyida.birivar/'), 'kiyida.birivar');
+      expect(CatchService.normalizeInstagram(' fatih_eren '), 'fatih_eren');
+    });
+    test('geçersizler reddedilir', () {
+      expect(CatchService.normalizeInstagram(''), isNull);
+      expect(CatchService.normalizeInstagram('fatih eren'), isNull);
+      expect(CatchService.normalizeInstagram('ad..soyad'), isNull);
+      expect(CatchService.normalizeInstagram('a' * 31), isNull);
+    });
+    test('av bildirimi mera bilgisi ve hesap okunur', () {
+      final c = CatchReport.fromJson({
+        'id': 'x', 'mera': 'Moda', 'balik': 'Lüfer', 'mera_bilgi': 'Taşlık dip',
+        'instagram': '@Avci', 'ig_link': 'https://www.instagram.com/p/abc/',
+      });
+      expect(c.spotInfo, 'Taşlık dip');
+      expect(c.instagram, 'avci');
+      expect(c.igLink, 'https://www.instagram.com/p/abc/');
+      expect(CatchReport.fromJson({'ig_link': 'https://kotu.example/'}).igLink, '');
+    });
+  });
 }
