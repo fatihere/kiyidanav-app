@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -20,17 +21,27 @@ class Sharer {
     await Share.share('${Api.config.shareText}\nhttps://kiyidanav.com', subject: 'KıyıdanAv');
   }
 
-  /// Ekrandaki bir alanı (RepaintBoundary) görsel olarak paylaşır — Instagram hikâyesi için ideal
-  static Future<void> widgetImage(GlobalKey key, {required String text, String name = 'kiyidanav-av-raporu.png'}) async {
+  /// Ekrandaki bir alanı (RepaintBoundary) görsel olarak paylaşır — Instagram hikâyesi için ideal.
+  /// Görsel genişliği [targetWidth] (900) pikselle sınırlanır: önceki 3x çekime göre ~%35 daha az piksel; daha
+  /// büyüğü yalnızca kodlamayı yavaşlatır). Paylaşım menüsü açılınca hemen döner: menünün
+  /// kapanması BEKLENMEZ (önceden düğme, kullanıcı uygulamaya dönene kadar "Hazırlanıyor…" kalıyordu).
+  static Future<void> widgetImage(GlobalKey key,
+      {required String text, String name = 'kiyidanav-av-raporu.png', double targetWidth = 900}) async {
     final ctx = key.currentContext;
     if (ctx == null) return;
     final boundary = ctx.findRenderObject() as RenderRepaintBoundary;
-    final image = await boundary.toImage(pixelRatio: 3);
+    final ratio = imagePixelRatio(boundary.size.width, targetWidth);
+    final image = await boundary.toImage(pixelRatio: ratio);
     final data = await image.toByteData(format: ui.ImageByteFormat.png);
+    image.dispose();
     if (data == null) return;
-    await Share.shareXFiles(
+    unawaited(Share.shareXFiles(
       [XFile.fromData(data.buffer.asUint8List(), mimeType: 'image/png', name: name)],
       text: text,
-    );
+    ).then((_) {}, onError: (_) {}));
   }
+
+  /// Görseli [targetWidth] piksel genişliğe getiren ölçek (1,5 – 3 arası)
+  static double imagePixelRatio(double logicalWidth, double targetWidth) =>
+      logicalWidth <= 0 ? 2.5 : (targetWidth / logicalWidth).clamp(1.5, 3.0).toDouble();
 }
