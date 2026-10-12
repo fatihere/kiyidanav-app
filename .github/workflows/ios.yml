@@ -1,0 +1,71 @@
+name: iOS derle
+
+# Şimdilik imzasız derleme: kodun iPhone için hatasız derlendiğini doğrular.
+# Apple Developer hesabı ve App Store Connect API anahtarı eklenince imzalı IPA + TestFlight adımı açılacak.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode (en güncel kararlı)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: iOS iskeletini oluştur
+        run: flutter create --org com.kiyidanav --project-name kiyidanav --platforms ios .
+
+      - name: Logo ve yazı tipi (kiyidanav.com + Google Fonts)
+        run: |
+          mkdir -p assets/brand assets/fonts
+          curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png"
+          curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
+
+      - name: Python araçları
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pillow numpy scipy
+          brew install ffmpeg >/dev/null 2>&1 || true
+          ffmpeg -version | head -1
+
+      - name: Ortam sesleri (iPhone için .m4a dahil)
+        run: .venv/bin/python tool/make_sounds.py assets/sounds
+
+      - name: iOS ayarları (izin metinleri, simge, bildirim sesi, iOS 15+, yalnız iPhone)
+        run: .venv/bin/python tool/ios_patch.py
+
+      - name: Paketleri indir
+        run: flutter pub get
+
+      - name: Pod kurulumu ve iOS 15 hedefi
+        run: |
+          .venv/bin/python tool/ios_patch.py
+          if [ -f ios/Podfile ]; then (cd ios && pod install --repo-update); fi
+
+      - name: iOS derle (imzasız)
+        run: flutter build ios --release --no-codesign
+
+      - name: Kontroller
+        run: |
+          set -e
+          APP=build/ios/iphoneos/Runner.app
+          test -d "$APP"
+          test -f "$APP/kalama.caf" || { echo "::error::kalama.caf uygulamada yok"; exit 1; }
+          test -f "$APP/PrivacyInfo.xcprivacy" || { echo "::error::Gizlilik bildirimi yok"; exit 1; }
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" "$APP/Info.plist"
+          ls "$APP/Frameworks/App.framework/flutter_assets/assets/sounds/"
+          du -sh "$APP"
