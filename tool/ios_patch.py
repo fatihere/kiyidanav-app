@@ -120,8 +120,14 @@ def patch_project(extra_files):
     # Runner hedefinin ayar bloklarında aile tanımı yoksa ekle (yalnızca iPhone)
     s = re.sub(r'(PRODUCT_BUNDLE_IDENTIFIER = com\.kiyidanav\.kiyidanav;)(?![\s\S]{0,400}TARGETED_DEVICE_FAMILY)',
                r'\1\n\t\t\t\tTARGETED_DEVICE_FAMILY = 1;', s)
+    # Runner hedefinin kendi Resources aşaması (RunnerTests'inki değil)
+    m_tgt = re.search(r'/\* Runner \*/ = \{\s*isa = PBXNativeTarget;[\s\S]*?buildPhases = \(([\s\S]*?)\);', s)
+    m_id = m_tgt and re.search(r'([0-9A-F]{24}) /\* Resources \*/', m_tgt.group(1))
+    if not m_id:
+        fail('Runner hedefinin Resources aşaması bulunamadı')
+    res_pat = re.escape(m_id.group(1)) + r' /\* Resources \*/ = \{\s*isa = PBXResourcesBuildPhase;\s*buildActionMask = \d+;\s*files = \('
     m_group = re.search(r'(/\* Runner \*/ = \{\s*isa = PBXGroup;\s*children = \()', s)
-    m_res = re.search(r'(/\* Resources \*/ = \{\s*isa = PBXResourcesBuildPhase;\s*buildActionMask = \d+;\s*files = \()', s)
+    m_res = re.search(res_pat, s)
     if not m_group or not m_res:
         fail('Runner grubu veya Resources aşaması bulunamadı')
     for f in extra_files:
@@ -138,7 +144,7 @@ def patch_project(extra_files):
                       % (bld, name, ref, name), 1)
         m_group = re.search(r'(/\* Runner \*/ = \{\s*isa = PBXGroup;\s*children = \()', s)
         s = s[:m_group.end()] + '\n\t\t\t\t%s /* %s */,' % (ref, name) + s[m_group.end():]
-        m_res = re.search(r'(/\* Resources \*/ = \{\s*isa = PBXResourcesBuildPhase;\s*buildActionMask = \d+;\s*files = \()', s)
+        m_res = re.search(res_pat, s)
         s = s[:m_res.end()] + '\n\t\t\t\t%s /* %s in Resources */,' % (bld, name) + s[m_res.end():]
     path.write_text(s)
 
