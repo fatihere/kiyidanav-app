@@ -10,6 +10,7 @@ import 'catch_screens.dart';
 import 'knots_screen.dart';
 import '../locate.dart';
 import '../main.dart';
+import '../mera_widget.dart';
 import '../mera.dart';
 import '../models.dart';
 import '../sea.dart';
@@ -39,6 +40,7 @@ class _ReportScreenState extends State<ReportScreen> {
   String? _forSpot;
   bool _sharing = false;
   SeaMood? _mood;
+  _ReportData? _widgetData; // ana ekran kartına en son yazılan rapor
 
   @override
   void initState() {
@@ -154,6 +156,10 @@ class _ReportScreenState extends State<ReportScreen> {
                   recentCatches: data.catches.length,
                   sstChange5d: data.sat?.sstChange5d,
                   chlChangePct: data.sat?.chlChangePct);
+              if (!identical(_widgetData, data)) {
+                _widgetData = data;
+                MeraWidget.fromReport(f, score); // Android ana ekran kartı
+              }
               final mood = SeaMood.of(f.now, waveThreshold: Api.config.waveThreshold);
               if (_mood != mood) {
                 _mood = mood;
