@@ -16,11 +16,13 @@ import 'bait_card.dart';
 import 'config.dart';
 import 'main.dart';
 import 'models.dart';
+import 'overlays.dart';
 import 'screens/category_screen.dart';
 import 'screens/product_screen.dart';
 import 'sea.dart';
 import 'solunar.dart';
 import 'theme.dart';
+import 'updates.dart';
 
 /// Tüm uygulamadan sayfa açabilmek için (bildirime dokununca)
 final navKey = GlobalKey<NavigatorState>();
@@ -63,7 +65,6 @@ class Notice {
 class Notices {
   static const _seenKey = 'notice_seen';
   static const _notifiedKey = 'notice_notified';
-  static const _popupKey = 'notice_popup';
   static const _taskName = 'kiyidanav-bildirim';
 
   static final plugin = FlutterLocalNotificationsPlugin();
@@ -192,7 +193,8 @@ class Notices {
 
 
   // ---------------- Uygulama içi ----------------
-  static Future<void> refresh({bool popup = true}) async {
+  /// Bildirimleri yeniler. Yeni kampanyalar pencere olarak açılmaz; üstteki kayan bantta görünür.
+  static Future<void> refresh() async {
     if (!enabled) return;
     List<Notice> list;
     try {
@@ -214,19 +216,6 @@ class Notices {
       } catch (e) {
         debugPrint('bildirim gösterilemedi: $e');
       }
-    }
-
-    if (!popup) return;
-    final popped = (p.getStringList(_popupKey) ?? const []).toSet();
-    final pop = list.where((n) => !seen.contains(n.id) && !popped.contains(n.id) && n.type != 'rapor');
-    if (pop.isEmpty) return;
-    final n = pop.first;
-    popped.add(n.id);
-    await p.setStringList(_popupKey, popped.take(200).toList());
-    // Navigator'ın altındaki bir bağlam gerekir (overlay)
-    final ctx = navKey.currentState?.overlay?.context;
-    if (ctx != null && ctx.mounted) {
-      showDialog(context: ctx, builder: (_) => NoticeDialog(n));
     }
   }
 
@@ -261,7 +250,7 @@ class Notices {
       }
     }
     // Listeyi ve zil sayısını güncelle (sunucu önbelleği gecikebilir diye biraz bekle)
-    Future<void>.delayed(const Duration(seconds: 3), () => refresh(popup: false));
+    Future<void>.delayed(const Duration(seconds: 3), () => refresh());
   }
 
   static Future<void> _markNotified(List<Notice> list, SharedPreferences p) async {
@@ -320,9 +309,10 @@ class Notices {
     if (explain && context.mounted) {
       final yes = await showDialog<bool>(
         context: context,
-        builder: (ctx) => AlertDialog(
+        builder: (ctx) => AppDialog(
+          closeResult: false,
           icon: const Icon(Icons.notifications_active, color: Tide.turuncu, size: 36),
-          title: const Text('Kampanyaları kaçırma'),
+          title: 'Kampanyaları kaçırma',
           content: const Text(
               'İndirimleri, yeni ürünleri ve günlük mera balık bilgisini bildirim olarak gönderelim mi?'),
           actions: [
@@ -344,8 +334,9 @@ class Notices {
     if (!context.mounted) return false;
     final go = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Bildirimler kapalı'),
+      builder: (ctx) => AppDialog(
+        closeResult: false,
+        title: 'Bildirimler kapalı',
         content: const Text(
           'Telefonun ayarlarından açman gerekiyor. "Ayarları aç"a dokun, açılan ekranda '
           '"Bildirimleri göster" anahtarını aç ve geri dön.\n\n'
@@ -393,6 +384,9 @@ class Notices {
       case 'rapor':
         nav?.popUntil((r) => r.isFirst);
         shellTab.value = Shell.tabReport;
+        break;
+      case 'guncelleme':
+        AppUpdate.start();
         break;
       case 'urun':
         final id = int.tryParse(n.target);
@@ -514,59 +508,6 @@ void noticeDispatcher() {
   });
 }
 
-/// Uygulama açılınca yeni kampanya için gösterilen pencere
-class NoticeDialog extends StatelessWidget {
-  final Notice n;
-  const NoticeDialog(this.n, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (n.hasImage)
-          AspectRatio(
-            aspectRatio: 16 / 10,
-            child: Image.network(n.image,
-                fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: Tide.zemin)),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 4),
-          child: Text(n.title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-        ),
-        if (n.body.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 4, 18, 0),
-            child: Text(n.body, style: const TextStyle(fontSize: 14.5, height: 1.45)),
-          ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: Row(children: [
-            Expanded(
-              child: TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Kapat'),
-              ),
-            ),
-            if (n.type != 'kampanya' || n.target.isNotEmpty)
-              Expanded(
-                child: FilledButton(
-                  style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Notices.open(n);
-                  },
-                  child: const Text('İncele'),
-                ),
-              ),
-          ]),
-        ),
-      ]),
-    );
-  }
-}
-
 /// 🔔 Bildirimler kutusu
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
@@ -579,7 +520,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
   @override
   void initState() {
     super.initState();
-    Notices.refresh(popup: false).whenComplete(Notices.markAllSeen);
+    Notices.refresh().whenComplete(Notices.markAllSeen);
   }
 
   IconData _icon(String t) {
@@ -590,6 +531,8 @@ class _NoticesScreenState extends State<NoticesScreen> {
         return Icons.phishing;
       case 'kategori':
         return Icons.category_outlined;
+      case 'guncelleme':
+        return Icons.system_update;
       default:
         return Icons.campaign_outlined;
     }

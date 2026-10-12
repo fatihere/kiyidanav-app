@@ -7,6 +7,7 @@ import 'api.dart';
 import 'app_state.dart';
 import 'locate.dart';
 import 'notices.dart';
+import 'overlays.dart';
 import 'push.dart';
 import 'sea_card.dart';
 import 'screens/account_screen.dart';
@@ -15,12 +16,15 @@ import 'screens/home_screen.dart';
 import 'screens/report_screen.dart';
 import 'screens/search_screen.dart';
 import 'theme.dart';
+import 'updates.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await appState.load();
   await loadSelectedSpot();
   await Locate.loadPref();
+  await CampaignTicker.load();
+  await AppUpdate.loadVersion();
   // Yönetim panelindeki ayarlar (en fazla birkaç saniye beklenir)
   await Api.loadConfig().timeout(const Duration(seconds: 4), onTimeout: () => Api.config);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -47,7 +51,7 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
   void _startPoll() {
     _poll?.cancel();
     if (!Notices.enabled) return;
-    _poll = Timer.periodic(const Duration(minutes: 1), (_) => Notices.refresh(popup: false));
+    _poll = Timer.periodic(const Duration(minutes: 1), (_) => Notices.refresh());
   }
 
   @override
@@ -55,17 +59,28 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startPoll();
+    memberNotifier.addListener(_onMember);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Notices.refresh();
       if (Notices.enabled) {
         await Future<void>.delayed(const Duration(seconds: 2));
+        await AppUpdate.checkOnLaunch(); // Google Play'de yeni sürüm varsa "Güncelle"
+        await WelcomePopup.maybeShow(); // ilk girişte bir kez: Mera Bilgisi tanıtımı
         await Notices.askOnLaunch();
       }
     });
   }
 
+  /// Üye girişi yapılınca (ilk kez) Mera Bilgisi tanıtımı
+  void _onMember() {
+    if (memberNotifier.value && Notices.enabled) {
+      Future<void>.delayed(const Duration(milliseconds: 800), WelcomePopup.maybeShow);
+    }
+  }
+
   @override
   void dispose() {
+    memberNotifier.removeListener(_onMember);
     _poll?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -124,15 +139,18 @@ class Shell extends StatelessWidget {
 
   Widget _scaffold(int index) {
     return Scaffold(
-      body: IndexedStack(
-        index: index,
-        children: const [
-          HomeScreen(),
-          ReportScreen(),
-          SearchScreen(),
-          CartScreen(),
-          AccountScreen(),
-        ],
+      // Yeni kampanya: üstte kayan bant (X ile kapatılır)
+      body: TickerHost(
+        child: IndexedStack(
+          index: index,
+          children: const [
+            HomeScreen(),
+            ReportScreen(),
+            SearchScreen(),
+            CartScreen(),
+            AccountScreen(),
+          ],
+        ),
       ),
       bottomNavigationBar: ListenableBuilder(
         listenable: appState,

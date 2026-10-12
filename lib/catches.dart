@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show PathNotFoundException, SocketException;
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -180,36 +182,63 @@ class CatchService {
     DateTime? time,
     List<String> photoPaths = const [],
   }) async {
-    final uri = Uri.parse('${AppConfig.siteUrl}mobil-av.php');
-    final req = http.MultipartRequest('POST', uri)
-      ..headers['X-Av-Anahtar'] = token
-      ..headers['Accept'] = 'application/json'
-      ..fields['mera'] = spot
-      ..fields['balik'] = fish
-      ..fields['adet'] = '$count'
-      ..fields['kg'] = kg.toStringAsFixed(2)
-      ..fields['yem'] = bait
-      ..fields['not'] = note
-      ..fields['mera_bilgi'] = spotInfo
-      ..fields['instagram'] = instagram
-      ..fields['ig_izin'] = instagramConsent ? '1' : '0'
-      ..fields['saat'] = (time ?? DateTime.now()).toIso8601String().substring(0, 16);
-    for (final p in photoPaths.take(3)) {
-      req.files.add(await http.MultipartFile.fromPath('foto[]', p, filename: 'av.jpg'));
-    }
-    try {
-      final res = await http.Response.fromStream(await req.send().timeout(const Duration(seconds: 60)));
-      final j = jsonDecode(utf8.decode(res.bodyBytes));
-      if (j is Map && j['ok'] == true) {
-        _all = null; // listeyi tazele
-        return (null, false, '${j['mesaj'] ?? 'Av bildirimin alındı.'}');
+    final fields = <String, String>{
+      'mera': spot,
+      'balik': fish,
+      'adet': '$count',
+      'kg': kg.toStringAsFixed(2),
+      'yem': bait,
+      'not': note,
+      'mera_bilgi': spotInfo,
+      'instagram': instagram,
+      'ig_izin': instagramConsent ? '1' : '0',
+      'saat': (time ?? DateTime.now()).toIso8601String().substring(0, 16),
+    };
+    Future<http.Response> send(Uri uri) async {
+      final req = http.MultipartRequest('POST', uri)
+        ..followRedirects = false
+        ..headers['X-Av-Anahtar'] = token
+        ..headers['Accept'] = 'application/json'
+        ..fields.addAll(fields);
+      for (final p in photoPaths.take(3)) {
+        req.files.add(await http.MultipartFile.fromPath('foto[]', p, filename: 'av.jpg'));
       }
-      final login = j is Map && j['giris'] == true;
-      if (login) await saveToken(null);
-      return ('${j is Map ? j['error'] ?? 'Gönderilemedi.' : 'Gönderilemedi.'}', login, null);
-    } catch (_) {
-      return ('Gönderilemedi. İnternet bağlantını kontrol edip tekrar dene.', false, null);
+      return http.Response.fromStream(await req.send().timeout(const Duration(seconds: 90)));
     }
+
+    http.Response res;
+    try {
+      res = await send(Uri.parse('${AppConfig.siteUrl}mobil-av.php'));
+      // Sunucu başka adrese yönlendirirse (ör. www) aynı bildirimi oraya bir kez daha gönder
+      final loc = res.headers['location'];
+      if (res.statusCode >= 300 && res.statusCode < 400 && loc != null) {
+        final to = Uri.parse('${AppConfig.siteUrl}mobil-av.php').resolve(loc);
+        if (to.scheme == 'https' && to.host.endsWith(AppConfig.siteHost)) res = await send(to);
+      }
+    } on TimeoutException {
+      return ('Gönderim çok uzun sürdü. Bağlantın yavaş olabilir; daha az fotoğrafla tekrar dene.', false, null);
+    } on SocketException {
+      return ('İnternet bağlantısı yok. Bağlanınca tekrar dene.', false, null);
+    } on http.ClientException {
+      return ('Sunucuya ulaşılamadı. Biraz sonra tekrar dene.', false, null);
+    } on PathNotFoundException {
+      return ('Seçilen fotoğraf telefonda bulunamadı. Fotoğrafı kaldırıp yeniden ekle.', false, null);
+    } catch (e) {
+      return ('Gönderilemedi ($e). Tekrar dene.', false, null);
+    }
+    Object? j;
+    try {
+      j = jsonDecode(utf8.decode(res.bodyBytes));
+    } catch (_) {
+      return ('Sunucu beklenmeyen bir yanıt verdi (kod ${res.statusCode}). Biraz sonra tekrar dene.', false, null);
+    }
+    if (j is Map && j['ok'] == true) {
+      _all = null; // listeyi tazele
+      return (null, false, '${j['mesaj'] ?? 'Av bildirimin alındı.'}');
+    }
+    final login = j is Map && j['giris'] == true;
+    if (login) await saveToken(null);
+    return ('${j is Map ? j['error'] ?? 'Gönderilemedi.' : 'Gönderilemedi.'}', login, null);
   }
 }
 

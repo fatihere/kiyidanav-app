@@ -216,6 +216,9 @@ class DayForecast {
   final DateTime? sunset;
   final double? tempMax;
   final double? tempMin;
+  final int? weatherCode; // WMO hava kodu (açık, bulutlu, yağmur…)
+  final int? rainProb; // en yüksek yağış olasılığı %
+  final int? windDir; // baskın rüzgâr yönü (derece)
   const DayForecast(
       {required this.date,
       this.windMax,
@@ -225,7 +228,18 @@ class DayForecast {
       this.sunrise,
       this.sunset,
       this.tempMax,
-      this.tempMin});
+      this.tempMin,
+      this.weatherCode,
+      this.rainProb,
+      this.windDir});
+
+  /// Baskın rüzgârın yerel adı (Poyraz, Lodos…)
+  String get windFrom {
+    final d = windDir;
+    if (d == null) return '';
+    const names = ['Yıldız', 'Poyraz', 'Gündoğusu', 'Keşişleme', 'Kıble', 'Lodos', 'Günbatısı', 'Karayel'];
+    return names[((d % 360) / 45).round() % 8];
+  }
 
   /// Günün etkin rüzgârı (hamle dahil)
   double? get effectiveWind {
@@ -376,7 +390,8 @@ class SeaService {
       'current':
           'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,precipitation,cloud_cover',
       'hourly': 'surface_pressure',
-      'daily': 'wind_speed_10m_max,wind_gusts_10m_max,precipitation_sum,sunrise,sunset,temperature_2m_max,temperature_2m_min',
+      'daily': 'wind_speed_10m_max,wind_gusts_10m_max,precipitation_sum,sunrise,sunset,temperature_2m_max,temperature_2m_min,'
+          'weather_code,precipitation_probability_max,wind_direction_10m_dominant',
       'forecast_days': '7',
       'wind_speed_unit': 'kmh',
       'timezone': 'Europe/Istanbul',
@@ -451,6 +466,9 @@ class SeaService {
         sunset: DateTime.tryParse('${_at(d['sunset'], i)}'),
         tempMax: _n(_at(d['temperature_2m_max'], i)),
         tempMin: _n(_at(d['temperature_2m_min'], i)),
+        weatherCode: _n(_at(d['weather_code'], i))?.round(),
+        rainProb: _n(_at(d['precipitation_probability_max'], i))?.round(),
+        windDir: _n(_at(d['wind_direction_10m_dominant'], i))?.round(),
       ));
     }
     return SpotForecast(

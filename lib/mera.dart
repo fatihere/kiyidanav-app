@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'app_state.dart';
 import 'config.dart';
 import 'sea.dart';
+import 'overlays.dart';
 import 'theme.dart';
 import 'web_page_screen.dart';
 
@@ -167,10 +168,17 @@ void showMemberPrompt(BuildContext context, String what) {
     context: context,
     backgroundColor: Colors.transparent,
     builder: (ctx) => SafeArea(
-      child: MemberGate(
-        title: '$what üyelere özel',
-        child: const SizedBox.shrink(),
-      ),
+      child: Stack(children: [
+        MemberGate(
+          title: '$what üyelere özel',
+          child: const SizedBox.shrink(),
+        ),
+        Positioned(
+          top: 22,
+          right: 26,
+          child: CloseX(onTap: () => Navigator.of(ctx).pop(), color: Colors.white, background: const Color(0x33FFFFFF)),
+        ),
+      ]),
     ),
   );
 }
@@ -190,8 +198,13 @@ void showMeraSheet(BuildContext context, Spot spot, MeraInfo info) {
                 width: 40, height: 4, decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2))),
           ),
           const SizedBox(height: 14),
-          Text('${spot.name} · kıyıdan açığa kesit',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+          Row(children: [
+            Expanded(
+              child: Text('${spot.name} · kıyıdan açığa kesit',
+                  style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+            ),
+            CloseX(onTap: () => Navigator.of(ctx).pop(), color: Colors.white, background: const Color(0x33FFFFFF)),
+          ]),
           const SizedBox(height: 4),
           Text(spot.side.label, style: const TextStyle(color: Color(0xFF9FC4BD), fontSize: 13)),
           const SizedBox(height: 14),

@@ -42,6 +42,8 @@ class Tide {
       fontFamily: font,
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
+      // Tüm kısa uyarılarda kapatma (X) düğmesi
+      snackBarTheme: const SnackBarThemeData(showCloseIcon: true, closeIconColor: Colors.white),
       appBarTheme: AppBarTheme(
         backgroundColor: background,
         foregroundColor: kaya,

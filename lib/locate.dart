@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'app_state.dart';
 import 'mera.dart';
+import 'overlays.dart';
 import 'sea.dart';
 import 'sea_card.dart';
 import 'theme.dart';
@@ -96,9 +97,10 @@ class Locate {
         if (!context.mounted) return;
         final ok = await showDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
+          builder: (ctx) => AppDialog(
+            closeResult: false,
             icon: const Icon(Icons.my_location, color: Tide.turuncu, size: 34),
-            title: const Text('Sana en yakın merayı gösterelim'),
+            title: 'Sana en yakın merayı gösterelim',
             content: const Text('Yaklaşık konumun yalnızca telefonunda, en yakın kıyı noktasını seçmek için '
                 'kullanılır. Hiçbir yere gönderilmez ve saklanmaz.'),
             actions: [
@@ -167,9 +169,12 @@ Future<void> showSpotPicker(BuildContext context) {
         controller: scroll,
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
-            child: Text('Konum seç', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 12, 8),
+            child: Row(children: [
+              const Expanded(child: Text('Konum seç', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800))),
+              CloseX(onTap: () => Navigator.of(ctx).pop()),
+            ]),
           ),
           if (Api.config.features.location) ...[
           ListTile(
