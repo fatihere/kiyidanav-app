@@ -41,7 +41,7 @@ jobs:
           ffmpeg -version | head -1
 
       - name: Ortam sesleri (iPhone için .m4a dahil)
-        run: .venv/bin/python tool/make_sounds.py assets/sounds
+        run: .venv/bin/python tool/make_sounds.py assets/sounds --ios
 
       - name: iOS ayarları (izin metinleri, simge, bildirim sesi, iOS 15+, yalnız iPhone)
         run: .venv/bin/python tool/ios_patch.py
