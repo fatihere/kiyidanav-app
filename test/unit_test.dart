@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiyidanav/catches.dart';
 import 'package:kiyidanav/format.dart';
+import 'package:kiyidanav/mera_widget.dart';
 import 'package:kiyidanav/models.dart';
 import 'package:kiyidanav/notices.dart';
 import 'package:kiyidanav/overlays.dart';
@@ -343,6 +344,14 @@ void main() {
       ];
       expect(CampaignTicker.active(all, {}).map((n) => n.id), ['a', 'c']);
       expect(CampaignTicker.active(all, {'a'}).map((n) => n.id), ['c']);
+    });
+
+    test('ana ekran kartı: panel anahtarı ve dokunma bağlantısı', () {
+      expect(const Features().homeWidget, isTrue);
+      expect(Features.fromJson({'widget': false}).homeWidget, isFalse);
+      expect(MeraWidget.isWidgetLink(Uri.parse('kiyidanav://mera')), isTrue);
+      expect(MeraWidget.isWidgetLink(Uri.parse('https://kiyidanav.com/')), isFalse);
+      expect(MeraWidget.isWidgetLink(null), isFalse);
     });
 
     test('POST istekleri yönlendirilmesin diye site adresi www ile', () {
