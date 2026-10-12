@@ -298,6 +298,7 @@ class Features {
   bool get camp => _on('kamp');
   bool get knots => _on('dugum');
   bool get notificationSound => _on('bildirim_sesi');
+  bool get homeWidget => _on('widget');
 }
 
 /// Rapor altındaki açıklama: yalnızca açık olan veri kaynaklarını sayar

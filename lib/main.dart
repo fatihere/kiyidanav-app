@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:home_widget/home_widget.dart';
 
 import 'api.dart';
 import 'app_state.dart';
 import 'locate.dart';
+import 'mera_widget.dart';
 import 'notices.dart';
 import 'overlays.dart';
 import 'push.dart';
@@ -34,6 +36,8 @@ Future<void> main() async {
   Notices.enabled = true;
   runApp(const KiyidanAvApp());
   Notices.start().whenComplete(Push.start);
+  // Android ana ekran kartı: panel ayarı ve üyeliğe göre hazırlanır
+  MeraWidget.syncAccess(enabled: Api.config.features.homeWidget, member: appState.isMember);
   if (Api.config.features.location) Locate.silentUpdate(); // izin daha önce verildiyse en yakın merayı seç
 }
 
@@ -61,6 +65,7 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
     _startPoll();
     memberNotifier.addListener(_onMember);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (Notices.enabled) _listenHomeWidget();
       await Notices.refresh();
       if (Notices.enabled) {
         await Future<void>.delayed(const Duration(seconds: 2));
@@ -73,9 +78,25 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
 
   /// Üye girişi yapılınca (ilk kez) Mera Bilgisi tanıtımı
   void _onMember() {
-    if (memberNotifier.value && Notices.enabled) {
+    if (!Notices.enabled) return;
+    MeraWidget.syncAccess(enabled: Api.config.features.homeWidget, member: memberNotifier.value);
+    if (memberNotifier.value) {
       Future<void>.delayed(const Duration(milliseconds: 800), WelcomePopup.maybeShow);
     }
+  }
+
+  /// Ana ekran kartına dokunulunca Mera Bilgisi sekmesi açılır
+  void _listenHomeWidget() {
+    void go(Uri? u) {
+      if (!MeraWidget.isWidgetLink(u)) return;
+      navKey.currentState?.popUntil((r) => r.isFirst);
+      shellTab.value = Shell.tabReport;
+    }
+
+    try {
+      HomeWidget.initiallyLaunchedFromHomeWidget().then(go, onError: (_) {});
+      HomeWidget.widgetClicked.listen(go, onError: (_) {});
+    } catch (_) {}
   }
 
   @override

@@ -15,6 +15,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'bait_card.dart';
 import 'config.dart';
 import 'main.dart';
+import 'mera_widget.dart';
 import 'models.dart';
 import 'overlays.dart';
 import 'screens/category_screen.dart';
@@ -504,6 +505,7 @@ void noticeDispatcher() {
     } catch (e) {
       debugPrint('arka plan hata: $e');
     }
+    await MeraWidget.refreshIfStale(); // ana ekran kartı (saatte bir)
     return true;
   });
 }
