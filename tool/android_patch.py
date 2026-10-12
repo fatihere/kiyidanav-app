@@ -101,6 +101,11 @@ def patch_manifest():
     for p in perms:
         if p not in s:
             s = s.replace('<application', f'<uses-permission android:name="{p}"/>\n    <application', 1)
+    # Konum izni Play'de "konum donanımı zorunlu" sayılmasın (GPS'siz tabletler de kurabilsin)
+    for f in ['android.hardware.location', 'android.hardware.location.network', 'android.hardware.location.gps']:
+        tag = f'<uses-feature android:name="{f}" android:required="false"/>'
+        if tag not in s:
+            s = s.replace('<application', tag + '\n    <application', 1)
     # Kullanılmayan ön plan hizmeti izinleri (WorkManager ekliyor) kaldırılsın:
     # Play Console bunlar varsa ayrıca beyan formu ister.
     if 'xmlns:tools' not in s:
