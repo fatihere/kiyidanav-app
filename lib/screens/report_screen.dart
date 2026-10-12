@@ -10,6 +10,7 @@ import 'catch_screens.dart';
 import '../locate.dart';
 import '../main.dart';
 import '../mera.dart';
+import '../models.dart';
 import '../sea.dart';
 import '../sea_card.dart';
 import '../share.dart';
@@ -60,7 +61,7 @@ class _ReportScreenState extends State<ReportScreen> {
   /// Ses yalnızca bu sekme açıkken, kullanıcı açtıysa ve üye içeriği görünürken çalar
   void _syncSound() {
     final m = _mood;
-    if (_visible && m != null && Ambience.on.value && memberNotifier.value) {
+    if (_visible && m != null && Ambience.on.value && memberNotifier.value && Api.config.features.ambientSound) {
       Ambience.play(m, volume: Api.config.ui.meraSesSeviye);
     } else {
       Ambience.stop();
@@ -76,8 +77,13 @@ class _ReportScreenState extends State<ReportScreen> {
 
   /// Deniz/hava tahmini + bu meranın son avları + uydu verisi (ek veriler gecikirse rapor beklemez)
   Future<_ReportData> _load(Spot s) async {
-    final sat = SatService.of(s.lat, s.lon).timeout(const Duration(seconds: 10), onTimeout: () => null);
-    final catches = CatchService.forSpot(s.name).timeout(const Duration(seconds: 8), onTimeout: () => const []);
+    final fx = Api.config.features;
+    final sat = fx.satellite
+        ? SatService.of(s.lat, s.lon).timeout(const Duration(seconds: 10), onTimeout: () => null)
+        : Future<SatInfo?>.value(null);
+    final catches = fx.catchList
+        ? CatchService.forSpot(s.name).timeout(const Duration(seconds: 8), onTimeout: () => const <CatchReport>[])
+        : Future<List<CatchReport>>.value(const []);
     final f = await SeaService.fetchWeek(s);
     return _ReportData(f, await catches, await sat);
   }
@@ -154,7 +160,7 @@ class _ReportScreenState extends State<ReportScreen> {
               return ListView(
                 padding: const EdgeInsets.only(bottom: 32, top: 4),
                 children: [
-                  const LocationBar(),
+                  if (Api.config.features.location) const LocationBar(),
                   RepaintBoundary(
                     key: _shotKey,
                     child: _ReportCard(
@@ -177,6 +183,7 @@ class _ReportScreenState extends State<ReportScreen> {
                       ),
                         ),
                       ),
+                      if (Api.config.features.ambientSound) ...[
                       const SizedBox(width: 10),
                       ValueListenableBuilder<bool>(
                         valueListenable: Ambience.on,
@@ -195,17 +202,17 @@ class _ReportScreenState extends State<ReportScreen> {
                           ),
                         ),
                       ),
+                      ],
                     ]),
                   ),
-                  SpotCatchesCard(spot: f.spot),
+                  if (Api.config.features.catchList || Api.config.features.catchSubmit) SpotCatchesCard(spot: f.spot),
                   _MeraTile(spot: f.spot),
-                  const BaitCard(),
-                  const Padding(
-                    padding: EdgeInsets.fromLTRB(20, 16, 20, 0),
+                  if (Api.config.features.baitCard) const BaitCard(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Text(
-                      'Av verimliliği; ay evresi, rüzgâr, dalga, akıntı, basınç eğilimi, uydudan deniz suyu sıcaklığı ve '
-                      'klorofil ile üyelerin onaylı av bildirimlerinden hesaplanan bir tahmindir.',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF77766A)),
+                      scoreSourcesText(Api.config.features),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF77766A)),
                     ),
                   ),
                 ],
@@ -286,7 +293,8 @@ class _ReportCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final r = f.now;
     final trend = f.pressureTrend;
-    final dynamicBg = Api.config.ui.meraDinamikZemin;
+    final fx = Api.config.features;
+    final dynamicBg = Api.config.ui.meraDinamikZemin && fx.dynamicBackground;
     final colors = dynamicBg ? mood.colors : fixedMoodColors;
     final intensity = ((r.effectiveWind / 45) + (r.effectiveWave / 2) + ((r.rainNow ?? 0) / 3)).clamp(0.2, 1.0);
     return Container(
@@ -387,10 +395,10 @@ class _ReportCard extends StatelessWidget {
           _chip(Icons.thermostat, 'Su / Hava', '${r.seaC?.round() ?? '-'}° / ${r.airC?.round() ?? '-'}°'),
           _chip(Icons.speed, 'Basınç',
               r.pressure == null ? '—' : '${r.pressure!.round()} hPa ${trend == null ? '' : (trend < -0.8 ? '↘' : trend > 0.8 ? '↗' : '→')}'),
-          if (r.currentKmh != null) _chip(Icons.swap_horiz, 'Akıntı', '${r.currentKmh!.toStringAsFixed(1)} km/s'),
-          if (r.wavePeriod != null && r.wavePeriod! > 0)
+          if (fx.extraSea && r.currentKmh != null) _chip(Icons.swap_horiz, 'Akıntı', '${r.currentKmh!.toStringAsFixed(1)} km/s'),
+          if (fx.extraSea && r.wavePeriod != null && r.wavePeriod! > 0)
             _chip(Icons.timelapse, 'Dalga periyodu', '${r.wavePeriod!.toStringAsFixed(1)} sn'),
-          if (r.cloud != null) _chip(Icons.cloud_outlined, 'Bulut', '%${r.cloud}'),
+          if (fx.extraSea && r.cloud != null) _chip(Icons.cloud_outlined, 'Bulut', '%${r.cloud}'),
           if (sat?.sst != null)
             _chip(Icons.satellite_alt_outlined, 'Uydu su sıcaklığı (5 gün)',
                 '${sat!.sst!.toStringAsFixed(1)}° ${sat!.sstChange5d == null ? '' : '(${sat!.sstChange5d! > 0 ? '+' : ''}${sat!.sstChange5d!.toStringAsFixed(1)}°)'}'),
@@ -399,7 +407,7 @@ class _ReportCard extends StatelessWidget {
                 '${sat!.chl!.toStringAsFixed(1)} mg/m³ ${sat!.chlChangePct == null ? '' : '(${sat!.chlChangePct! > 0 ? '+' : ''}%${sat!.chlChangePct})'}'),
           if (catches.isNotEmpty)
             _chip(Icons.groups_outlined, 'Son 48 saat üye avı', '${catches.length} bildirim · ${catches.first.fish}'),
-          if (f.consensus != null && f.consensus!.count >= 2)
+          if (fx.modelConsensus && f.consensus != null && f.consensus!.count >= 2)
             _chip(Icons.fact_check_outlined, 'Model uyumu (${f.consensus!.count} model)',
                 '${f.consensus!.level} · ort. ${f.consensus!.mean.round()} km/s'),
         ]),
@@ -596,3 +604,4 @@ class _ReportData {
   final SatInfo? sat;
   const _ReportData(this.f, this.catches, this.sat);
 }
+

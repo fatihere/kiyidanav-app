@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   HomeData? _campFor;
 
   List<HomeSection> _camp(HomeData d) {
+    if (!Api.config.features.camp) return const [];
     if (identical(_campFor, d) && _campPick != null) return _campPick!;
     final rnd = math.Random();
     final groups = [...d.camp]..shuffle(rnd);
@@ -114,9 +115,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 else ...[
                   _title('Kategoriler'),
                   SliverToBoxAdapter(child: _CategoryGrid(data!.categories)),
-                  const SliverToBoxAdapter(child: BaitCard(max: 4)),
+                  if (Api.config.features.baitCard) const SliverToBoxAdapter(child: BaitCard(max: 4)),
                   if (Api.config.knots) const SliverToBoxAdapter(child: KnotsEntry()),
-                  const SliverToBoxAdapter(child: RecentCatchesStrip()),
+                  if (Api.config.features.catchList) const SliverToBoxAdapter(child: RecentCatchesStrip()),
                   for (final s in data.mixed(_camp(data)))
                     SliverToBoxAdapter(
                       child: HomeSectionBox(

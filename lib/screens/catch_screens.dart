@@ -3,14 +3,17 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../api.dart';
 import '../app_state.dart';
 import '../catches.dart';
 import '../config.dart';
 import '../mera.dart';
 import '../sea.dart';
 import '../theme.dart';
+import '../web_page_screen.dart';
 
 /// Yaygın kıyı balıkları (hızlı seçim); listede yoksa elle yazılır
 const commonFish = [
@@ -102,7 +105,11 @@ class _MemberCheckScreenState extends State<_MemberCheckScreen> {
                     FilledButton(
                       style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
                       onPressed: () async {
-                        openLogin(context);
+                        // Giriş sayfası açılır; başarılı girişte buraya döner ve anahtar otomatik alınır
+                        final ok = await Navigator.of(context).push<bool>(MaterialPageRoute(
+                            builder: (_) => const WebPageScreen(
+                                title: 'Giriş yap', route: 'account/login', popAfterLogin: true)));
+                        if (ok == true && mounted) await _retry();
                       },
                       child: const Text('Giriş yap / Üye ol'),
                     ),
@@ -128,6 +135,10 @@ class CatchFormScreen extends StatefulWidget {
 
   /// Üye kontrolü yapıp formu açar
   static Future<void> open(BuildContext context, Spot spot) async {
+    if (!Api.config.features.catchSubmit) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Av bildirimi şu an kapalı.')));
+      return;
+    }
     if (!appState.isMember) {
       showMemberPrompt(context, 'Av bildirmek');
       return;
@@ -148,15 +159,27 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
   final _kg = TextEditingController();
   final _bait = TextEditingController();
   final _note = TextEditingController();
+  final _spotInfo = TextEditingController();
+  final _insta = TextEditingController();
   final List<XFile> _photos = [];
   DateTime _time = DateTime.now();
   bool _sending = false;
+  bool _consent = false;
 
   static const maxPhotos = 3;
 
   @override
+  void initState() {
+    super.initState();
+    // Instagram hesabı bir kez yazılır, sonraki bildirimlerde hazır gelir
+    CatchService.savedInstagram().then((v) {
+      if (mounted && _insta.text.isEmpty && v.isNotEmpty) setState(() => _insta.text = v);
+    });
+  }
+
+  @override
   void dispose() {
-    for (final c in [_fish, _count, _kg, _bait, _note]) {
+    for (final c in [_fish, _count, _kg, _bait, _note, _spotInfo, _insta]) {
       c.dispose();
     }
     super.dispose();
@@ -200,6 +223,19 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
       _say('Balık türünü seç veya yaz.');
       return;
     }
+    final ig = CatchService.normalizeInstagram(_insta.text);
+    if (ig == null) {
+      _say(_insta.text.trim().isEmpty
+          ? 'Instagram hesabını yaz (zorunlu).'
+          : 'Instagram kullanıcı adı geçersiz. Sadece harf, rakam, nokta ve alt çizgi olabilir.');
+      return;
+    }
+    if (!_consent) {
+      _say('Instagram paylaşım iznini onaylaman gerekiyor.');
+      return;
+    }
+    await CatchService.saveInstagram(ig);
+    if (!mounted) return;
     setState(() => _sending = true);
     final (err, login, msg) = await CatchService.submit(
       token: widget.token,
@@ -209,6 +245,9 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
       kg: double.tryParse(_kg.text.trim().replaceAll(',', '.')) ?? 0,
       bait: _bait.text.trim(),
       note: _note.text.trim(),
+      spotInfo: _spotInfo.text.trim(),
+      instagram: ig,
+      instagramConsent: _consent,
       time: _time,
       photoPaths: _photos.map((p) => p.path).toList(),
     );
@@ -240,7 +279,9 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
         children: [
-          const Text('Avın yönetici onayından sonra 48 saat boyunca meranın kartında görünür ve diğer balıkçılara yol gösterir.',
+          const Text(
+              'Avın yönetici onayından sonra 48 saat boyunca meranın kartında görünür. Seçilen avlar @kiyidanav '
+              'Instagram hesabında, senin hesabın etiketlenerek paylaşılır.',
               style: TextStyle(fontSize: 13, color: Color(0xFF6D6C60))),
           const SizedBox(height: 14),
           _label('Mera'),
@@ -290,6 +331,12 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
           ]),
           _label('Yem / teknik'),
           TextField(controller: _bait, maxLength: 80, decoration: _dec(hint: 'Örn. maket balık, LRF silikon, çapari')),
+          _label('Mera bilgisi (isteğe bağlı)'),
+          TextField(
+              controller: _spotInfo,
+              maxLength: 300,
+              maxLines: 3,
+              decoration: _dec(hint: 'Dip yapısı, derinlik, akıntı, ulaşım… Örn. taşlık dip, 4-5 m, mendirek ucu')),
           _label('Av saati'),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(foregroundColor: Tide.zeytinKoyu, alignment: Alignment.centerLeft),
@@ -324,6 +371,38 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
           const SizedBox(height: 6),
           const Text('Fotoğraflardaki konum bilgisi sunucuda silinir. Yüz ve plaka içeren fotoğraf göndermemeni öneririz.',
               style: TextStyle(fontSize: 12, color: Color(0xFF77766A))),
+          _label('Instagram hesabın (zorunlu)'),
+          TextField(
+            controller: _insta,
+            maxLength: 60,
+            keyboardType: TextInputType.text,
+            autocorrect: false,
+            decoration: _dec(hint: 'kullaniciadi').copyWith(
+              prefixIcon: const Icon(Icons.alternate_email, size: 20),
+            ),
+          ),
+          const SizedBox(height: 6),
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => setState(() => _consent = !_consent),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Checkbox(
+                value: _consent,
+                activeColor: Tide.turuncu,
+                onChanged: (v) => setState(() => _consent = v ?? false),
+              ),
+              const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Text(
+                    'Avım onaylanırsa fotoğraflarım ve av bilgilerim @kiyidanav Instagram hesabında, '
+                    'Instagram hesabım etiketlenerek paylaşılabilir.',
+                    style: TextStyle(fontSize: 13),
+                  ),
+                ),
+              ),
+            ]),
+          ),
           const SizedBox(height: 18),
           SizedBox(
             height: 52,
@@ -411,9 +490,10 @@ class _SpotCatchesCardState extends State<SpotCatchesCard> {
       child: FutureBuilder<List<CatchReport>>(
         future: _f,
         builder: (context, snap) {
-          final list = snap.data ?? const <CatchReport>[];
+          final fx = Api.config.features;
+          final list = fx.catchList ? (snap.data ?? const <CatchReport>[]) : const <CatchReport>[];
           return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(children: [
+            if (fx.catchList) Row(children: [
               const Icon(Icons.set_meal, color: Tide.turuncu),
               const SizedBox(width: 8),
               Expanded(
@@ -428,8 +508,8 @@ class _SpotCatchesCardState extends State<SpotCatchesCard> {
                 ),
             ]),
             for (final c in list.take(3)) CatchTile(c),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
+            if (fx.catchList && fx.catchSubmit) const SizedBox(height: 8),
+            if (fx.catchSubmit) OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: Tide.zeytinKoyu,
                 side: const BorderSide(color: Tide.turuncu),
@@ -521,7 +601,26 @@ void showCatchSheet(BuildContext context, CatchReport c) {
             ),
           ],
           if (c.bait.isNotEmpty) ...[const SizedBox(height: 12), Text('Yem / teknik: ${c.bait}')],
+          if (c.spotInfo.isNotEmpty) ...[const SizedBox(height: 6), Text('Mera bilgisi: ${c.spotInfo}')],
           if (c.note.isNotEmpty) ...[const SizedBox(height: 6), Text(c.note)],
+          if (c.instagram.isNotEmpty || c.igLink.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, children: [
+              if (c.instagram.isNotEmpty)
+                ActionChip(
+                  avatar: const Icon(Icons.alternate_email, size: 16),
+                  label: Text(c.instagram),
+                  onPressed: () => launchUrl(Uri.https('www.instagram.com', '/${c.instagram}/'),
+                      mode: LaunchMode.externalApplication),
+                ),
+              if (c.igLink.isNotEmpty)
+                ActionChip(
+                  avatar: const Icon(Icons.photo_camera_outlined, size: 16),
+                  label: const Text('Instagram paylaşımı'),
+                  onPressed: () => launchUrl(Uri.parse(c.igLink), mode: LaunchMode.externalApplication),
+                ),
+            ]),
+          ],
         ]),
       ),
     ),
@@ -586,7 +685,8 @@ class RecentCatchesStrip extends StatefulWidget {
 }
 
 class _RecentCatchesStripState extends State<RecentCatchesStrip> {
-  late final Future<List<CatchReport>> _f = CatchService.recent();
+  late final Future<List<CatchReport>> _f =
+      Api.config.features.catchList ? CatchService.recent() : Future.value(const <CatchReport>[]);
 
   @override
   Widget build(BuildContext context) {
