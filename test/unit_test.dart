@@ -4,10 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kiyidanav/catches.dart';
 import 'package:kiyidanav/format.dart';
 import 'package:kiyidanav/models.dart';
+import 'package:kiyidanav/notices.dart';
+import 'package:kiyidanav/overlays.dart';
 import 'package:kiyidanav/sea.dart';
 import 'package:kiyidanav/screens/knots_screen.dart';
 import 'package:kiyidanav/solunar.dart';
 import 'package:kiyidanav/ui.dart';
+import 'package:kiyidanav/weather_icon.dart';
+import 'package:kiyidanav/config.dart';
 import 'package:flutter/material.dart' show Color;
 
 // Aşağıdaki JSON'lar sunucudaki mobil-api.php'nin test veritabanında
@@ -309,6 +313,42 @@ void main() {
       expect(c.instagram, 'avci');
       expect(c.igLink, 'https://www.instagram.com/p/abc/');
       expect(CatchReport.fromJson({'ig_link': 'https://kotu.example/'}).igLink, '');
+    });
+  });
+
+  group('1.7.0', () {
+    test('hava kodu simgesi ve adı', () {
+      expect(WeatherLook.of(0).label, 'Güneşli, açık');
+      expect(WeatherLook.of(3).label, 'Kapalı, bulutlu');
+      expect(WeatherLook.of(63).label, 'Yağmurlu');
+      expect(WeatherLook.of(95).label, 'Gök gürültülü sağanak');
+      expect(WeatherLook.of(null).label, 'Hava bilgisi yok');
+      expect(WeatherLook.of(1234).label, 'Hava bilgisi yok');
+    });
+
+    test('günlük baskın rüzgâr adı', () {
+      expect(DayForecast(date: DateTime(2026, 10, 12), windDir: 30).windFrom, 'Poyraz');
+      expect(DayForecast(date: DateTime(2026, 10, 12), windDir: 220).windFrom, 'Lodos');
+      expect(DayForecast(date: DateTime(2026, 10, 12)).windFrom, '');
+    });
+
+    test('kampanya bandı: rapor ve kapatılanlar gösterilmez, eskiler düşer', () {
+      final now = DateTime.now();
+      String d(int daysAgo) => now.subtract(Duration(days: daysAgo)).toIso8601String().substring(0, 19).replaceFirst('T', ' ');
+      final all = [
+        Notice(id: 'a', type: 'kampanya', title: 'İndirim', body: '', date: d(1)),
+        Notice(id: 'b', type: 'rapor', title: 'Rapor', body: '', date: d(0)),
+        Notice(id: 'c', type: 'urun', title: 'Yeni ürün', body: '', date: d(2)),
+        Notice(id: 'e', type: 'kampanya', title: 'Eski', body: '', date: d(10)),
+      ];
+      expect(CampaignTicker.active(all, {}).map((n) => n.id), ['a', 'c']);
+      expect(CampaignTicker.active(all, {'a'}).map((n) => n.id), ['c']);
+    });
+
+    test('POST istekleri yönlendirilmesin diye site adresi www ile', () {
+      expect(AppConfig.siteUrl, 'https://www.kiyidanav.com/');
+      expect(Uri.parse(AppConfig.apiUrl).host, 'www.kiyidanav.com');
+      expect('www.kiyidanav.com'.endsWith(AppConfig.siteHost), isTrue);
     });
   });
 }
