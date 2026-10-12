@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -40,6 +41,15 @@ class Sharer {
       text: text,
     ).then((_) {}, onError: (_) {}));
   }
+
+  /// Hazır PNG baytlarını paylaşır; paylaşım menüsünün kapanması beklenmez
+  static void imageBytes(Uint8List bytes, {required String text, String name = 'kiyidanav-av-raporu.png'}) {
+    unawaited(Share.shareXFiles([XFile.fromData(bytes, mimeType: 'image/png', name: name)], text: text)
+        .then((_) {}, onError: (_) {}));
+  }
+
+  /// Yalnızca yazı
+  static void textOnly(String text) => unawaited(Share.share(text).then((_) {}, onError: (_) {}));
 
   /// Görseli [targetWidth] piksel genişliğe getiren ölçek (1,5 – 3 arası)
   static double imagePixelRatio(double logicalWidth, double targetWidth) =>
