@@ -327,7 +327,7 @@ class SeaService {
     final wx = Uri.https('api.open-meteo.com', '/v1/forecast', {
       'latitude': lat,
       'longitude': lon,
-      'current': 'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,precipitation',
+      'current': 'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,precipitation',
       'daily': 'precipitation_sum',
       'forecast_days': '1',
       'wind_speed_unit': 'kmh',
@@ -369,7 +369,7 @@ class SeaService {
           gustKmh: _n(wc['wind_gusts_10m']),
           windDir: _n(wc['wind_direction_10m'])?.round(),
           airC: _n(wc['temperature_2m']),
-          pressure: _n(wc['surface_pressure']),
+          pressure: _n(wc['pressure_msl']),
           rainNow: _n(wc['precipitation']),
           rainDay: _n(_at(daily['precipitation_sum'], 0)),
           waveM: list[i].strait ? null : _n(mc['wave_height']),
@@ -388,8 +388,8 @@ class SeaService {
       'latitude': '${s.lat}',
       'longitude': '${s.lon}',
       'current':
-          'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,surface_pressure,precipitation,cloud_cover',
-      'hourly': 'surface_pressure',
+          'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,precipitation,cloud_cover',
+      'hourly': 'pressure_msl',
       'daily': 'wind_speed_10m_max,wind_gusts_10m_max,precipitation_sum,sunrise,sunset,temperature_2m_max,temperature_2m_min,'
           'weather_code,precipitation_probability_max,wind_direction_10m_dominant',
       'forecast_days': '7',
@@ -435,11 +435,13 @@ class SeaService {
     final d = (w['daily'] ?? {}) as Map;
     final md = (m['daily'] ?? {}) as Map;
 
-    // Basınç eğilimi: şimdiki saat ile 6 saat sonrası
+    // Basınç eğilimi: şimdiki saat ile 6 saat sonrası.
+    // Deniz seviyesine indirgenmiş basınç (pressure_msl) kullanılır: değer noktanın yüksekliğinden
+    // etkilenmez ve basınç yorumundaki hPa aralıklarıyla (1005 / 1018) doğrudan karşılaştırılabilir.
     double? trend;
     final hourly = (w['hourly'] ?? {}) as Map;
     final times = (hourly['time'] as List?) ?? const [];
-    final press = (hourly['surface_pressure'] as List?) ?? const [];
+    final press = (hourly['pressure_msl'] as List?) ?? const [];
     final nowKey = DateTime.now();
     for (var i = 0; i < times.length && i + 6 < press.length; i++) {
       final t = DateTime.tryParse('${times[i]}');
@@ -478,7 +480,7 @@ class SeaService {
         gustKmh: _n(wc['wind_gusts_10m']),
         windDir: _n(wc['wind_direction_10m'])?.round(),
         airC: _n(wc['temperature_2m']),
-        pressure: _n(wc['surface_pressure']),
+        pressure: _n(wc['pressure_msl']),
         rainNow: _n(wc['precipitation']),
         rainDay: days.isNotEmpty ? days.first.rainSum : null,
         waveM: s.strait ? null : _n(mc['wave_height']),
