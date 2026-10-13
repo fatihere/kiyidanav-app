@@ -13,6 +13,8 @@ import '../locate.dart';
 import '../main.dart';
 import '../mera_widget.dart';
 import '../mera.dart';
+import '../modul_kartlari.dart';
+import '../moduller.dart';
 import '../olcum_sheet.dart';
 import '../olcum_yorum.dart';
 import '../models.dart';
@@ -49,6 +51,9 @@ class _ReportScreenState extends State<ReportScreen> {
   @override
   void initState() {
     super.initState();
+    // Modül kartlarındaki "Önerilen ürünleri gör" düğmesi uygulamanın ürün aramasını açar
+    modulUrunAc = (ctx, ara, baslik) => Navigator.of(ctx).push(MaterialPageRoute(
+        builder: (_) => SearchResultsScreen(query: ara, title: baslik, bait: true)));
     shellTab.addListener(_onTab);
     Ambience.on.addListener(_syncSound);
     Ambience.load(defaultOn: Api.config.ui.meraSesAcik);
@@ -222,6 +227,7 @@ class _ReportScreenState extends State<ReportScreen> {
                 padding: const EdgeInsets.only(bottom: 32, top: 4),
                 children: [
                   if (Api.config.features.location) const LocationBar(),
+                  ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value, konum: ModulKonum.ust),
                   RepaintBoundary(
                     key: _shotKey,
                     child: _ReportCard(
@@ -266,7 +272,10 @@ class _ReportScreenState extends State<ReportScreen> {
                       ],
                     ]),
                   ),
+                  ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value),
                   if (Api.config.features.catchList || Api.config.features.catchSubmit) SpotCatchesCard(spot: f.spot),
+                  if (Moduller.app('bildirim_mesafe', uye: memberNotifier.value) != null)
+                    AvIstatKarti(m: Moduller.app('bildirim_mesafe', uye: memberNotifier.value)!, spot: f.spot),
                   _MeraTile(spot: f.spot),
                   if (Api.config.features.baitCard) const BaitCard(),
                   if (Api.config.features.freshwater) const FreshwaterEntry(),
@@ -302,6 +311,9 @@ class _MeraTile extends StatelessWidget {
       builder: (context, snap) {
         final info = snap.data;
         if (info == null) return const SizedBox.shrink();
+        // Panelde "Kesit 0–200 m + şev" modülü açıksa profil çizimli kart
+        final kesit = Moduller.app('kesit_200', uye: memberNotifier.value);
+        if (kesit != null && info.profile.isNotEmpty) return KesitKarti(m: kesit, spot: spot, info: info);
         return Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
           child: Material(
@@ -487,6 +499,7 @@ class _ReportCard extends StatelessWidget {
                 y: Yorum.modelUyumu(f.consensus!.level, f.consensus!.mean, f.consensus!.count)),
         ]),
         const SizedBox(height: 8),
+        if (Moduller.app('olcum_yorum', uye: true)?.b('ipucu', true) ?? false)
         const Row(children: [
           Icon(Icons.touch_app_outlined, size: 14, color: Color(0x99FFFFFF)),
           SizedBox(width: 5),
@@ -529,12 +542,16 @@ class _ReportCard extends StatelessWidget {
   }
 
   Widget _chip(IconData i, String k, String v, {OlcumYorum? y}) {
+    // Panel → Modüller → Ölçüm açıklamaları kapalıysa kutular dokunulmaz
+    final oy = Moduller.app('olcum_yorum', uye: true);
+    if (oy == null) y = null;
+    final cerceve = y != null && (oy?.b('cerceveRenk', true) ?? true);
     final kutu = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0x1FFFFFFF),
         borderRadius: BorderRadius.circular(10),
-        border: y == null ? null : Border.all(color: tonRengi(y.ton).withAlpha(190)),
+        border: cerceve ? Border.all(color: tonRengi(y!.ton).withAlpha(190)) : null,
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(i, color: const Color(0xFFD6E9E6), size: 16),
@@ -549,14 +566,15 @@ class _ReportCard extends StatelessWidget {
         ],
       ]),
     );
-    if (y == null) return kutu;
+    final yorum = y;
+    if (yorum == null) return kutu;
     return Builder(
       builder: (ctx) => Semantics(
         button: true,
         label: '$k açıklaması',
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => showOlcumSheet(ctx, y),
+          onTap: () => showOlcumSheet(ctx, yorum),
           child: kutu,
         ),
       ),

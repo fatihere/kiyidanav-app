@@ -11,8 +11,10 @@ import '../app_state.dart';
 import '../catches.dart';
 import '../config.dart';
 import '../mera.dart';
+import '../moduller.dart';
 import '../overlays.dart';
 import '../sea.dart';
+import '../solunar.dart';
 import '../theme.dart';
 import '../web_page_screen.dart';
 
@@ -166,6 +168,11 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
   DateTime _time = DateTime.now();
   bool _sending = false;
   bool _consent = false;
+  // Modül: av bildirimine mesafe ve derinlik
+  String _mesafe = '';
+  String _derinlik = '';
+  Future<SpotForecast?>? _hava;
+  ModulCfg? get _mesafeModul => Moduller.app('bildirim_mesafe', uye: true);
 
   static const maxPhotos = 3;
 
@@ -176,6 +183,31 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
     CatchService.savedInstagram().then((v) {
       if (mounted && _insta.text.isEmpty && v.isNotEmpty) setState(() => _insta.text = v);
     });
+    if (_mesafeModul?.b('havaKaydi', true) ?? false) _havaYukle();
+  }
+
+  void _havaYukle() {
+    _hava = SeaService.fetchWeek(_spot).then<SpotForecast?>((f) => f).catchError((_) => null);
+  }
+
+  /// Bildirim anının havası (yalnız av "bugün" ve son birkaç saat içindeyse anlamlı)
+  Future<Map<String, Object>> _havaKaydi() async {
+    final m = _mesafeModul;
+    if (m == null || !m.b('havaKaydi', true) || _hava == null) return const {};
+    if (DateTime.now().difference(_time).inHours.abs() > 6) return const {};
+    final f = await _hava!.timeout(const Duration(seconds: 4), onTimeout: () => null);
+    if (f == null) return const {};
+    final r = f.now;
+    return {
+      if (r.pressure != null) 'basinc': r.pressure!.toStringAsFixed(1),
+      if (f.pressureTrend != null) 'egilim': f.pressureTrend!.toStringAsFixed(1),
+      'ruzgar': r.effectiveWind.toStringAsFixed(0),
+      if (!r.strait && r.waveM != null) 'dalga': r.effectiveWave.toStringAsFixed(1),
+      if (r.cloud != null) 'bulut': '${r.cloud}',
+      if (r.seaC != null) 'su': r.seaC!.toStringAsFixed(1),
+      'ay': (Moon.illumination(_time) * 100).round(),
+      'evre': Moon.phaseName(_time),
+    };
   }
 
   @override
@@ -260,6 +292,10 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
       _say('Instagram paylaşım iznini onaylaman gerekiyor.');
       return;
     }
+    if ((_mesafeModul?.b('zorunlu') ?? false) && _mesafe.isEmpty) {
+      _say('Balığı kaç metrede tuttuğunu seç.');
+      return;
+    }
     await CatchService.saveInstagram(ig);
     if (!mounted) return;
     setState(() => _sending = true);
@@ -276,6 +312,9 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
       instagramConsent: _consent,
       time: _time,
       photoPaths: _photos.map((p) => p.path).toList(),
+      distance: _mesafe,
+      depth: _derinlik,
+      weather: await _havaKaydi(),
     );
     if (!mounted) return;
     setState(() => _sending = false);
@@ -322,7 +361,10 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
             ],
             onChanged: (v) {
               final m = spots.where((s) => s.name == v);
-              if (m.isNotEmpty) setState(() => _spot = m.first);
+              if (m.isNotEmpty) {
+                setState(() => _spot = m.first);
+                if (_mesafeModul?.b('havaKaydi', true) ?? false) _havaYukle();
+              }
             },
           ),
           _label('Balık'),
@@ -357,6 +399,34 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
           ]),
           _label('Yem / teknik'),
           TextField(controller: _bait, maxLength: 80, decoration: _dec(hint: 'Örn. maket balık, LRF silikon, çapari')),
+          if (_mesafeModul != null) ...[
+            _label('Kaç metrede tuttun?${_mesafeModul!.b('zorunlu') ? '' : ' (isteğe bağlı)'}'),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final r in _mesafeModul!.l('mesafeler'))
+                ChoiceChip(
+                  label: Text('${r['ad'] ?? ''}'),
+                  selected: _mesafe == '${r['ad'] ?? ''}',
+                  selectedColor: Tide.somon,
+                  onSelected: (v) => setState(() => _mesafe = v ? '${r['ad'] ?? ''}' : ''),
+                ),
+            ]),
+            _label('Hangi derinlikte?'),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final r in _mesafeModul!.l('derinlikler'))
+                ChoiceChip(
+                  label: Text('${r['ad'] ?? ''}'),
+                  selected: _derinlik == '${r['ad'] ?? ''}',
+                  selectedColor: Tide.somon,
+                  onSelected: (v) => setState(() => _derinlik = v ? '${r['ad'] ?? ''}' : ''),
+                ),
+            ]),
+            if (_mesafeModul!.b('havaKaydi', true))
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Bildirim anının havası (basınç, rüzgâr, bulut, ay) otomatik eklenir.',
+                    style: TextStyle(fontSize: 12, color: Tide.misina)),
+              ),
+          ],
           _label('Mera bilgisi (isteğe bağlı)'),
           TextField(
               controller: _spotInfo,
