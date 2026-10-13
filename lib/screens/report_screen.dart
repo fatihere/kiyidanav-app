@@ -13,6 +13,8 @@ import '../locate.dart';
 import '../main.dart';
 import '../mera_widget.dart';
 import '../mera.dart';
+import '../olcum_sheet.dart';
+import '../olcum_yorum.dart';
 import '../models.dart';
 import '../sea.dart';
 import '../sea_card.dart';
@@ -448,29 +450,50 @@ class _ReportCard extends StatelessWidget {
         const SizedBox(height: 12),
         // Hava / deniz ölçümleri
         Wrap(spacing: 10, runSpacing: 10, children: [
-          _chip(Icons.air, 'Rüzgâr', '${r.windKmh?.round() ?? '-'} km/s ${r.windFrom}'),
+          _chip(Icons.air, 'Rüzgâr', '${r.windKmh?.round() ?? '-'} km/s ${r.windFrom}',
+              y: Yorum.ruzgar(r.windKmh, r.windFrom)),
           _chip(Icons.waves, 'Dalga (6 sa. en fazla)',
-              r.strait ? '${f.spot.shelter} içi' : (r.waveM == null ? '—' : '${r.waveM!.toStringAsFixed(1)} m (${r.effectiveWave.toStringAsFixed(1)} m)')),
-          if (r.gustKmh != null) _chip(Icons.storm, 'Hamle', '${r.gustKmh!.round()} km/s'),
-          if (r.rainDay != null) _chip(Icons.water_drop_outlined, 'Yağış (gün)', '${r.rainDay!.toStringAsFixed(r.rainDay! < 10 ? 1 : 0)} mm'),
-          _chip(Icons.thermostat, 'Su / Hava', '${r.seaC?.round() ?? '-'}° / ${r.airC?.round() ?? '-'}°'),
+              r.strait ? '${f.spot.shelter} içi' : (r.waveM == null ? '—' : '${r.waveM!.toStringAsFixed(1)} m (${r.effectiveWave.toStringAsFixed(1)} m)'),
+              y: Yorum.dalga(r.strait || r.waveM == null ? null : r.effectiveWave, r.strait)),
+          if (r.gustKmh != null) _chip(Icons.storm, 'Hamle', '${r.gustKmh!.round()} km/s', y: Yorum.hamle(r.gustKmh!)),
+          if (r.rainDay != null)
+            _chip(Icons.water_drop_outlined, 'Yağış (gün)', '${r.rainDay!.toStringAsFixed(r.rainDay! < 10 ? 1 : 0)} mm',
+                y: Yorum.yagis(r.rainDay!)),
+          _chip(Icons.thermostat, 'Su / Hava', '${r.seaC?.round() ?? '-'}° / ${r.airC?.round() ?? '-'}°',
+              y: Yorum.suHava(r.seaC, r.airC)),
           _chip(Icons.speed, 'Basınç',
-              r.pressure == null ? '—' : '${r.pressure!.round()} hPa ${trend == null ? '' : (trend < -0.8 ? '↘' : trend > 0.8 ? '↗' : '→')}'),
-          if (fx.extraSea && r.currentKmh != null) _chip(Icons.swap_horiz, 'Akıntı', '${r.currentKmh!.toStringAsFixed(1)} km/s'),
+              r.pressure == null ? '—' : '${r.pressure!.round()} hPa ${trend == null ? '' : (trend < -0.8 ? '↘' : trend > 0.8 ? '↗' : '→')}',
+              y: Yorum.basinc(r.pressure, trend)),
+          if (fx.extraSea && r.currentKmh != null)
+            _chip(Icons.swap_horiz, 'Akıntı', '${r.currentKmh!.toStringAsFixed(1)} km/s', y: Yorum.akinti(r.currentKmh!)),
           if (fx.extraSea && r.wavePeriod != null && r.wavePeriod! > 0)
-            _chip(Icons.timelapse, 'Dalga periyodu', '${r.wavePeriod!.toStringAsFixed(1)} sn'),
-          if (fx.extraSea && r.cloud != null) _chip(Icons.cloud_outlined, 'Bulut', '%${r.cloud}'),
+            _chip(Icons.timelapse, 'Dalga periyodu', '${r.wavePeriod!.toStringAsFixed(1)} sn',
+                y: Yorum.dalgaPeriyodu(r.wavePeriod!, r.effectiveWave)),
+          if (fx.extraSea && r.cloud != null) _chip(Icons.cloud_outlined, 'Bulut', '%${r.cloud}', y: Yorum.bulut(r.cloud!)),
           if (sat?.sst != null)
             _chip(Icons.satellite_alt_outlined, 'Uydu su sıcaklığı (5 gün)',
-                '${sat!.sst!.toStringAsFixed(1)}° ${sat!.sstChange5d == null ? '' : '(${sat!.sstChange5d! > 0 ? '+' : ''}${sat!.sstChange5d!.toStringAsFixed(1)}°)'}'),
+                '${sat!.sst!.toStringAsFixed(1)}° ${sat!.sstChange5d == null ? '' : '(${sat!.sstChange5d! > 0 ? '+' : ''}${sat!.sstChange5d!.toStringAsFixed(1)}°)'}',
+                y: Yorum.uyduSst(sat!.sst!, sat!.sstChange5d, now.month)),
           if (sat?.chl != null)
             _chip(Icons.grass_outlined, 'Klorofil (yem balığı)',
-                '${sat!.chl!.toStringAsFixed(1)} mg/m³ ${sat!.chlChangePct == null ? '' : '(${sat!.chlChangePct! > 0 ? '+' : ''}%${sat!.chlChangePct})'}'),
+                '${sat!.chl!.toStringAsFixed(1)} mg/m³ ${sat!.chlChangePct == null ? '' : '(${sat!.chlChangePct! > 0 ? '+' : ''}%${sat!.chlChangePct})'}',
+                y: Yorum.klorofil(sat!.chl!, sat!.chlChangePct)),
           if (catches.isNotEmpty)
-            _chip(Icons.groups_outlined, 'Son 48 saat üye avı', '${catches.length} bildirim · ${catches.first.fish}'),
+            _chip(Icons.groups_outlined, 'Son 48 saat üye avı', '${catches.length} bildirim · ${catches.first.fish}',
+                y: Yorum.uyeAvi(catches.length, catches.first.fish)),
           if (fx.modelConsensus && f.consensus != null && f.consensus!.count >= 2)
             _chip(Icons.fact_check_outlined, 'Model uyumu (${f.consensus!.count} model)',
-                '${f.consensus!.level} · ort. ${f.consensus!.mean.round()} km/s'),
+                '${f.consensus!.level} · ort. ${f.consensus!.mean.round()} km/s',
+                y: Yorum.modelUyumu(f.consensus!.level, f.consensus!.mean, f.consensus!.count)),
+        ]),
+        const SizedBox(height: 8),
+        const Row(children: [
+          Icon(Icons.touch_app_outlined, size: 14, color: Color(0x99FFFFFF)),
+          SizedBox(width: 5),
+          Expanded(
+            child: Text('Değerlere dokun: ne anlama geldiğini ve balığın hangi mesafede olduğunu gör',
+                style: TextStyle(color: Color(0x99FFFFFF), fontSize: 10.5)),
+          ),
         ]),
         const SizedBox(height: 16),
         // En iyi saatler
@@ -505,18 +528,40 @@ class _ReportCard extends StatelessWidget {
     );
   }
 
-  Widget _chip(IconData i, String k, String v) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(color: const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(10)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(i, color: const Color(0xFFD6E9E6), size: 16),
-          const SizedBox(width: 6),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(k, style: const TextStyle(color: Color(0xFFCFE3E0), fontSize: 10.5)),
-            Text(v, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
-          ]),
+  Widget _chip(IconData i, String k, String v, {OlcumYorum? y}) {
+    final kutu = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x1FFFFFFF),
+        borderRadius: BorderRadius.circular(10),
+        border: y == null ? null : Border.all(color: tonRengi(y.ton).withAlpha(190)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(i, color: const Color(0xFFD6E9E6), size: 16),
+        const SizedBox(width: 6),
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(k, style: const TextStyle(color: Color(0xFFCFE3E0), fontSize: 10.5)),
+          Text(v, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
         ]),
-      );
+        if (y != null) ...[
+          const SizedBox(width: 4),
+          const Icon(Icons.info_outline, color: Color(0x99FFFFFF), size: 13),
+        ],
+      ]),
+    );
+    if (y == null) return kutu;
+    return Builder(
+      builder: (ctx) => Semantics(
+        button: true,
+        label: '$k açıklaması',
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => showOlcumSheet(ctx, y),
+          child: kutu,
+        ),
+      ),
+    );
+  }
 
   Widget _window(String label, DateTime? t, IconData icon) {
     final from = t?.subtract(const Duration(hours: 1));
