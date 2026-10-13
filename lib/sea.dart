@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'cevrimdisi.dart';
+
 /// Bölgeler. İlk ikisi (İstanbul yakaları) herkese açık; diğerleri üye girişiyle açılır.
 enum Side {
   anadolu('Anadolu Yakası', true),
@@ -342,8 +344,8 @@ class SeaService {
       'timezone': 'Europe/Istanbul',
     });
     final res = await Future.wait([
-      http.get(wx).timeout(const Duration(seconds: 12)),
-      http.get(mr).timeout(const Duration(seconds: 12)).catchError((_) => http.Response('[]', 200)),
+      Cevrimdisi.get(wx),
+      Cevrimdisi.get(mr).catchError((_) => http.Response('[]', 200)),
     ]);
     dynamic w = jsonDecode(res[0].body);
     dynamic m;
@@ -416,9 +418,9 @@ class SeaService {
       'timezone': 'Europe/Istanbul',
     });
     final res = await Future.wait([
-      http.get(wx).timeout(const Duration(seconds: 12)),
-      http.get(mr).timeout(const Duration(seconds: 12)).catchError((_) => http.Response('{}', 200)),
-      http.get(ens).timeout(const Duration(seconds: 12)).catchError((_) => http.Response('{}', 200)),
+      Cevrimdisi.get(wx),
+      Cevrimdisi.get(mr).catchError((_) => http.Response('{}', 200)),
+      Cevrimdisi.get(ens).catchError((_) => http.Response('{}', 200)),
     ]);
     ModelConsensus? consensus;
     try {

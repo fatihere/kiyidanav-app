@@ -5,6 +5,7 @@ import 'dart:io' show PathNotFoundException, SocketException;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'cevrimdisi.dart';
 import 'config.dart';
 import 'moduller.dart';
 
@@ -188,6 +189,8 @@ class CatchService {
     String depth = '',
     Map<String, Object> weather = const {},
     int productId = 0,
+    double length = 0,
+    String tournament = '',
   }) async {
     final fields = <String, String>{
       'mera': spot,
@@ -204,6 +207,8 @@ class CatchService {
       if (depth.isNotEmpty) 'derinlik': depth,
       for (final e in weather.entries) 'hava_${e.key}': '${e.value}',
       if (productId > 0) 'urun_id': '$productId',
+      if (length > 0) 'boy': length.toStringAsFixed(1),
+      if (tournament.isNotEmpty) 'turnuva': tournament,
     };
     Future<http.Response> send(Uri uri) async {
       final req = http.MultipartRequest('POST', uri)
@@ -334,7 +339,7 @@ class SatService {
         'lat': lat.toStringAsFixed(2),
         'lon': lon.toStringAsFixed(2),
       });
-      final r = await http.get(uri, headers: const {'Accept': 'application/json'}).timeout(const Duration(seconds: 20));
+      final r = await Cevrimdisi.get(uri, headers: const {'Accept': 'application/json'}, timeout: const Duration(seconds: 20));
       final j = jsonDecode(utf8.decode(r.bodyBytes));
       if (j is! Map || j['ok'] != true) return null;
       final s = SatInfo.fromJson(Map<String, dynamic>.from(j));

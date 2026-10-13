@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'app_state.dart';
 import 'catches.dart';
@@ -125,6 +127,34 @@ class _WebPageScreenState extends State<WebPageScreen> {
       ..loadRequest(Uri.parse(widget.path != null
           ? '${AppConfig.siteUrl}${widget.path}'
           : '${AppConfig.siteUrl}index.php?route=${widget.route}'));
+    // Android: sayfadaki "fotoğraf seç" alanları (av araçları: tür tanıma, turnuva) telefonun kamerası/galerisiyle çalışsın
+    final pf = _web.platform;
+    if (pf is AndroidWebViewController) {
+      pf.setOnShowFileSelector(_dosyaSec);
+    }
+  }
+
+  Future<List<String>> _dosyaSec(FileSelectorParams p) async {
+    final tur = p.acceptTypes.join(',').toLowerCase();
+    if (tur.isNotEmpty && !tur.contains('image')) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(const SnackBar(
+            content: Text('Bu dosyayı kiyidanav.com üzerinden bilgisayardan ya da telefon tarayıcısından yükleyebilirsin.')));
+      }
+      return const [];
+    }
+    try {
+      final picker = ImagePicker();
+      if (p.mode == FileSelectorMode.openMultiple) {
+        final xs = await picker.pickMultiImage(maxWidth: 2000, imageQuality: 85, limit: 3);
+        return xs.map((x) => Uri.file(x.path).toString()).toList();
+      }
+      final x = await picker.pickImage(
+          source: p.isCaptureEnabled ? ImageSource.camera : ImageSource.gallery, maxWidth: 2000, imageQuality: 85);
+      return x == null ? const [] : [Uri.file(x.path).toString()];
+    } catch (_) {
+      return const [];
+    }
   }
 
   @override

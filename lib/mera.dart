@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
+import 'cevrimdisi.dart';
 import 'app_state.dart';
 import 'config.dart';
 import 'sea.dart';
@@ -63,7 +63,7 @@ class MeraService {
   static Future<Map<String, MeraInfo>> _fetch() async {
     try {
       final uri = Uri.parse(AppConfig.apiUrl).replace(queryParameters: {'a': 'mera'});
-      final r = await http.get(uri).timeout(const Duration(seconds: 12));
+      final r = await Cevrimdisi.get(uri);
       final out = <String, MeraInfo>{};
       if (r.statusCode == 200) {
         final j = jsonDecode(utf8.decode(r.bodyBytes));

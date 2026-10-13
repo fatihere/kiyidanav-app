@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'cevrimdisi.dart';
 import 'config.dart';
 import 'demo_data.dart';
 import 'models.dart';
@@ -27,8 +28,6 @@ class ApiUnavailable implements Exception {
 }
 
 class Api {
-  static final http.Client _client = http.Client();
-
   /// Örnek verilerle mi çalışıyoruz?
   static bool demo = false;
 
@@ -37,10 +36,15 @@ class Api {
     if (uri.scheme != 'https') throw const ApiUnavailable(); // şifresiz bağlantı yok
     http.Response res;
     try {
-      res = await _client.get(uri, headers: const {
-        'Accept': 'application/json',
-        'User-Agent': 'KiyidanAv-Android/1.0',
-      }).timeout(const Duration(seconds: 12));
+      // Çevrimdışı mod: ayarlar her zaman, diğerleri modül açıksa son kayıttan
+      res = await Cevrimdisi.get(uri,
+          headers: const {
+            'Accept': 'application/json',
+            'User-Agent': 'KiyidanAv-Android/1.0',
+          },
+          herZaman: q['a'] == 'config',
+          // Mağaza listeleri (ana sayfa, ürünler) saklanmaz; yalnız mera raporuyla ilgili olanlar
+          sakla: const {'config', 'dugumler', 'mera', 'bildirimler'}.contains(q['a']));
     } on TimeoutException {
       throw const ApiUnavailable();
     } on SocketException {

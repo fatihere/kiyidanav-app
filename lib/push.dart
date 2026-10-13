@@ -52,6 +52,16 @@ class Push {
     }
   }
 
+  /// Bu cihazın Firebase kimliği (koşul ve stok alarmları bu telefona gönderilir)
+  static Future<String?> token() async {
+    if (!ready) return null;
+    try {
+      return await FirebaseMessaging.instance.getToken().timeout(const Duration(seconds: 4));
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Notice? _notice(RemoteMessage m) {
     if (m.data['id'] == null) return null;
     return Notice.fromJson(Map<String, dynamic>.from(m.data));
