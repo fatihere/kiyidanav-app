@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+import '../cevrimdisi.dart';
 import '../config.dart';
 import '../mera.dart';
 import '../theme.dart';
@@ -40,7 +40,7 @@ class KnotService {
   static Future<List<Knot>> load({bool force = false}) async {
     if (_cache != null && !force) return _cache!;
     final uri = Uri.parse(AppConfig.apiUrl).replace(queryParameters: {'a': 'dugumler'});
-    final r = await http.get(uri, headers: const {'Accept': 'application/json'}).timeout(const Duration(seconds: 12));
+    final r = await Cevrimdisi.get(uri, headers: const {'Accept': 'application/json'});
     final j = jsonDecode(utf8.decode(r.bodyBytes));
     if (j is! Map || j['ok'] != true) throw Exception('Düğümler alınamadı');
     _cache = ((j['items'] as List?) ?? const [])

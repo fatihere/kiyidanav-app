@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../araclar.dart';
 import '../app_state.dart';
 import '../format.dart';
 import '../main.dart';
@@ -202,6 +203,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 ],
               ]),
               for (final o in p.options) _optionPicker(o),
+              UrunAraclariAlani(urunId: p.id),
               if (p.description.isNotEmpty) ...[
                 const SizedBox(height: 24),
                 Text('Ürün hakkında',

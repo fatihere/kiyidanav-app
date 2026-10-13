@@ -7,10 +7,12 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import '../api.dart';
+import '../araclar.dart';
 import '../app_state.dart';
 import '../catches.dart';
 import '../config.dart';
 import '../mera.dart';
+import '../models.dart';
 import '../moduller.dart';
 import '../overlays.dart';
 import '../sea.dart';
@@ -164,7 +166,22 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
   final _note = TextEditingController();
   final _spotInfo = TextEditingController();
   final _insta = TextEditingController();
+  final _boy = TextEditingController();
   final List<XFile> _photos = [];
+  // Modüller: turnuva, "bu ürünle tutuldu", fotoğraftan tür tanıma
+  String _turnuva = '';
+  int _urunId = 0;
+  String _urunAd = '';
+  bool _tanimlaniyor = false;
+  ModulCfg? get _turnuvaModul => Moduller.app('turnuva', uye: true);
+  List<Map<String, dynamic>> get _turnuvalar =>
+      _turnuvaModul == null ? const [] : aktifTurnuvalar(_turnuvaModul!.l('turnuvalar'), DateTime.now());
+  Map<String, dynamic>? get _seciliTurnuva {
+    for (final t in _turnuvalar) {
+      if ('${t['ad']}' == _turnuva) return t;
+    }
+    return null;
+  }
   DateTime _time = DateTime.now();
   bool _sending = false;
   bool _consent = false;
@@ -212,7 +229,7 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [_fish, _count, _kg, _bait, _note, _spotInfo, _insta]) {
+    for (final c in [_fish, _count, _kg, _bait, _note, _spotInfo, _insta, _boy]) {
       c.dispose();
     }
     super.dispose();
@@ -233,6 +250,61 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
     } catch (_) {
       _say('Fotoğraf seçilemedi.');
     }
+  }
+
+  /// Sitedeki ürünlerden seçim (Bu ürünle tutuldu)
+  Future<void> _urunSec() async {
+    final secilen = await showModalBottomSheet<ProductCard>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const _UrunAramaSayfasi(),
+    );
+    if (secilen != null && mounted) setState(() { _urunId = secilen.id; _urunAd = secilen.name; });
+  }
+
+  /// İlk fotoğraftan tür önerisi + asgari boy uyarısı
+  Future<void> _tani() async {
+    if (_photos.isEmpty) return;
+    setState(() => _tanimlaniyor = true);
+    final r = await TaniSonuc.gonder(widget.token, _photos.first.path);
+    if (!mounted) return;
+    setState(() => _tanimlaniyor = false);
+    if (!r.ok) {
+      _say(r.hata.isEmpty ? 'Tanınamadı.' : r.hata);
+      return;
+    }
+    final boy = double.tryParse(_boy.text.trim().replaceAll(',', '.')) ?? r.boyTahmini ?? 0;
+    final kucuk = r.asgariBoy != null && boy > 0 && boy < r.asgariBoy!;
+    await showDialog(
+      context: context,
+      builder: (ctx) => AppDialog(
+        icon: Icon(kucuk ? Icons.warning_amber_rounded : Icons.set_meal_outlined, color: kucuk ? Tide.mercan : Tide.turuncu, size: 40),
+        title: r.tur.isEmpty ? 'Tanınamadı' : (r.emin ? r.tur : '${r.tur}?'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (r.tur.isNotEmpty) Text('Güven: %${r.guven}${r.emin ? '' : ' — emin değilim, listeden kontrol et'}'),
+          if (r.alternatifler.isNotEmpty) Text('Belki: ${r.alternatifler.join(', ')}', style: const TextStyle(color: Tide.misina)),
+          if (r.boyTahmini != null) Text('Fotoğraftan tahmini boy: ${r.boyTahmini!.toStringAsFixed(0)} cm'),
+          if (r.aciklama.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(r.aciklama)),
+          for (final u in r.uyarilar)
+            Padding(padding: const EdgeInsets.only(top: 8), child: Text('⚠️ $u', style: const TextStyle(fontWeight: FontWeight.w600))),
+        ]),
+        actions: [
+          if (r.tur.isNotEmpty)
+            FilledButton(
+              onPressed: () {
+                setState(() {
+                  _fish.text = r.tur;
+                  if (_boy.text.trim().isEmpty && r.boyTahmini != null) _boy.text = r.boyTahmini!.toStringAsFixed(0);
+                });
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Türü kullan'),
+            ),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Kapat')),
+        ],
+      ),
+    );
   }
 
   void _say(String m) {
@@ -292,6 +364,23 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
       _say('Instagram paylaşım iznini onaylaman gerekiyor.');
       return;
     }
+    final boy = double.tryParse(_boy.text.trim().replaceAll(',', '.')) ?? 0;
+    final tur = _seciliTurnuva;
+    if (tur != null) {
+      final kural = '${tur['kural'] ?? ''}';
+      if (_photos.isEmpty) {
+        _say('Turnuva için ölçüyü gösteren fotoğraf gerekli.');
+        return;
+      }
+      if (kural == 'En uzun' && boy <= 0) {
+        _say('Turnuva için balığın boyunu (cm) yaz.');
+        return;
+      }
+      if (kural == 'En ağır' && (double.tryParse(_kg.text.trim().replaceAll(',', '.')) ?? 0) <= 0) {
+        _say('Turnuva için ağırlığı (kg) yaz.');
+        return;
+      }
+    }
     if ((_mesafeModul?.b('zorunlu') ?? false) && _mesafe.isEmpty) {
       _say('Balığı kaç metrede tuttuğunu seç.');
       return;
@@ -315,6 +404,9 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
       distance: _mesafe,
       depth: _derinlik,
       weather: await _havaKaydi(),
+      productId: _urunId,
+      length: boy,
+      tournament: _seciliTurnuva == null ? '' : _turnuva,
     );
     if (!mounted) return;
     setState(() => _sending = false);
@@ -397,8 +489,67 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
               ]),
             ),
           ]),
+          _label('Boy (cm, isteğe bağlı)'),
+          TextField(
+              controller: _boy,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: _dec(hint: 'Örn. 32')),
           _label('Yem / teknik'),
           TextField(controller: _bait, maxLength: 80, decoration: _dec(hint: 'Örn. maket balık, LRF silikon, çapari')),
+          if (Moduller.app('bu_urunle', uye: true) != null) ...[
+            _label('Kullandığın ürün (isteğe bağlı)'),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Tide.zeytinKoyu,
+                alignment: Alignment.centerLeft,
+                minimumSize: const Size.fromHeight(46),
+              ),
+              onPressed: _urunSec,
+              icon: const Icon(Icons.inventory_2_outlined, color: Tide.turuncu),
+              label: Row(children: [
+                Expanded(
+                    child: Text(_urunId > 0 ? _urunAd : 'KıyıdanAv\'dan aldığın ürünü seç',
+                        maxLines: 1, overflow: TextOverflow.ellipsis)),
+                if (_urunId > 0)
+                  InkWell(onTap: () => setState(() { _urunId = 0; _urunAd = ''; }), child: const Icon(Icons.close, size: 18)),
+              ]),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text('Onaylanırsa avın, ürün sayfasındaki "Bu ürünle tutuldu" bölümünde görünür.',
+                  style: TextStyle(fontSize: 12, color: Tide.misina)),
+            ),
+          ],
+          if (_turnuvalar.isNotEmpty) ...[
+            _label('Turnuvaya katıl (isteğe bağlı)'),
+            Wrap(spacing: 6, runSpacing: 6, children: [
+              for (final t in _turnuvalar)
+                ChoiceChip(
+                  avatar: const Icon(Icons.emoji_events_outlined, size: 18),
+                  label: Text('${t['ad']}'),
+                  selected: _turnuva == '${t['ad']}',
+                  selectedColor: Tide.somon,
+                  onSelected: (v) => setState(() {
+                    _turnuva = v ? '${t['ad']}' : '';
+                    final tur = '${t['tur'] ?? ''}'.trim();
+                    if (v && tur.isNotEmpty) _fish.text = tur;
+                  }),
+                ),
+            ]),
+            if (_seciliTurnuva != null)
+              Container(
+                margin: const EdgeInsets.only(top: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: const Color(0xFFFFF4E8), borderRadius: BorderRadius.circular(10)),
+                child: Text(
+                  'Kural: ${_seciliTurnuva!['kural'] ?? ''}. '
+                  '${_turnuvaModul!.b('olcuKarti', true) ? 'Balığı ölçü kartı/cetvelle birlikte fotoğrafla' : 'Balığı fotoğrafla'}'
+                  '${_turnuvaModul!.s('kod').isNotEmpty ? ' ve fotoğrafta bugünün kodunu göster: ${gununKodu(_turnuvaModul!.s('kod'), DateTime.now())}' : ''}.'
+                  '${_turnuvaModul!.b('onay', true) ? ' Onaydan sonra sıralamaya girer.' : ''}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+          ],
           if (_mesafeModul != null) ...[
             _label('Kaç metrede tuttun?${_mesafeModul!.b('zorunlu') ? '' : ' (isteğe bağlı)'}'),
             Wrap(spacing: 6, runSpacing: 6, children: [
@@ -485,6 +636,18 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
               _photoButton(Icons.photo_library_outlined, 'Galeri', () => _addPhoto(ImageSource.gallery)),
             ],
           ]),
+          if (Moduller.app('tur_tanima', uye: true) != null && _photos.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(foregroundColor: Tide.turuncu, side: const BorderSide(color: Tide.turuncu)),
+                onPressed: _tanimlaniyor ? null : _tani,
+                icon: _tanimlaniyor
+                    ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.auto_awesome),
+                label: Text(_tanimlaniyor ? 'Bakıyorum…' : 'Fotoğraftan türü tanı'),
+              ),
+            ),
           const SizedBox(height: 6),
           const Text('Fotoğraflardaki konum bilgisi sunucuda silinir. Yüz ve plaka içeren fotoğraf göndermemeni öneririz.',
               style: TextStyle(fontSize: 12, color: Color(0xFF77766A))),
@@ -884,6 +1047,82 @@ class _RecentCatchesStripState extends State<RecentCatchesStrip> {
           ]),
         );
       },
+    );
+  }
+}
+
+/// Av bildiriminde "kullandığın ürün" araması
+class _UrunAramaSayfasi extends StatefulWidget {
+  const _UrunAramaSayfasi();
+
+  @override
+  State<_UrunAramaSayfasi> createState() => _UrunAramaSayfasiState();
+}
+
+class _UrunAramaSayfasiState extends State<_UrunAramaSayfasi> {
+  final _q = TextEditingController();
+  List<ProductCard> _l = const [];
+  bool _yukleniyor = false;
+  String _hata = '';
+
+  Future<void> _ara() async {
+    final q = _q.text.trim();
+    if (q.length < 2) return;
+    setState(() { _yukleniyor = true; _hata = ''; });
+    try {
+      final r = await Api.search(q);
+      if (mounted) setState(() => _l = r.items);
+    } catch (e) {
+      if (mounted) setState(() => _hata = '$e');
+    }
+    if (mounted) setState(() => _yukleniyor = false);
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.75,
+        child: Column(children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextField(
+              controller: _q,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _ara(),
+              decoration: InputDecoration(
+                hintText: 'Ürün adı (ör. maket, jig, kamış)',
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                suffixIcon: IconButton(icon: const Icon(Icons.search), onPressed: _ara),
+              ),
+            ),
+          ),
+          if (_yukleniyor) const LinearProgressIndicator(minHeight: 2),
+          if (_hata.isNotEmpty) Padding(padding: const EdgeInsets.all(12), child: Text(_hata)),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _l.length,
+              itemBuilder: (_, i) {
+                final p = _l[i];
+                return ListTile(
+                  leading: SizedBox(width: 48, height: 48, child: p.image == null ? const Icon(Icons.image_outlined) : Image.network(p.image!, fit: BoxFit.contain, errorBuilder: (_, __, ___) => const Icon(Icons.image_outlined))),
+                  title: Text(p.name, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  onTap: () => Navigator.of(context).pop(p),
+                );
+              },
+            ),
+          ),
+        ]),
+      ),
     );
   }
 }

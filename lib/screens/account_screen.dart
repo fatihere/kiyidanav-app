@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../araclar.dart';
 import '../app_state.dart';
 import '../config.dart';
 import '../notices.dart';
@@ -85,6 +86,13 @@ class AccountScreen extends StatelessWidget {
             ),
           ]),
           const SizedBox(height: 16),
+          if (Araclar.acik().isNotEmpty) ...[
+            _group([
+              for (final (a, m) in Araclar.acik())
+                _tile(a.ikon, Araclar.ad(a, m), () => Araclar.ac(context, a.id, Araclar.ad(a, m))),
+            ]),
+            const SizedBox(height: 16),
+          ],
           if (Api.config.knots) ...[
             _group([
               _tile(Icons.gesture, 'Balıkçı düğümleri',

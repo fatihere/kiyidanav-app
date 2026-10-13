@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../ambience.dart';
 import '../api.dart';
+import '../araclar.dart';
 import '../bait_card.dart';
 import '../catches.dart';
+import '../cevrimdisi.dart';
 import 'catch_screens.dart';
 import 'freshwater_screen.dart';
 import 'knots_screen.dart';
@@ -226,6 +228,7 @@ class _ReportScreenState extends State<ReportScreen> {
               return ListView(
                 padding: const EdgeInsets.only(bottom: 32, top: 4),
                 children: [
+                  const CevrimdisiSerit(),
                   if (Api.config.features.location) const LocationBar(),
                   ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value, konum: ModulKonum.ust),
                   RepaintBoundary(
@@ -273,6 +276,7 @@ class _ReportScreenState extends State<ReportScreen> {
                     ]),
                   ),
                   ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value),
+                  AraclarKarti(mera: f.spot.name),
                   if (Api.config.features.catchList || Api.config.features.catchSubmit) SpotCatchesCard(spot: f.spot),
                   if (Moduller.app('bildirim_mesafe', uye: memberNotifier.value) != null)
                     AvIstatKarti(m: Moduller.app('bildirim_mesafe', uye: memberNotifier.value)!, spot: f.spot),
@@ -794,3 +798,33 @@ class _ReportData {
   const _ReportData(this.f, this.catches, this.sat);
 }
 
+
+/// İnternet yokken gösterilen kayıtlı raporun uyarısı (Çevrimdışı mod)
+class CevrimdisiSerit extends StatelessWidget {
+  const CevrimdisiSerit({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<DateTime?>(
+      valueListenable: Cevrimdisi.kullanilan,
+      builder: (_, t, __) {
+        if (t == null) return const SizedBox.shrink();
+        final d = DateTime.now().difference(t);
+        final once = d.inMinutes < 60 ? '${d.inMinutes} dk' : '${d.inHours} saat';
+        return Container(
+          margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(color: const Color(0xFFFFF1D6), borderRadius: BorderRadius.circular(12)),
+          child: Row(children: [
+            const Icon(Icons.cloud_off, color: Color(0xFFB7791F)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('İnternet yok: $once önce kaydedilen rapor gösteriliyor.',
+                  style: const TextStyle(color: Color(0xFF6B4E00), fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        );
+      },
+    );
+  }
+}
