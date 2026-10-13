@@ -1,7 +1,7 @@
 name: kiyidanav
 description: KıyıdanAv — kıyı balıkçılığı ve outdoor mağazası mobil uygulaması.
 publish_to: 'none'
-version: 1.9.0+15
+version: 1.10.0+16
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -12,6 +12,7 @@ dependencies:
   http: ^1.2.2
   shared_preferences: ^2.3.2
   webview_flutter: ^4.10.0
+  webview_flutter_android: ^4.0.0
   share_plus: ^10.1.4
   url_launcher: ^6.3.1
   flutter_local_notifications: ^22.3.1
