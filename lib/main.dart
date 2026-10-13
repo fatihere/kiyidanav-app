@@ -6,6 +6,7 @@ import 'package:home_widget/home_widget.dart';
 
 import 'api.dart';
 import 'app_state.dart';
+import 'catches.dart';
 import 'locate.dart';
 import 'mera_widget.dart';
 import 'notices.dart';
@@ -27,6 +28,7 @@ Future<void> main() async {
   await Locate.loadPref();
   await CampaignTicker.load();
   await AppUpdate.loadVersion();
+  await CatchService.token(); // üye numarası (test modülleri için)
   // Yönetim panelindeki ayarlar (en fazla birkaç saniye beklenir)
   await Api.loadConfig().timeout(const Duration(seconds: 4), onTimeout: () => Api.config);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

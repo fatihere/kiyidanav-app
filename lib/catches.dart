@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config.dart';
+import 'moduller.dart';
 
 /// Üyelerin gönderdiği, yönetici onaylı av bildirimi
 class CatchReport {
@@ -149,6 +150,7 @@ class CatchService {
       final d = jsonDecode(utf8.decode(base64Url.decode(pad)));
       final exp = d is Map && d['e'] is num ? (d['e'] as num).toInt() : 0;
       if (exp * 1000 < DateTime.now().millisecondsSinceEpoch + 3600 * 1000) return null;
+      Moduller.uyeNo = Moduller.anahtardanUye(t);
       return t;
     } catch (_) {
       return null;
@@ -156,6 +158,7 @@ class CatchService {
   }
 
   static Future<void> saveToken(String? t) async {
+    Moduller.uyeNo = Moduller.anahtardanUye(t);
     try {
       final p = await SharedPreferences.getInstance();
       if (t == null || t.isEmpty) {
@@ -181,6 +184,10 @@ class CatchService {
     bool instagramConsent = false,
     DateTime? time,
     List<String> photoPaths = const [],
+    String distance = '',
+    String depth = '',
+    Map<String, Object> weather = const {},
+    int productId = 0,
   }) async {
     final fields = <String, String>{
       'mera': spot,
@@ -193,6 +200,10 @@ class CatchService {
       'instagram': instagram,
       'ig_izin': instagramConsent ? '1' : '0',
       'saat': (time ?? DateTime.now()).toIso8601String().substring(0, 16),
+      if (distance.isNotEmpty) 'mesafe': distance,
+      if (depth.isNotEmpty) 'derinlik': depth,
+      for (final e in weather.entries) 'hava_${e.key}': '${e.value}',
+      if (productId > 0) 'urun_id': '$productId',
     };
     Future<http.Response> send(Uri uri) async {
       final req = http.MultipartRequest('POST', uri)
@@ -249,9 +260,30 @@ class SatInfo {
   final double? chl; // mg/m³
   final int? chlChangePct; // son 3 gün ile önceki hafta karşılaştırması
   final String source;
-  const SatInfo({this.sst, this.sstChange5d, this.chl, this.chlChangePct, this.source = ''});
 
-  bool get isEmpty => sst == null && chl == null;
+  /// Su berraklığı: Kd490 (m⁻¹). Düşük = berrak, yüksek = bulanık
+  final double? kd490;
+
+  /// Termal cephe: mera çevresinde (~9 km) en sıcak ve en soğuk nokta farkı
+  final double? termalFark;
+  final double? termalSicak;
+  final double? termalSoguk;
+  final String termalSicakYon;
+  final String termalSogukYon;
+  const SatInfo(
+      {this.sst,
+      this.sstChange5d,
+      this.chl,
+      this.chlChangePct,
+      this.source = '',
+      this.kd490,
+      this.termalFark,
+      this.termalSicak,
+      this.termalSoguk,
+      this.termalSicakYon = '',
+      this.termalSogukYon = ''});
+
+  bool get isEmpty => sst == null && chl == null && kd490 == null && termalFark == null;
 
   factory SatInfo.fromJson(Map<String, dynamic> j) {
     final s = j['sst'] is Map ? j['sst'] as Map : const {};
@@ -263,6 +295,12 @@ class SatInfo {
       chl: d(k['deger']),
       chlChangePct: k['degisim_yuzde'] is num ? (k['degisim_yuzde'] as num).toInt() : null,
       source: '${j['kaynak'] ?? ''}',
+      kd490: j['berraklik'] is Map ? d((j['berraklik'] as Map)['kd490']) : null,
+      termalFark: j['termal'] is Map ? d((j['termal'] as Map)['fark']) : null,
+      termalSicak: j['termal'] is Map ? d((j['termal'] as Map)['sicak']) : null,
+      termalSoguk: j['termal'] is Map ? d((j['termal'] as Map)['soguk']) : null,
+      termalSicakYon: j['termal'] is Map ? '${(j['termal'] as Map)['sicak_yon'] ?? ''}' : '',
+      termalSogukYon: j['termal'] is Map ? '${(j['termal'] as Map)['soguk_yon'] ?? ''}' : '',
     );
   }
 

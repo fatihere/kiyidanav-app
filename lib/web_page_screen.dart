@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -35,6 +37,21 @@ class _WebPageScreenState extends State<WebPageScreen> {
   late final WebViewController _web;
   int _progress = 0;
   bool _left = false;
+  Completer<void>? _anahtar;
+
+  /// Girişten hemen sonra üyelik anahtarını (av bildirimi, test modülleri, günlük…) sessizce alır.
+  /// Sayfa aynı oturumla mobil-av.php?oturum=1 adresini okur; en fazla 4 sn beklenir.
+  Future<void> _anahtarAl() async {
+    if (await CatchService.token() != null) return;
+    final c = _anahtar = Completer<void>();
+    try {
+      await _web.runJavaScript(
+          "fetch('/${CatchService.sessionPath}',{credentials:'include'}).then(function(r){return r.text()})"
+          ".then(function(t){var m=/id=\"t\"[^>]*>([^<]*)</.exec(t);KiyidanAvAnahtar.postMessage(m?m[1]:'')})"
+          ".catch(function(){KiyidanAvAnahtar.postMessage('')})");
+      await c.future.timeout(const Duration(seconds: 4));
+    } catch (_) {}
+  }
 
   /// Sitenin ana sayfası mı? (logo, "Anasayfa" bağlantısı)
   static bool _isSiteHome(Uri u) {
@@ -60,12 +77,19 @@ class _WebPageScreenState extends State<WebPageScreen> {
     _web = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Tide.zemin)
+      ..addJavaScriptChannel('KiyidanAvAnahtar', onMessageReceived: (m) async {
+        final t = m.message.trim();
+        if (t.contains('.')) await CatchService.saveToken(t);
+        final c = _anahtar;
+        if (c != null && !c.isCompleted) c.complete();
+      })
       ..setNavigationDelegate(NavigationDelegate(
         onProgress: (p) {
           if (mounted) setState(() => _progress = p);
         },
-        onPageFinished: (url) {
+        onPageFinished: (url) async {
           final route = Uri.tryParse(url)?.queryParameters['route'] ?? '';
+          if (route == 'account/account' || route == 'account/success') await _anahtarAl();
           // Üyelik durumu: hesap sayfası yalnızca giriş yapılmışken açılır (değilse site girişe yönlendirir)
           if (route == 'account/account' || route == 'account/success') appState.setMember(true);
           if (route == 'account/logout') {

@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'config.dart';
 import 'demo_data.dart';
 import 'models.dart';
+import 'moduller.dart';
 import 'updates.dart';
 
 /// Sunucu isteği reddetti (ör. "Ürün bulunamadı"). Mesaj kullanıcıya gösterilebilir.
@@ -81,12 +82,14 @@ class Api {
   static Future<RemoteConfig> loadConfig() async {
     try {
       // Kurulu sürüm sunucuya bildirilir: yeni sürüm telefonlara ulaşınca herkese otomatik bildirim gider
-      config = RemoteConfig.fromJson(await _get({
+      final j = await _get({
         'a': 'config',
         if (AppUpdate.build.isNotEmpty) 'v': AppUpdate.build,
         if (AppUpdate.name.isNotEmpty) 'n': AppUpdate.name,
         'p': Platform.isIOS ? 'ios' : 'android',
-      }));
+      });
+      config = RemoteConfig.fromJson(j);
+      Moduller.yukle(j); // panel → Modüller
     } catch (_) {
       // Ayar alınamazsa varsayılanlarla devam
     }

@@ -55,9 +55,92 @@ class Mesafe {
   static const uzak = 'Uzak/derin: 80–200 m · surf casting, kurşun arkası, ağır jig dibe yakın';
 }
 
+/// Panelden düzenlenen basınç kuralı ("Eğilim ≤ −2", "Basınç > 1018" …)
+class BasincKural {
+  final String kosul;
+  final String durum;
+  final String mesafe;
+  final Ton ton;
+  final bool egilim; // true: eğilime bakar, false: basınca
+  final String op;
+  final double deger;
+  const BasincKural(this.kosul, this.durum, this.mesafe, this.ton, this.egilim, this.op, this.deger);
+
+  bool uyar(double p, double? t) {
+    final v = egilim ? (t ?? 0) : p;
+    switch (op) {
+      case '<':
+        return v < deger;
+      case '≤':
+        return v <= deger;
+      case '>':
+        return v > deger;
+      default:
+        return v >= deger;
+    }
+  }
+
+  static final _re = RegExp(r'^\s*(eğilim|egilim|basınç|basinc)\s*(<=|>=|≤|≥|<|>)\s*([+\-−]?\s*\d+(?:[.,]\d+)?)', caseSensitive: false);
+
+  /// Panel satırı → kural (anlaşılmazsa null)
+  static BasincKural? oku(Map<String, dynamic> r) {
+    final k = '${r['kosul'] ?? ''}';
+    final m = _re.firstMatch(k.replaceAll('İ', 'i').replaceAll('I', 'ı'));
+    if (m == null) return null;
+    var op = m.group(2)!;
+    if (op == '<=') op = '≤';
+    if (op == '>=') op = '≥';
+    final d = double.tryParse(m.group(3)!.replaceAll('−', '-').replaceAll(' ', '').replaceAll(',', '.'));
+    if (d == null) return null;
+    final ms = '${r['mesafe'] ?? ''}';
+    final mesafe = ms.startsWith('Yakın–orta') || ms.startsWith('Yakın-orta')
+        ? Mesafe.yakinOrta
+        : ms.startsWith('Yakın')
+            ? Mesafe.yakin
+            : ms.startsWith('Orta')
+                ? Mesafe.orta
+                : ms.startsWith('Uzak')
+                    ? Mesafe.uzak
+                    : '';
+    final tn = '${r['ton'] ?? ''}';
+    final ton = tn == 'iyi' ? Ton.iyi : (tn == 'zayıf' || tn == 'zayif' ? Ton.zayif : Ton.orta);
+    final eg = m.group(1)!.toLowerCase().startsWith('e');
+    return BasincKural(k, '${r['durum'] ?? ''}', mesafe, ton, eg, op, d);
+  }
+}
+
 String _ok(double? t) => t == null ? '' : (t <= -0.8 ? ' ↘' : (t >= 0.8 ? ' ↗' : ' →'));
 
 class Yorum {
+  /// Panel → Modüller → Ölçüm açıklamaları: düzenlenmiş basınç kuralları ve not (boşsa varsayılan)
+  static List<BasincKural> ozelBasinc = const [];
+  static String ozelNot = '';
+
+  static void panelden(List<Map<String, dynamic>> satirlar, String not) {
+    ozelBasinc = satirlar.map(BasincKural.oku).whereType<BasincKural>().toList();
+    ozelNot = not.trim();
+  }
+
+  static OlcumYorum _ozelBasinc(double p, double? t) {
+    final i = ozelBasinc.indexWhere((k) => k.uyar(p, t));
+    final k = i < 0 ? null : ozelBasinc[i];
+    final degisim = t == null ? '' : ' (6 saatte ${t > 0 ? '+' : ''}${t.toStringAsFixed(1)} hPa)';
+    return OlcumYorum(
+      baslik: 'Basınç',
+      deger: '${p.round()} hPa${_ok(t)}',
+      durum: k?.durum ?? 'Olağan',
+      ton: k?.ton ?? Ton.orta,
+      mesafe: k?.mesafe ?? '',
+      maddeler: [
+        'Şu an ${p.round()} hPa$degisim.',
+        'Balığı en çok basıncın DEĞİŞİMİ etkiler: düşen basınç (hava bozacak) iştahı açar, cephe arkasında yükselen basınç kapatır.',
+        'Basınç ile birlikte rüzgâr ve dalgaya bak: hızlı düşüş çoğu zaman birkaç saat sonra sert rüzgâr getirir — güvenli kıyı seç.',
+      ],
+      kurallar: [for (final x in ozelBasinc) (x.kosul, x.durum)],
+      aktif: i,
+      not: ozelNot.isNotEmpty ? ozelNot : 'Değer deniz seviyesine indirgenmiş basınçtır (Open-Meteo).',
+    );
+  }
   // ---------------------------------------------------------------- Basınç
   /// [p] deniz seviyesine indirgenmiş basınç (hPa), [t] önümüzdeki 6 saatteki değişim (hPa).
   /// Mutlak değerden çok EĞİLİM belirleyicidir; tablo bu yüzden ikisini birlikte kullanır.
@@ -86,6 +169,7 @@ class Yorum {
     if (p == null) {
       return const OlcumYorum(baslik: 'Basınç', deger: '—', durum: 'Basınç verisi alınamadı', kurallar: basincKurallari);
     }
+    if (ozelBasinc.isNotEmpty) return _ozelBasinc(p, t);
     final s = basincSatiri(p, t);
     const durumlar = [
       'Hızlı düşüyor: balık kıyıda, yakın dene',
