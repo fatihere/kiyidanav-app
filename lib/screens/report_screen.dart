@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -17,6 +19,7 @@ import '../mera_widget.dart';
 import '../mera.dart';
 import '../modul_kartlari.dart';
 import '../moduller.dart';
+import '../premium.dart';
 import '../olcum_sheet.dart';
 import '../olcum_yorum.dart';
 import '../models.dart';
@@ -42,7 +45,7 @@ class ReportScreen extends StatefulWidget {
   State<ReportScreen> createState() => _ReportScreenState();
 }
 
-class _ReportScreenState extends State<ReportScreen> {
+class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver {
   final _shotKey = GlobalKey();
   Future<_ReportData>? _future;
   String? _forSpot;
@@ -56,17 +59,34 @@ class _ReportScreenState extends State<ReportScreen> {
     // Modül kartlarındaki "Önerilen ürünleri gör" düğmesi uygulamanın ürün aramasını açar
     modulUrunAc = (ctx, ara, baslik) => Navigator.of(ctx).push(MaterialPageRoute(
         builder: (_) => SearchResultsScreen(query: ara, title: baslik, bait: true)));
+    WidgetsBinding.instance.addObserver(this);
     shellTab.addListener(_onTab);
     Ambience.on.addListener(_syncSound);
+    Premium.aktif.addListener(_premiumDegisti);
     Ambience.load(defaultOn: Api.config.ui.meraSesAcik);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     shellTab.removeListener(_onTab);
     Ambience.on.removeListener(_syncSound);
+    Premium.aktif.removeListener(_premiumDegisti);
     Ambience.stop();
     super.dispose();
+  }
+
+  void _premiumDegisti() {
+    if (mounted) setState(() {});
+  }
+
+  /// Uygulamadan çıkınca (ana ekran, başka uygulama, ekran kilidi) ortam sesi durur; dönünce kaldığı yerden çalar
+  bool _onPlanda = true;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _onPlanda = state == AppLifecycleState.resumed;
+    _syncSound();
   }
 
   bool get _visible => shellTab.value == Shell.tabReport;
@@ -76,7 +96,7 @@ class _ReportScreenState extends State<ReportScreen> {
   /// Ses yalnızca bu sekme açıkken, kullanıcı açtıysa ve üye içeriği görünürken çalar
   void _syncSound() {
     final m = _mood;
-    if (_visible && m != null && Ambience.on.value && memberNotifier.value && Api.config.features.ambientSound) {
+    if (_onPlanda && _visible && m != null && Ambience.on.value && memberNotifier.value && Api.config.features.ambientSound) {
       Ambience.play(m, volume: Api.config.ui.meraSesSeviye);
     } else {
       Ambience.stop();
@@ -179,7 +199,7 @@ class _ReportScreenState extends State<ReportScreen> {
             actions: [
               TextButton.icon(
                 style: TextButton.styleFrom(foregroundColor: Tide.zeytinKoyu),
-                onPressed: () => showSpotPicker(context),
+                onPressed: () => Premium.panel('konum') == PanelDurum.kilitli ? premiumSayfasi(context) : showSpotPicker(context),
                 icon: const Icon(Icons.place_outlined),
                 label: const Text('Konum', style: TextStyle(fontWeight: FontWeight.w700)),
               ),
@@ -229,12 +249,17 @@ class _ReportScreenState extends State<ReportScreen> {
                 padding: const EdgeInsets.only(bottom: 32, top: 4),
                 children: [
                   const CevrimdisiSerit(),
-                  if (Api.config.features.location) const LocationBar(),
+                  if (Api.config.features.location) const PremiumKilit(panel: 'konum', ad: 'Konum seçimi', yukseklik: 90, child: LocationBar()),
                   ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value, konum: ModulKonum.ust),
-                  RepaintBoundary(
-                    key: _shotKey,
-                    child: _ReportCard(
-                        f: f, score: score, today: today, now: now, mood: mood, sat: data.sat, catches: data.catches),
+                  PremiumKilit(
+                    panel: 'rapor',
+                    ad: 'Günlük rapor',
+                    yukseklik: 320,
+                    child: RepaintBoundary(
+                      key: _shotKey,
+                      child: _ReportCard(
+                          f: f, score: score, today: today, now: now, mood: mood, sat: data.sat, catches: data.catches),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -276,14 +301,19 @@ class _ReportScreenState extends State<ReportScreen> {
                     ]),
                   ),
                   ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value),
-                  AraclarKarti(mera: f.spot.name),
-                  if (Api.config.features.catchList || Api.config.features.catchSubmit) SpotCatchesCard(spot: f.spot),
+                  PremiumKilit(panel: 'araclar', ad: 'Av araçları', yukseklik: 120, child: AraclarKarti(mera: f.spot.name)),
+                  if (Api.config.features.catchList || Api.config.features.catchSubmit)
+                    PremiumKilit(panel: 'avlar', ad: 'Son 48 saat avları', child: SpotCatchesCard(spot: f.spot)),
                   if (Moduller.app('bildirim_mesafe', uye: memberNotifier.value) != null)
-                    AvIstatKarti(m: Moduller.app('bildirim_mesafe', uye: memberNotifier.value)!, spot: f.spot),
-                  _MeraTile(spot: f.spot),
-                  if (Api.config.features.baitCard) const BaitCard(),
-                  if (Api.config.features.freshwater) const FreshwaterEntry(),
-                  if (Api.config.knots) const KnotsEntry(),
+                    PremiumKilit(
+                        panel: 'istat',
+                        ad: 'Av istatistiği',
+                        child: AvIstatKarti(m: Moduller.app('bildirim_mesafe', uye: memberNotifier.value)!, spot: f.spot)),
+                  PremiumKilit(panel: 'kesit', ad: 'Kıyı kesiti', yukseklik: 110, child: _MeraTile(spot: f.spot)),
+                  if (Api.config.features.baitCard) const PremiumKilit(panel: 'yem', ad: 'Hangi ay hangi balık', child: BaitCard()),
+                  if (Api.config.features.freshwater)
+                    const PremiumKilit(panel: 'tatli', ad: 'Tatlı su meraları', yukseklik: 100, child: FreshwaterEntry()),
+                  if (Api.config.knots) const PremiumKilit(panel: 'dugum', ad: 'Balıkçı düğümleri', yukseklik: 100, child: KnotsEntry()),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Text(
@@ -452,7 +482,7 @@ class _ReportCard extends StatelessWidget {
         const SizedBox(height: 16),
         Text(r.verdict,
             style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-        if ((sat?.comment(now.month) ?? '').isNotEmpty) ...[
+        if ((sat?.comment(now.month) ?? '').isNotEmpty && Premium.panel('uydu') == PanelDurum.acik) ...[
           const SizedBox(height: 6),
           Row(children: [
             const Icon(Icons.satellite_alt_outlined, size: 15, color: Color(0xFFFFD54F)),
@@ -486,11 +516,11 @@ class _ReportCard extends StatelessWidget {
             _chip(Icons.timelapse, 'Dalga periyodu', '${r.wavePeriod!.toStringAsFixed(1)} sn',
                 y: Yorum.dalgaPeriyodu(r.wavePeriod!, r.effectiveWave)),
           if (fx.extraSea && r.cloud != null) _chip(Icons.cloud_outlined, 'Bulut', '%${r.cloud}', y: Yorum.bulut(r.cloud!)),
-          if (sat?.sst != null)
+          if (sat?.sst != null && Premium.panel('uydu') == PanelDurum.acik)
             _chip(Icons.satellite_alt_outlined, 'Uydu su sıcaklığı (5 gün)',
                 '${sat!.sst!.toStringAsFixed(1)}° ${sat!.sstChange5d == null ? '' : '(${sat!.sstChange5d! > 0 ? '+' : ''}${sat!.sstChange5d!.toStringAsFixed(1)}°)'}',
                 y: Yorum.uyduSst(sat!.sst!, sat!.sstChange5d, now.month)),
-          if (sat?.chl != null)
+          if (sat?.chl != null && Premium.panel('uydu') == PanelDurum.acik)
             _chip(Icons.grass_outlined, 'Klorofil (yem balığı)',
                 '${sat!.chl!.toStringAsFixed(1)} mg/m³ ${sat!.chlChangePct == null ? '' : '(${sat!.chlChangePct! > 0 ? '+' : ''}%${sat!.chlChangePct})'}',
                 y: Yorum.klorofil(sat!.chl!, sat!.chlChangePct)),
@@ -531,7 +561,13 @@ class _ReportCard extends StatelessWidget {
           Text('Ayrıntı için güne dokun', style: TextStyle(color: Color(0x99FFFFFF), fontSize: 10.5)),
         ]),
         const SizedBox(height: 6),
-        for (final d in f.days) _dayRow(d),
+        for (var i = 0; i < f.days.length; i++)
+          Premium.gunAcik(i) ? _dayRow(f.days[i]) : _KilitliGun(child: _dayRow(f.days[i])),
+        if (List.generate(f.days.length, Premium.gunAcik).contains(false))
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Center(child: YukseltDugmesi(yazi: 'Tüm günleri aç — Yükselt')),
+          ),
         const SizedBox(height: 12),
         const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.phishing, color: Tide.turuncu, size: 16),
@@ -578,7 +614,16 @@ class _ReportCard extends StatelessWidget {
         label: '$k açıklaması',
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => showOlcumSheet(ctx, yorum),
+          onTap: () {
+            switch (Premium.bilgi()) {
+              case PanelDurum.acik:
+                showOlcumSheet(ctx, yorum);
+              case PanelDurum.kilitli:
+                premiumSayfasi(ctx);
+              case PanelDurum.gizli:
+                break;
+            }
+          },
           child: kutu,
         ),
       ),
@@ -612,6 +657,26 @@ class _ReportCard extends StatelessWidget {
     if (s >= 80) return const Color(0xFF2E8B57);
     if (s >= 60) return const Color(0xFFC98A1B);
     return const Color(0xFFB0413E);
+  }
+}
+
+/// Premium'a ayrılmış gün: bulanık satır + kilit; dokununca Yükselt sayfası
+class _KilitliGun extends StatelessWidget {
+  final Widget child;
+  const _KilitliGun({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => premiumSayfasi(context),
+      child: Stack(alignment: Alignment.center, children: [
+        IgnorePointer(
+          child: ImageFiltered(imageFilter: ImageFilter.blur(sigmaX: 4, sigmaY: 4), child: child),
+        ),
+        const Icon(Icons.lock_outline, color: Colors.white, size: 18),
+      ]),
+    );
   }
 }
 
