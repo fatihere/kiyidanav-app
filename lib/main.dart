@@ -11,6 +11,7 @@ import 'locate.dart';
 import 'mera_widget.dart';
 import 'notices.dart';
 import 'overlays.dart';
+import 'premium.dart';
 import 'push.dart';
 import 'sea_card.dart';
 import 'screens/account_screen.dart';
@@ -37,6 +38,8 @@ Future<void> main() async {
   ));
   Notices.enabled = true;
   runApp(const KiyidanAvApp());
+  Premium.baslat(); // Play aboneliği + panelden verilen premium
+  memberNotifier.addListener(Premium.vipYenile); // giriş / çıkışta panel hakkı yeniden sorulur
   Notices.start().whenComplete(Push.start);
   // Android ana ekran kartı: panel ayarı ve üyeliğe göre hazırlanır
   MeraWidget.syncAccess(enabled: Api.config.features.homeWidget, member: appState.isMember);

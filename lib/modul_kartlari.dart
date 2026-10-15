@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'balik_bul.dart';
 import 'catches.dart';
+import 'gelgit.dart';
 import 'mera.dart';
 import 'modul_veri.dart';
 import 'moduller.dart';
@@ -12,6 +13,7 @@ import 'olcum_yorum.dart';
 import 'sea.dart';
 import 'solunar.dart';
 import 'theme.dart';
+import 'premium.dart';
 
 /// Kart şablonunun renkleri (panel → Tasarım ve şablon + modülün kendi rengi/şablonu)
 class ModulStil {
@@ -192,7 +194,17 @@ class ModulAlani extends StatelessWidget {
         final kartlar = <Widget>[];
         for (final m in mods) {
           final w = _kart(context, m, ek);
-          if (w != null) kartlar.add(w);
+          if (w == null) continue;
+          // Panel → Site ayarları → Ücretsiz / Premium
+          final (panel, ad) = switch (m.id) {
+            'mesafe_karti' => ('mesafe', 'Balık kaç metrede'),
+            'solunar' => ('solunar', 'Solunar saatleri'),
+            'deniz_seviyesi' => ('gelgit', 'Gelgit ve su seviyesi'),
+            'goc' => ('goc', 'Göç takvimi'),
+            'berraklik' || 'termal' => ('uydu', 'Uydu verisi'),
+            _ => ('modul', m.baslik.isNotEmpty ? m.baslik : 'Bu bölüm'),
+          };
+          kartlar.add(PremiumKilit(panel: panel, ad: ad, child: w));
         }
         return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: kartlar);
       },
@@ -727,7 +739,7 @@ class TermalKarti extends StatelessWidget {
 // =====================================================================
 // 7) Deniz seviyesi
 // =====================================================================
-class DenizSeviyesiKarti extends StatelessWidget {
+class DenizSeviyesiKarti extends StatefulWidget {
   final ModulCfg m;
   final EkDeniz ek;
   final DateTime now;
@@ -735,65 +747,144 @@ class DenizSeviyesiKarti extends StatelessWidget {
   const DenizSeviyesiKarti({super.key, required this.m, required this.ek, required this.now, required this.spot});
 
   @override
+  State<DenizSeviyesiKarti> createState() => _DenizSeviyesiKartiState();
+}
+
+class _DenizSeviyesiKartiState extends State<DenizSeviyesiKarti> {
+  static String? _secili; // son seçilen balık (oturum boyunca)
+
+  /// Panelde "turler" tablosu doluysa o liste, değilse İstanbul için varsayılan liste
+  List<GelgitTur> get _turler {
+    final l = widget.m.l('turler').map(GelgitTur.fromJson).where((t) => t.ad.isNotEmpty).toList();
+    return l.isNotEmpty ? l : gelgitTurleri;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final m = widget.m, spot = widget.spot, now = widget.now;
     final bolge = m.s('bolgeler', 'Tüm bölgeler');
     if (bolge == 'Yalnız Ege ve Çanakkale' && spot.side != Side.ege && spot.side != Side.guneyMarmara) return const SizedBox.shrink();
-    final d = seviyeDegisim(ek.seviyeZaman, ek.seviye, now, saat: 12);
-    if (d == null || d.cm.abs() < m.n('esik', 10)) return const SizedBox.shrink();
-    final yuk = d.cm > 0;
-    final i0 = ek.seviyeZaman.indexWhere((t) => !t.isBefore(DateTime(now.year, now.month, now.day, now.hour)));
-    final seri = i0 < 0 ? <double?>[] : ek.seviye.sublist(i0, math.min(ek.seviye.length, i0 + 13));
+    final o = gelgitOzet(widget.ek.seviyeZaman, widget.ek.seviye, now);
+    if (o == null) return const SizedBox.shrink();
+    final turler = _turler;
+    final tur = turler.firstWhere((t) => t.ad == _secili, orElse: () => turler.first);
+    final esik = m.n('esik', 10);
     return ModulKart(
       m: m,
       ikon: Icons.waves,
-      baslik: 'Su seviyesi',
-      alt: 'Yükselen su = balık sığda',
+      baslik: 'Gelgit ve su seviyesi',
+      alt: spot.name,
       govde: (s) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (seri.whereType<double>().length >= 3) SizedBox(height: 60, child: CustomPaint(painter: _SeriPainter(seri, s))),
+        SizedBox(height: 74, child: CustomPaint(painter: _GelgitPainter(o, now, s))),
+        const SizedBox(height: 8),
+        Row(children: [
+          Expanded(child: _kutu(s, 'En düşük', _ss(o.enDusukSaat), '${o.enDusukCm.round()} cm')),
+          const SizedBox(width: 6),
+          Expanded(child: _kutu(s, 'Şu an', o.seviye, o.yukseliyor ? 'yükseliyor ↗' : 'alçalıyor ↘', vurgu: true)),
+          const SizedBox(width: 6),
+          Expanded(child: _kutu(s, 'En yüksek', _ss(o.enYuksekSaat), '+${o.enYuksekCm.round()} cm')),
+        ]),
+        const SizedBox(height: 10),
+        Text(gelgitYorum(o, spot.name, esikCm: esik), style: s.metin),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(color: s.cip, borderRadius: BorderRadius.circular(10)),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              isExpanded: true,
+              value: tur.ad,
+              dropdownColor: s.koyu ? const Color(0xFF173F47) : Colors.white,
+              iconEnabledColor: s.yazi,
+              style: TextStyle(color: s.yazi, fontSize: 14, fontWeight: FontWeight.w700),
+              items: [for (final t in turler) DropdownMenuItem(value: t.ad, child: Text('🎣 ${t.ad}'))],
+              onChanged: (v) => setState(() => _secili = v),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text('${tur.ad}: ${tur.davranis}', style: s.metin),
+        if (tur.donem.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(Icons.event_note_outlined, size: 16, color: s.vurgu),
+            const SizedBox(width: 6),
+            Expanded(child: Text('Avlanma dönemi ve göç: ${tur.donem}', style: s.kucuk)),
+          ]),
+        ],
         const SizedBox(height: 6),
-        Text('Su ${d.cm.abs().round()} cm ${yuk ? 'yükseliyor' : 'alçalıyor'} (${_ss(d.bas)}–${_ss(d.son)}).', style: s.kalin),
-        Text(
-            yuk
-                ? 'Yükselen su balığı sığa ve kıyıya çeker; kumsal ve sığ kayalıkta yakın atış yap.'
-                : 'Alçalan su balığı açığa ve kanallara çeker; şev kenarına ve derin noktalara at.',
-            style: s.metin),
-        Text('Open-Meteo deniz modeli (gelgit + rüzgâr kabarması)', style: s.kucuk),
+        Text('Merada gelgit durumunu kontrol et, hedef balığına göre ekipmanını al: ${tur.ekipman}.', style: s.kalin),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: FilledButton.icon(
+            style: FilledButton.styleFrom(backgroundColor: s.vurgu, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () => modulUrunAc(context, tur.ara, '${tur.ad} için ekipman'),
+            icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+            label: const Text('Ekipman önerisi'),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text('Open-Meteo deniz modeli (gelgit + rüzgâr kabarması), gün ortalamasına göre', style: s.kucuk),
       ]),
     );
   }
+
+  Widget _kutu(ModulStil s, String k, String b, String a, {bool vurgu = false}) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        decoration: BoxDecoration(
+            color: vurgu ? s.vurgu : s.cip, borderRadius: BorderRadius.circular(10)),
+        child: Column(children: [
+          Text(k, style: TextStyle(color: vurgu ? Colors.white : s.soluk, fontSize: 11)),
+          Text(b, style: TextStyle(color: vurgu ? Colors.white : s.yazi, fontSize: 15, fontWeight: FontWeight.w800)),
+          Text(a, style: TextStyle(color: vurgu ? Colors.white : s.soluk, fontSize: 11)),
+        ]),
+      );
 }
 
-class _SeriPainter extends CustomPainter {
-  final List<double?> v;
+/// Günlük gelgit eğrisi + şu anki konum
+class _GelgitPainter extends CustomPainter {
+  final GelgitOzet o;
+  final DateTime now;
   final ModulStil s;
-  _SeriPainter(this.v, this.s);
+  _GelgitPainter(this.o, this.now, this.s);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final d = v.whereType<double>().toList();
-    final mn = d.reduce(math.min), mx = d.reduce(math.max);
-    final ar = math.max(0.02, mx - mn);
+    final ar = math.max(4.0, math.max(o.enYuksekCm.abs(), o.enDusukCm.abs())) * 1.15;
+    double y(double v) => size.height / 2 - v / ar * (size.height / 2 - 4);
+    final n = o.seri.length - 1;
     final yol = Path();
     var ilk = true;
-    for (var i = 0; i < v.length; i++) {
-      final y = v[i];
-      if (y == null) continue;
-      final o = Offset(i / math.max(1, v.length - 1) * size.width, size.height - 4 - (y - mn) / ar * (size.height - 8));
+    for (var i = 0; i < o.seri.length; i++) {
+      final v = o.seri[i];
+      if (v == null) continue;
+      final p = Offset(i / n * size.width, y(v));
       if (ilk) {
-        yol.moveTo(o.dx, o.dy);
+        yol.moveTo(p.dx, p.dy);
         ilk = false;
       } else {
-        yol.lineTo(o.dx, o.dy);
+        yol.lineTo(p.dx, p.dy);
       }
     }
+    final alan = Path.from(yol)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(alan, Paint()..color = s.vurgu.withAlpha(40));
     canvas.drawPath(yol, Paint()
       ..color = s.vurgu
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3);
+      ..strokeWidth = 2.5);
+    final x = (now.hour + now.minute / 60) / 24 * size.width;
+    canvas.drawLine(Offset(x, 0), Offset(x, size.height), Paint()
+      ..color = const Color(0xFFF46C22)
+      ..strokeWidth = 2);
+    canvas.drawCircle(Offset(x, y(o.simdiCm)), 5, Paint()..color = const Color(0xFFF46C22));
   }
 
   @override
-  bool shouldRepaint(_SeriPainter o) => true;
+  bool shouldRepaint(_GelgitPainter old) => true;
 }
 
 // =====================================================================

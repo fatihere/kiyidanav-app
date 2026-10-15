@@ -9,6 +9,7 @@ import 'config.dart';
 import 'demo_data.dart';
 import 'models.dart';
 import 'moduller.dart';
+import 'premium.dart';
 import 'updates.dart';
 
 /// Sunucu isteği reddetti (ör. "Ürün bulunamadı"). Mesaj kullanıcıya gösterilebilir.
@@ -94,6 +95,7 @@ class Api {
       });
       config = RemoteConfig.fromJson(j);
       Moduller.yukle(j); // panel → Modüller
+      Premium.yukle(j); // panel → Site ayarları → Ücretsiz / Premium
     } catch (_) {
       // Ayar alınamazsa varsayılanlarla devam
     }
