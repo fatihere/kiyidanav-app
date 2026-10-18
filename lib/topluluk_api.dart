@@ -8,10 +8,17 @@ import 'package:http/http.dart' as http;
 import 'app_state.dart';
 import 'catches.dart';
 import 'config.dart';
+import 'hata.dart';
 import 'mera.dart';
 import 'screens/catch_screens.dart' show ensureCatchToken;
 
 /// Topluluk (profil, Fishkrok, Badimi bul) sunucusu: kiyidanav.com/mobil-topluluk.php
+/// Sunucu sayıları bazen metin ("35") döndürür; ikisini de güvenle okur
+int? tIntN(Object? v) => v is num ? v.toInt() : (v is String ? (int.tryParse(v.trim()) ?? double.tryParse(v.trim())?.toInt()) : null);
+int tInt(Object? v, [int yoksa = 0]) => tIntN(v) ?? yoksa;
+double? tDoubleN(Object? v) => v is num ? v.toDouble() : (v is String ? double.tryParse(v.trim().replaceAll(',', '.')) : null);
+double tDouble(Object? v, [double yoksa = 0]) => tDoubleN(v) ?? yoksa;
+
 class ToplulukHata implements Exception {
   final String mesaj;
   final bool giris;
@@ -86,8 +93,17 @@ class Topluluk {
       showMemberPrompt(context, ne);
       return false;
     }
-    final t = await ensureCatchToken(context);
-    return t != null;
+    try {
+      final t = await ensureCatchToken(context);
+      if (t == null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Üyeliğin doğrulanamadı. Hesabım › Giriş yap ile yeniden giriş yapıp tekrar dene.')));
+      }
+      return t != null;
+    } catch (e) {
+      Hata.goster('$e');
+      return false;
+    }
   }
 
   static String get platform => Platform.isIOS ? 'ios' : 'android';

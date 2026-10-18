@@ -9,6 +9,7 @@ import 'app_state.dart';
 import 'catches.dart';
 import 'ekran_koruma.dart';
 import 'fishkrok.dart';
+import 'hata.dart';
 import 'kurallar.dart';
 import 'profil.dart';
 import 'locate.dart';
@@ -28,6 +29,7 @@ import 'updates.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Hata.kur(); // açılamayan ekranlar boş kalmasın, nedeni yazsın
   await appState.load();
   await loadSelectedSpot();
   await Locate.loadPref();
@@ -137,6 +139,7 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
       title: 'KıyıdanAv',
       debugShowCheckedModeBanner: false,
       navigatorKey: navKey,
+      scaffoldMessengerKey: Hata.mesajAnahtari,
       theme: Tide.theme(background: Api.config.ui.zemin, accent: Api.config.ui.vurgu),
       // iPhone'da ekran kaydı sürerken içerik gizlenir
       builder: (context, child) => EkranKorumaKatmani(child: child ?? const SizedBox.shrink()),
@@ -231,7 +234,7 @@ class Shell extends StatelessWidget {
             const NavigationDestination(
                 icon: Icon(Icons.set_meal_outlined), selectedIcon: Icon(Icons.set_meal), label: 'Mera Bilgisi'),
             if (Api.config.features.fishkrok)
-              const NavigationDestination(icon: _FishkrokSekmeIkonu(secili: false), selectedIcon: _FishkrokSekmeIkonu(secili: true), label: 'Fishkrok')
+              const NavigationDestination(icon: _FishkrokSekmeIkonu(secili: false), selectedIcon: _FishkrokSekmeIkonu(secili: true), label: 'Paylaş')
             else
               const NavigationDestination(icon: Icon(Icons.search), label: 'Ara'),
             NavigationDestination(

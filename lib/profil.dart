@@ -331,13 +331,13 @@ class _ProfilEkraniState extends State<ProfilEkrani> {
               const SizedBox(height: 8),
               Center(child: Text('${p['ad'] ?? ''}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800))),
               const Center(
-                child: Text('Fotoğrafın Fishkrok ve Badimi bul\'da adının yanında görünür.',
+                child: Text('Fotoğrafın KıyıdanPaylaş ve Badimi bul\'da adının yanında görünür.',
                     style: TextStyle(fontSize: 12.5, color: Color(0xFF6B6A60))),
               ),
               const SizedBox(height: 18),
               ProfilAlanlari(
-                yas: (p['yas'] as num?)?.toInt() ?? 0,
-                kamis: ((p['kamis'] as List?) ?? const []).map((e) => '$e').toList(),
+                yas: tIntN(p['yas']) ?? 0,
+                kamis: p['kamis'] is List ? (p['kamis'] as List).map((e) => '$e').toList() : '${p['kamis'] ?? ''}'.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
                 il: '${p['il'] ?? ''}',
                 ilce: '${p['ilce'] ?? ''}',
                 onKaydet: (yas, kamis, il, ilce) async {

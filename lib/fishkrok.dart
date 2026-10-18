@@ -18,57 +18,26 @@ const fishkrokAcik = Color(0xFF3FB6D0);
 
 class FishkrokLogo extends StatelessWidget {
   final double boy;
-  final Color? kanca;
+  final Color? kanca; // eski çizim logodan kalan parametre (artık kullanılmıyor)
   const FishkrokLogo({super.key, this.boy = 36, this.kanca});
 
   @override
-  Widget build(BuildContext context) =>
-      SizedBox(width: boy * 100 / 112, height: boy, child: CustomPaint(painter: _LogoPainter(kanca ?? fishkrokKoyu)));
+  Widget build(BuildContext context) => ClipOval(
+        child: Image.asset('assets/brand/logo.png',
+            width: boy,
+            height: boy,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => Container(
+                  width: boy,
+                  height: boy,
+                  color: Tide.turuncu,
+                  alignment: Alignment.center,
+                  child: Icon(Icons.set_meal, color: Colors.white, size: boy * 0.55),
+                )),
+      );
 }
 
-class _LogoPainter extends CustomPainter {
-  final Color kanca;
-  _LogoPainter(this.kanca);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / 100, size.height / 112);
-    final cizgi = Paint()
-      ..color = kanca
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(const Offset(66, 12), 8, cizgi..strokeWidth = 7);
-    final govde = Path()
-      ..moveTo(66, 20)
-      ..lineTo(66, 70)
-      ..arcToPoint(const Offset(6, 70), radius: const Radius.circular(30))
-      ..lineTo(6, 52);
-    canvas.drawPath(govde, cizgi..strokeWidth = 8);
-    canvas.drawLine(const Offset(6, 52), const Offset(0, 66), cizgi..strokeWidth = 7);
-    canvas.drawLine(const Offset(6, 52), const Offset(16, 62), cizgi);
-    final balik = Paint()..color = fishkrokAcik;
-    final b = Path()
-      ..moveTo(58, 30)
-      ..cubicTo(36, 32, 22, 48, 28, 68)
-      ..cubicTo(32, 81, 46, 88, 58, 82)
-      ..cubicTo(52, 78, 48, 72, 48, 64)
-      ..cubicTo(48, 52, 56, 42, 62, 38)
-      ..close();
-    canvas.drawPath(b, balik);
-    final kuyruk = Path()
-      ..moveTo(30, 74)
-      ..cubicTo(24, 80, 22, 86, 24, 92)
-      ..cubicTo(28, 88, 33, 86, 38, 86)
-      ..close();
-    canvas.drawPath(kuyruk, balik);
-    canvas.drawCircle(const Offset(44, 46), 3, Paint()..color = Colors.white);
-  }
-
-  @override
-  bool shouldRepaint(_LogoPainter o) => o.kanca != kanca;
-}
-
-/// "Fishkrok" yazısı — uygulamanın her yerinde Lobster
+/// "KıyıdanPaylaş" yazısı — uygulamanın her yerinde Lobster
 class FishkrokYazi extends StatelessWidget {
   final double boy;
   final Color renk;
@@ -76,7 +45,8 @@ class FishkrokYazi extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      Text('Fishkrok', style: TextStyle(fontFamily: 'Lobster', fontSize: boy, color: renk, height: 1.1));
+      Text('KıyıdanPaylaş', maxLines: 1, overflow: TextOverflow.fade, softWrap: false,
+          style: TextStyle(fontFamily: 'Lobster', fontSize: boy, color: renk, height: 1.1));
 }
 
 /// Logo + altında yazı
@@ -100,7 +70,7 @@ class FkYorum {
   final String metin;
   final bool benim;
   const FkYorum(this.id, this.ad, this.metin, this.benim);
-  factory FkYorum.fromJson(Map j) => FkYorum(j['id'] is num ? (j['id'] as num).toInt() : 0, '${j['ad'] ?? ''}', '${j['metin'] ?? ''}', j['benim'] == true);
+  factory FkYorum.fromJson(Map j) => FkYorum(tInt(j['id']), '${j['ad'] ?? ''}', '${j['metin'] ?? ''}', j['benim'] == true);
 }
 
 class FkGonderi {
@@ -127,12 +97,12 @@ class FkGonderi {
         meraBilgi = '${j['mera_bilgi'] ?? ''}',
         saat = '${j['saat'] ?? ''}',
         fotolar = ((j['fotolar'] as List?) ?? const []).map((e) => '$e').where((u) => u.startsWith('https://')).take(3).toList(),
-        begeni = j['begeni'] is num ? (j['begeni'] as num).toInt() : 0,
+        begeni = tInt(j['begeni']),
         begendim = j['begendim'] == true,
-        puan = j['puan'] is num ? (j['puan'] as num).toDouble() : 0,
-        puanSayi = j['puan_sayi'] is num ? (j['puan_sayi'] as num).toInt() : 0,
-        puanim = j['puanim'] is num ? (j['puanim'] as num).toInt() : 0,
-        yorumSayi = j['yorum_sayi'] is num ? (j['yorum_sayi'] as num).toInt() : 0,
+        puan = tDouble(j['puan']),
+        puanSayi = tInt(j['puan_sayi']),
+        puanim = tInt(j['puanim']),
+        yorumSayi = tInt(j['yorum_sayi']),
         yorumlar = ((j['yorumlar'] as List?) ?? const []).whereType<Map>().map(FkYorum.fromJson).toList();
 
   String get kim => instagram.isNotEmpty ? '@$instagram' : ad;
@@ -156,7 +126,7 @@ String? yorumDenetle(String s) {
 
 /// Paylaşım metni: KıyıdanAv bilgileri her zaman metnin bir parçası
 String fishkrokPaylasimMetni(FkGonderi g, String link) => '🎣 ${g.balik}${g.miktar.isNotEmpty ? ' (${g.miktar})' : ''} — ${g.mera}\n'
-    '${g.kim} Fishkrok\'ta paylaştı.\n\n'
+    '${g.kim} KıyıdanPaylaş\'ta paylaştı.\n\n'
     'Görmek için: $link\n'
     '(Bağlantı yalnızca KıyıdanAv üyelerine açılır)\n\n'
     'KıyıdanAv · olta, makine ve kıyı balıkçılığı ekipmanları\n'
@@ -224,10 +194,10 @@ class _FishkrokEkraniState extends State<FishkrokEkrani> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         titleSpacing: 12,
-        title: const Row(mainAxisSize: MainAxisSize.min, children: [
-          FishkrokLogo(boy: 32),
+        title: const Row(children: [
+          FishkrokLogo(boy: 30),
           SizedBox(width: 8),
-          FishkrokYazi(boy: 24),
+          Flexible(child: FishkrokYazi(boy: 22)),
         ]),
         actions: [
           IconButton(
@@ -240,23 +210,22 @@ class _FishkrokEkraniState extends State<FishkrokEkrani> {
             onPressed: () => ProfilEkrani.ac(context),
             icon: const Icon(Icons.account_circle_outlined),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(backgroundColor: Tide.turuncu, visualDensity: VisualDensity.compact),
-              onPressed: _avBildir,
-              icon: const Icon(Icons.add_a_photo_outlined, size: 18),
-              label: const Text('Av bildir'),
-            ),
-          ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'kiyidanPaylasAvBildir',
+        backgroundColor: Tide.turuncu,
+        foregroundColor: Colors.white,
+        onPressed: _avBildir,
+        icon: const Icon(Icons.add_a_photo_outlined),
+        label: const Text('Av bildir', style: TextStyle(fontWeight: FontWeight.w800)),
       ),
       body: _govde(),
     );
   }
 
   Widget _govde() {
-    if (_kapali) return const _Bos('Fishkrok şu an kapalı.');
+    if (_kapali) return const _Bos('KıyıdanPaylaş şu an kapalı.');
     if (_liste.isEmpty && _yukleniyor) return const Center(child: CircularProgressIndicator(color: fishkrokAcik));
     if (_liste.isEmpty && _hata != null) {
       return Center(
@@ -331,7 +300,7 @@ class _FkSayfaState extends State<FkSayfa> {
     try {
       final j = await Topluluk.gonder('fk_begen', {'id': g.id});
       g.begendim = j['begendim'] == true;
-      g.begeni = (j['begeni'] as num?)?.toInt() ?? g.begeni;
+      g.begeni = tIntN(j['begeni']) ?? g.begeni;
     } catch (e) {
       g.begendim = !g.begendim;
       g.begeni += g.begendim ? 1 : -1;
@@ -370,8 +339,8 @@ class _FkSayfaState extends State<FkSayfa> {
       final j = await Topluluk.gonder('fk_puan', {'id': g.id, 'puan': '$p'});
       setState(() {
         g.puanim = p;
-        g.puan = (j['puan'] as num?)?.toDouble() ?? g.puan;
-        g.puanSayi = (j['puan_sayi'] as num?)?.toInt() ?? g.puanSayi;
+        g.puan = tDoubleN(j['puan']) ?? g.puan;
+        g.puanSayi = tIntN(j['puan_sayi']) ?? g.puanSayi;
       });
       _soyle('$p yıldız verdin');
     } catch (e) {

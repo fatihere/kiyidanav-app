@@ -35,13 +35,13 @@ class BadiUye {
   bool takip;
   final bool ben;
   BadiUye.fromJson(Map j)
-      : id = (j['id'] as num?)?.toInt() ?? 0,
+      : id = tIntN(j['id']) ?? 0,
         ad = '${j['ad'] ?? 'Balıkçı'}',
         avatar = '${j['avatar'] ?? ''}'.startsWith('https://') ? '${j['avatar']}' : '',
         kamis = '${j['kamis'] ?? ''}'.replaceAll(',', ', '),
         yer = '${j['yer'] ?? ''}',
         plan = '${j['plan'] ?? ''}',
-        km = (j['km'] as num?)?.toDouble() ?? 0,
+        km = tDoubleN(j['km']) ?? 0,
         takip = j['takip'] == true,
         ben = j['ben'] == true;
 }
@@ -255,7 +255,7 @@ class _BadiEkraniState extends State<BadiEkrani> {
                 contentPadding: EdgeInsets.zero,
                 title: Text('${e['ad'] ?? 'Balıkçı'}'),
                 trailing: TextButton(
-                    onPressed: () => _engelle((e['id'] as num?)?.toInt() ?? 0, '${e['ad']}'), child: const Text('Engeli kaldır')),
+                    onPressed: () => _engelle(tIntN(e['id']) ?? 0, '${e['ad']}'), child: const Text('Engeli kaldır')),
               ),
           ],
         ]),
@@ -346,12 +346,12 @@ class _BadiKutuState extends State<BadiKutu> {
                   leading: Avatar(url: '${m['avatar'] ?? ''}', ad: '${m['ad'] ?? ''}'),
                   title: Text('${m['ad']}', style: const TextStyle(fontWeight: FontWeight.w800)),
                   subtitle: Text('${m['son'] ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis),
-                  trailing: (m['okunmamis'] as num? ?? 0) > 0
+                  trailing: (tInt(m['okunmamis'])) > 0
                       ? CircleAvatar(radius: 11, backgroundColor: Tide.turuncu, child: Text('${m['okunmamis']}', style: const TextStyle(color: Colors.white, fontSize: 11)))
                       : null,
                   onTap: () async {
                     await Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => BadiSohbet(id: (m['id'] as num).toInt(), ad: '${m['ad']}', avatar: '${m['avatar'] ?? ''}')));
+                        builder: (_) => BadiSohbet(id: tInt(m['id']), ad: '${m['ad']}', avatar: '${m['avatar'] ?? ''}')));
                     if (mounted) setState(() => _f = Topluluk.al('badi_kutu'));
                   },
                 ),
