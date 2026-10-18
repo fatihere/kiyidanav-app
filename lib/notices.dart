@@ -15,6 +15,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'bait_card.dart';
 import 'config.dart';
 import 'main.dart';
+import 'kurallar.dart';
 import 'mera_widget.dart';
 import 'models.dart';
 import 'overlays.dart';
@@ -383,6 +384,7 @@ class Notices {
     final nav = navKey.currentState;
     switch (n.type) {
       case 'rapor':
+      case 'rapor-kural':
         nav?.popUntil((r) => r.isFirst);
         shellTab.value = Shell.tabReport;
         break;
@@ -432,6 +434,12 @@ class Notices {
     debugPrint('arka plan: ${fresh.length} bildirim');
   }
 
+  /// Uygulamanın kendi ürettiği bildirim (ör. kullanıcının kuralı tuttu)
+  static Future<void> yerelGoster(Notice n) async {
+    await initPlugin();
+    await _show(n, await SharedPreferences.getInstance());
+  }
+
   /// Telefon bildirimini gösterir (görselliyse büyük resimli, uzunsa geniş metinli)
   static Future<void> _show(Notice n, SharedPreferences p) async {
     var body = n.body;
@@ -473,8 +481,7 @@ class Notices {
   static Future<String?> _reportLine(SharedPreferences p) async {
     try {
       final name = p.getString('spot_v2');
-      final match = spots.where((s) => s.name == name);
-      final spot = match.isNotEmpty ? match.first : spots[5];
+      final spot = spotFromKey(name);
       final f = await SeaService.fetchWeek(spot);
       final score = FishingScore.compute(DateTime.now(),
           windKmh: f.now.effectiveWind,
@@ -506,6 +513,7 @@ void noticeDispatcher() {
       debugPrint('arka plan hata: $e');
     }
     await MeraWidget.refreshIfStale(); // ana ekran kartı (saatte bir)
+    await Kurallar.arkaPlanKontrol(); // kullanıcının kendi kuralları (1.12.0)
     return true;
   });
 }

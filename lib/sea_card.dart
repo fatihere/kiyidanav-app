@@ -16,16 +16,15 @@ const _spotKey = 'spot_v2';
 Future<void> loadSelectedSpot() async {
   try {
     final p = await SharedPreferences.getInstance();
-    final name = p.getString(_spotKey);
-    final match = spots.where((s) => s.name == name);
-    if (match.isNotEmpty) selectedSpot.value = match.first;
+    final v = p.getString(_spotKey);
+    if (v != null) selectedSpot.value = spotFromKey(v);
   } catch (_) {}
 }
 
 Future<void> saveSelectedSpot(Spot s) async {
   selectedSpot.value = s;
   try {
-    (await SharedPreferences.getInstance()).setString(_spotKey, s.name);
+    (await SharedPreferences.getInstance()).setString(_spotKey, spotToKey(s));
   } catch (_) {}
 }
 
@@ -110,7 +109,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
 
   SpotForecast? _current(List<SpotForecast>? list) {
     if (list == null || list.isEmpty) return null;
-    final m = list.where((e) => e.spot.name == selectedSpot.value.name);
+    final m = list.where((e) => e.spot.name == selectedSpot.value.key);
     return m.isNotEmpty ? m.first : list.first;
   }
 

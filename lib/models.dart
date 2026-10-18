@@ -25,6 +25,36 @@ class Category {
       );
 }
 
+/// Kategori filtresi seçenekleri (mobil-api.php → filtreler)
+class FiltreSecenek {
+  final int id;
+  final String ad;
+  final int n;
+  const FiltreSecenek(this.id, this.ad, this.n);
+  factory FiltreSecenek.fromJson(Map<String, dynamic> j) => FiltreSecenek(_i(j['id']), _s(j['ad']) ?? '', _i(j['n']));
+}
+
+class KategoriFiltre {
+  final List<Category> altlar;
+  final List<FiltreSecenek> markalar;
+  final List<FiltreSecenek> renkler;
+  final int fiyatMin;
+  final int fiyatMax;
+  const KategoriFiltre({this.altlar = const [], this.markalar = const [], this.renkler = const [], this.fiyatMin = 0, this.fiyatMax = 0});
+
+  factory KategoriFiltre.fromJson(Map<String, dynamic> j) {
+    List<T> l<T>(String k, T Function(Map<String, dynamic>) f) =>
+        ((j[k] as List?) ?? const []).whereType<Map>().map((e) => f(Map<String, dynamic>.from(e))).toList();
+    return KategoriFiltre(
+      altlar: l('altlar', Category.fromJson),
+      markalar: l('markalar', FiltreSecenek.fromJson),
+      renkler: l('renkler', FiltreSecenek.fromJson),
+      fiyatMin: _i(j['fiyat_min']),
+      fiyatMax: _i(j['fiyat_max']),
+    );
+  }
+}
+
 class ProductCard {
   final int id;
   final String name;
@@ -300,6 +330,14 @@ class Features {
   bool get freshwater => _on('tatli_su');
   bool get notificationSound => _on('bildirim_sesi');
   bool get homeWidget => _on('widget');
+  // 1.12.0
+  bool get harita => _on('harita');
+  bool get kurallar => _on('kurallar');
+  bool get profilFormu => _on('profil_formu');
+  bool get fishkrok => _on('fishkrok');
+  bool get badi => _on('badi');
+  bool get ekranKoruma => _on('ekran_koruma');
+  bool get kategoriFiltre => _on('kategori_filtre');
 }
 
 /// Rapor altındaki açıklama: yalnızca açık olan veri kaynaklarını sayar
@@ -324,6 +362,9 @@ class RemoteConfig {
   /// Balıkçı düğümleri bölümü açık mı (panelden)
   final bool knots;
   final Features features;
+  /// Panel → Topluluk → Mera düzeni: bölüm sırası ve kapalı bölümler (boşsa varsayılan)
+  final List<String> meraSira;
+  final List<String> meraKapali;
 
   const RemoteConfig({
     this.announcement = '',
@@ -335,6 +376,8 @@ class RemoteConfig {
     this.ui = const Ui(),
     this.knots = true,
     this.features = const Features(),
+    this.meraSira = const [],
+    this.meraKapali = const [],
   });
 
   factory RemoteConfig.fromJson(Map<String, dynamic> j) => RemoteConfig(
@@ -350,6 +393,8 @@ class RemoteConfig {
             .toList(),
         knots: j['dugum_acik'] != false && Features.fromJson(j['eklentiler']).knots,
         features: Features.fromJson(j['eklentiler']),
+        meraSira: ((j['mera_sira'] as List?) ?? const []).map((e) => '$e').toList(),
+        meraKapali: ((j['mera_kapali'] as List?) ?? const []).map((e) => '$e').toList(),
         ui: Ui.fromJson(j['tema'] is Map ? Map<String, dynamic>.from(j['tema'] as Map) : null),
       );
 }

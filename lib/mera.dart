@@ -80,9 +80,12 @@ class MeraService {
     }
   }
 
+  /// Yüklendiyse hemen (beklemeden) meranın kesiti
+  static MeraInfo? hazir(Spot s) => _cache?[s.key];
+
   static Future<MeraInfo?> of(Spot s) async {
     final m = await load();
-    final i = m[s.name];
+    final i = m[s.key];
     return (i == null || i.isEmpty) ? null : i;
   }
 }
