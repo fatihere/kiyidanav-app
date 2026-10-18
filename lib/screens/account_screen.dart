@@ -3,6 +3,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
 import '../araclar.dart';
+import '../badi.dart';
+import '../profil.dart';
 import '../app_state.dart';
 import '../config.dart';
 import '../notices.dart';
@@ -76,6 +78,12 @@ class AccountScreen extends StatelessWidget {
             _tile(Icons.person_outline, 'Hesap bilgilerim', () => _open(context, 'Hesabım', 'account/account')),
             _tile(Icons.receipt_long_outlined, 'Siparişlerim', () => _open(context, 'Siparişlerim', 'account/order')),
             _tile(Icons.local_shipping_outlined, 'Adreslerim', () => _open(context, 'Adreslerim', 'account/address')),
+            // 1.12.0: topluluk
+            _tile(Icons.account_circle_outlined, 'Profilim (fotoğraf, balıkçı bilgileri)', () => ProfilEkrani.ac(context)),
+            if (Api.config.features.badi) _tile(Icons.groups_outlined, 'Badimi bul', () => BadiEkrani.ac(context)),
+            if (Api.config.features.badi)
+              _tile(Icons.chat_bubble_outline, 'Mesajlarım',
+                  () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BadiKutu()))),
             ListenableBuilder(
               listenable: appState,
               builder: (_, __) => _tile(
