@@ -3,6 +3,8 @@ name: Ekran testi (topluluk)
 # Av bildir, Fishkrok, Badimi bul ve Profilim ekranlarını gerçek akışla açar; hataları çıktıya yazar.
 on:
   workflow_dispatch:
+  push:
+    branches: ['surum-*']
 
 jobs:
   test:
