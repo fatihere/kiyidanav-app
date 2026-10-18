@@ -31,7 +31,9 @@ dependencies:
   # 1.12.0: haritadan mera seçimi, ekran kaydı/görüntüsü koruması
   flutter_map: ^8.2.2
   latlong2: ^0.9.1
-  screen_protector: ^1.4.2
+  # Ekran görüntüsü / kayıt koruması (yerel eklenti: Android FLAG_SECURE, iPhone kayıt algılama)
+  ekran_koruma:
+    path: packages/ekran_koruma
 
 dev_dependencies:
   flutter_test:
