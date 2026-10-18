@@ -1,0 +1,29 @@
+name: Ekran testi (topluluk)
+
+# Av bildir, Fishkrok, Badimi bul ve Profilim ekranlarını gerçek akışla açar; hataları çıktıya yazar.
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: İskelet ve paketler
+        run: |
+          flutter create --org com.kiyidanav --project-name kiyidanav --platforms android .
+          mkdir -p assets/brand assets/fonts assets/sounds
+          curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png" || true
+          curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
+          curl -fsSL -o assets/fonts/Lobster-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/lobster/Lobster-Regular.ttf"
+          python3 -m pip install --quiet numpy scipy pillow || true
+          python3 tool/make_sounds.py assets/sounds || true
+          flutter pub get
+          (cd packages/ekran_koruma && flutter pub get)
+      - name: Topluluk ekran testi
+        run: flutter test test/topluluk_ekran_test.dart --reporter expanded
