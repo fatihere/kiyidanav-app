@@ -11,6 +11,7 @@ import '../araclar.dart';
 import '../app_state.dart';
 import '../catches.dart';
 import '../config.dart';
+import '../hata.dart';
 import '../mera.dart';
 import '../models.dart';
 import '../moduller.dart';
@@ -148,9 +149,18 @@ class CatchFormScreen extends StatefulWidget {
       showMemberPrompt(context, 'Av bildirmek');
       return;
     }
-    final t = await ensureCatchToken(context);
-    if (t == null || !context.mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CatchFormScreen(spot: spot, token: t)));
+    try {
+      final t = await ensureCatchToken(context);
+      if (!context.mounted) return;
+      if (t == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Üyeliğin doğrulanamadı. Hesabım › Giriş yap ile yeniden giriş yapıp tekrar dene.')));
+        return;
+      }
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CatchFormScreen(spot: spot, token: t)));
+    } catch (e) {
+      Hata.goster('$e');
+    }
   }
 
   @override
@@ -1129,7 +1139,7 @@ class _UrunAramaSayfasiState extends State<_UrunAramaSayfasi> {
 }
 
 
-/// "Av bildir · KıyıdanAv İG ve Fishkrok'ta paylaş" — Fishkrok her yerde Lobster yazı tipiyle
+/// "Av bildir · KıyıdanAv İG ve KıyıdanPaylaş'ta paylaş" — KıyıdanPaylaş her yerde Lobster yazı tipiyle
 class AvBildirYazisi extends StatelessWidget {
   final Color? renk;
   const AvBildirYazisi({super.key, this.renk});
@@ -1141,7 +1151,7 @@ class AvBildirYazisi extends StatelessWidget {
       TextSpan(children: [
         TextSpan(text: 'Av bildir', style: TextStyle(fontWeight: FontWeight.w800, color: r)),
         TextSpan(text: '  ·  KıyıdanAv İG ve ', style: TextStyle(fontSize: 12.5, color: r)),
-        TextSpan(text: 'Fishkrok', style: TextStyle(fontFamily: 'Lobster', fontSize: 15.5, color: r)),
+        TextSpan(text: 'KıyıdanPaylaş', style: TextStyle(fontFamily: 'Lobster', fontSize: 15.5, color: r)),
         TextSpan(text: "'ta paylaş", style: TextStyle(fontSize: 12.5, color: r)),
       ]),
       maxLines: 1,
