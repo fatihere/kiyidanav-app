@@ -149,6 +149,43 @@ def patch_project(extra_files):
     path.write_text(s)
 
 
+TEAM_ID = 'X29M47RBN6'
+
+
+def patch_signing():
+    """Otomatik imzalama (App Store Connect API anahtarıyla) ve anlık bildirim yetkisi.
+    Dağıtım (Apple Distribution) kimliği: mağaza profili kayıtlı test cihazı gerektirmez."""
+    ent = RUNNER / 'Runner.entitlements'
+    ent.write_bytes(plistlib.dumps({'aps-environment': 'production'}))
+    path = IOS / 'Runner.xcodeproj' / 'project.pbxproj'
+    s = path.read_text()
+    ekle = ('\n\t\t\t\tCODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;'
+            '\n\t\t\t\tCODE_SIGN_STYLE = Automatic;'
+            '\n\t\t\t\t"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";'
+            '\n\t\t\t\tDEVELOPMENT_TEAM = %s;' % TEAM_ID)
+    # Proje düzeyindeki "iPhone Developer" kimliği de dağıtıma çevrilir
+    s = re.sub(r'"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = "[^"]*";',
+               '"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";', s)
+    if 'CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;' not in s:
+        s, n = re.subn(r'(PRODUCT_BUNDLE_IDENTIFIER = com\.kiyidanav\.kiyidanav;)', lambda m: m.group(1) + ekle, s)
+        if n == 0:
+            fail('Runner imza ayarları için PRODUCT_BUNDLE_IDENTIFIER bulunamadı')
+
+    # Aynı ayar bloğunda yinelenen imza kimliği satırı kalmasın
+    def tekle(m):
+        gorulen, satirlar = set(), []
+        for satir in m.group(0).split('\n'):
+            anahtar = satir.strip().split(' = ')[0] if 'CODE_SIGN_' in satir or 'DEVELOPMENT_TEAM' in satir else None
+            if anahtar and anahtar in gorulen:
+                continue
+            if anahtar:
+                gorulen.add(anahtar)
+            satirlar.append(satir)
+        return '\n'.join(satirlar)
+    s = re.sub(r'buildSettings = \{[\s\S]*?\n\t\t\t\};', tekle, s)
+    path.write_text(s)
+
+
 def main():
     patch_info()
     patch_podfile()
@@ -167,6 +204,7 @@ def main():
         print('UYARI: GoogleService-Info.plist yok — iPhone bildirimleri Firebase iOS uygulaması eklenince çalışır')
     app_icon()
     patch_project(files)
+    patch_signing()
     print('iOS ayarları uygulandı:', ', '.join(f.name for f in files))
 
 

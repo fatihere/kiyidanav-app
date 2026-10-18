@@ -5,6 +5,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../ambience.dart';
+import '../badi.dart';
+import '../bolge_baliklari.dart';
+import '../fishkrok.dart';
+import '../kiyilama.dart';
+import '../kurallar.dart';
 import '../api.dart';
 import '../araclar.dart';
 import '../bait_card.dart';
@@ -91,7 +96,18 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
 
   bool get _visible => shellTab.value == Shell.tabReport;
 
-  void _onTab() => _syncSound();
+  bool _konumSoruldu = false;
+
+  void _onTab() {
+    _syncSound();
+    // 1.12.0: Mera Bilgisi ilk açıldığında konumdan otomatik mera
+    if (_visible && !_konumSoruldu && Api.config.features.location && memberNotifier.value) {
+      _konumSoruldu = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Locate.ilkAcilis(context);
+      });
+    }
+  }
 
   /// Ses yalnızca bu sekme açıkken, kullanıcı açtıysa ve üye içeriği görünürken çalar
   void _syncSound() {
@@ -117,10 +133,11 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
         ? SatService.of(s.lat, s.lon).timeout(const Duration(seconds: 10), onTimeout: () => null)
         : Future<SatInfo?>.value(null);
     final catches = fx.catchList
-        ? CatchService.forSpot(s.name).timeout(const Duration(seconds: 8), onTimeout: () => const <CatchReport>[])
+        ? CatchService.forSpot(s.key).timeout(const Duration(seconds: 8), onTimeout: () => const <CatchReport>[])
         : Future<List<CatchReport>>.value(const []);
+    final info = MeraService.of(s).timeout(const Duration(seconds: 8), onTimeout: () => null);
     final f = await SeaService.fetchWeek(s);
-    return _ReportData(f, await catches, await sat);
+    return _ReportData(f, await catches, await sat, await info);
   }
 
   Future<void> _share(SpotForecast f, int score, SeaMood mood, SatInfo? sat) async {
@@ -188,6 +205,50 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
     );
   }
 
+
+  /// "Raporu paylaş" + ortam sesi düğmeleri
+  Widget _paylasSatiri(SpotForecast f, int score, SeaMood mood, SatInfo? sat) {
+    return Padding(
+  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+  child: Row(children: [
+    Expanded(
+      child: SizedBox(
+    height: 50,
+    child: FilledButton.icon(
+      style: FilledButton.styleFrom(
+          backgroundColor: Tide.turuncu,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+      onPressed: _sharing ? null : () => _share(f, score, mood, sat),
+      icon: const Icon(Icons.ios_share),
+      label: Text(_sharing ? 'Hazırlanıyor…' : 'Raporu paylaş',
+          maxLines: 1, overflow: TextOverflow.ellipsis),
+    ),
+      ),
+    ),
+    if (Api.config.features.ambientSound) ...[
+    const SizedBox(width: 10),
+    ValueListenableBuilder<bool>(
+      valueListenable: Ambience.on,
+      builder: (_, on, __) => SizedBox(
+        height: 50,
+        child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: Tide.zeytinKoyu,
+            side: BorderSide(color: on ? Tide.turuncu : const Color(0xFFD9D5C7)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          onPressed: Ambience.toggle,
+          icon: Icon(on ? Icons.volume_up : Icons.volume_off,
+              color: on ? Tide.turuncu : Tide.misina),
+          label: Text(on ? mood.label : 'Ses'),
+        ),
+      ),
+    ),
+    ],
+  ]),
+);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<Spot>(
@@ -245,75 +306,63 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
                 _mood = mood;
                 WidgetsBinding.instance.addPostFrameCallback((_) => _syncSound());
               }
+              final kiyilama = bugunkuKiyilama(f, data.sat, now, data.info);
+              final fx = Api.config.features;
+              // Panel → Topluluk → Mera düzeni: bölümlerin sırası ve kapalı olanlar
+              final bolumler = <String, List<Widget> Function()>{
+                'konum': () => [
+                      if (fx.location) const PremiumKilit(panel: 'konum', ad: 'Konum seçimi', yukseklik: 90, child: LocationBar()),
+                    ],
+                'rapor': () => [
+                      ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value, konum: ModulKonum.ust),
+                      PremiumKilit(
+                        panel: 'rapor',
+                        ad: 'Günlük rapor',
+                        yukseklik: 320,
+                        child: RepaintBoundary(
+                          key: _shotKey,
+                          child: _ReportCard(
+                              f: f, score: score, today: today, now: now, mood: mood, sat: data.sat, catches: data.catches, info: data.info),
+                        ),
+                      ),
+                    ],
+                'paylas': () => [_paylasSatiri(f, score, mood, data.sat)],
+                'kurallar': () => [if (fx.kurallar) KuralKarti(f: f, bugunSkor: score)],
+                'moduller': () => [ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value)],
+                'avlar': () => [
+                      if (fx.catchList || fx.catchSubmit)
+                        PremiumKilit(panel: 'avlar', ad: 'Son 48 saat avları', child: SpotCatchesCard(spot: f.spot)),
+                    ],
+                'fishkrok': () => [if (fx.fishkrok) FishkrokGirisKarti(onTap: () => shellTab.value = Shell.tabFishkrok)],
+                'badi': () => [if (fx.badi) const BadiGirisKarti()],
+                'baliklar': () => [BolgeBaliklariKarti(spot: f.spot, kiyilama: kiyilama)],
+                'araclar': () => [PremiumKilit(panel: 'araclar', ad: 'Av araçları', yukseklik: 120, child: AraclarKarti(mera: f.spot.key))],
+                'istat': () => [
+                      if (Moduller.app('bildirim_mesafe', uye: memberNotifier.value) != null)
+                        PremiumKilit(
+                            panel: 'istat',
+                            ad: 'Av istatistiği',
+                            child: AvIstatKarti(m: Moduller.app('bildirim_mesafe', uye: memberNotifier.value)!, spot: f.spot)),
+                    ],
+                'kesit': () => [PremiumKilit(panel: 'kesit', ad: 'Kıyı kesiti', yukseklik: 110, child: _MeraTile(spot: f.spot))],
+                'yem': () => [if (fx.baitCard) const PremiumKilit(panel: 'yem', ad: 'Hangi ay hangi balık', child: BaitCard())],
+                'tatli': () => [
+                      if (fx.freshwater)
+                        const PremiumKilit(panel: 'tatli', ad: 'Tatlı su meraları', yukseklik: 100, child: FreshwaterEntry()),
+                    ],
+                'dugum': () => [
+                      if (Api.config.knots) const PremiumKilit(panel: 'dugum', ad: 'Balıkçı düğümleri', yukseklik: 100, child: KnotsEntry()),
+                    ],
+              };
+              final sira = [
+                ...Api.config.meraSira.where(bolumler.containsKey),
+                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k)),
+              ].where((k) => !Api.config.meraKapali.contains(k));
               return ListView(
                 padding: const EdgeInsets.only(bottom: 32, top: 4),
                 children: [
                   const CevrimdisiSerit(),
-                  if (Api.config.features.location) const PremiumKilit(panel: 'konum', ad: 'Konum seçimi', yukseklik: 90, child: LocationBar()),
-                  ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value, konum: ModulKonum.ust),
-                  PremiumKilit(
-                    panel: 'rapor',
-                    ad: 'Günlük rapor',
-                    yukseklik: 320,
-                    child: RepaintBoundary(
-                      key: _shotKey,
-                      child: _ReportCard(
-                          f: f, score: score, today: today, now: now, mood: mood, sat: data.sat, catches: data.catches),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                    child: Row(children: [
-                      Expanded(
-                        child: SizedBox(
-                      height: 50,
-                      child: FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                            backgroundColor: Tide.turuncu,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                        onPressed: _sharing ? null : () => _share(f, score, mood, data.sat),
-                        icon: const Icon(Icons.ios_share),
-                        label: Text(_sharing ? 'Hazırlanıyor…' : 'Raporu paylaş',
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                      ),
-                        ),
-                      ),
-                      if (Api.config.features.ambientSound) ...[
-                      const SizedBox(width: 10),
-                      ValueListenableBuilder<bool>(
-                        valueListenable: Ambience.on,
-                        builder: (_, on, __) => SizedBox(
-                          height: 50,
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Tide.zeytinKoyu,
-                              side: BorderSide(color: on ? Tide.turuncu : const Color(0xFFD9D5C7)),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            onPressed: Ambience.toggle,
-                            icon: Icon(on ? Icons.volume_up : Icons.volume_off,
-                                color: on ? Tide.turuncu : Tide.misina),
-                            label: Text(on ? mood.label : 'Ses'),
-                          ),
-                        ),
-                      ),
-                      ],
-                    ]),
-                  ),
-                  ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value),
-                  PremiumKilit(panel: 'araclar', ad: 'Av araçları', yukseklik: 120, child: AraclarKarti(mera: f.spot.name)),
-                  if (Api.config.features.catchList || Api.config.features.catchSubmit)
-                    PremiumKilit(panel: 'avlar', ad: 'Son 48 saat avları', child: SpotCatchesCard(spot: f.spot)),
-                  if (Moduller.app('bildirim_mesafe', uye: memberNotifier.value) != null)
-                    PremiumKilit(
-                        panel: 'istat',
-                        ad: 'Av istatistiği',
-                        child: AvIstatKarti(m: Moduller.app('bildirim_mesafe', uye: memberNotifier.value)!, spot: f.spot)),
-                  PremiumKilit(panel: 'kesit', ad: 'Kıyı kesiti', yukseklik: 110, child: _MeraTile(spot: f.spot)),
-                  if (Api.config.features.baitCard) const PremiumKilit(panel: 'yem', ad: 'Hangi ay hangi balık', child: BaitCard()),
-                  if (Api.config.features.freshwater)
-                    const PremiumKilit(panel: 'tatli', ad: 'Tatlı su meraları', yukseklik: 100, child: FreshwaterEntry()),
-                  if (Api.config.knots) const PremiumKilit(panel: 'dugum', ad: 'Balıkçı düğümleri', yukseklik: 100, child: KnotsEntry()),
+                  for (final k in sira) ...bolumler[k]!(),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                     child: Text(
@@ -389,6 +438,7 @@ class _ReportCard extends StatelessWidget {
   final SeaMood mood;
   final SatInfo? sat;
   final List<CatchReport> catches;
+  final MeraInfo? info;
   const _ReportCard(
       {required this.f,
       required this.score,
@@ -396,7 +446,8 @@ class _ReportCard extends StatelessWidget {
       required this.now,
       required this.mood,
       this.sat,
-      this.catches = const []});
+      this.catches = const [],
+      this.info});
 
   @override
   Widget build(BuildContext context) {
@@ -406,6 +457,9 @@ class _ReportCard extends StatelessWidget {
     final dynamicBg = Api.config.ui.meraDinamikZemin && fx.dynamicBackground;
     final colors = dynamicBg ? mood.colors : fixedMoodColors;
     final intensity = ((r.effectiveWind / 45) + (r.effectiveWave / 2) + ((r.rainNow ?? 0) / 3)).clamp(0.2, 1.0);
+    // Kıyılama ve başlık cümlesi: puan, rüzgâr/dalga ve meranın yapısı aynı hesaptan (1.12.0)
+    final kiyilama = bugunkuKiyilama(f, sat, now, info);
+    final hukum = raporHukmu(puan: score, ruzgar: r.effectiveWind, dalga: r.effectiveWave, k: kiyilama, yagisli: r.rainy);
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
       clipBehavior: Clip.antiAlias,
@@ -480,8 +534,27 @@ class _ReportCard extends StatelessWidget {
           ),
         ]),
         const SizedBox(height: 16),
-        Text(r.verdict,
-            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+        Text(hukum, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 10),
+        // Kıyılama: büyük / küçük balık bugün kaç metrede (meranın şevi + rüzgârın kıyıya göre yönü)
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: const Color(0x1FFFFFFF), borderRadius: BorderRadius.circular(12)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('KIYILAMA', style: TextStyle(color: Color(0xFFCFE3E0), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(child: _kiyilamaKutu('Küçük balık', kiyilama.kucuk, const Color(0xFF7FD1C7))),
+              const SizedBox(width: 8),
+              Expanded(child: _kiyilamaKutu('Büyük balık', kiyilama.buyuk, Tide.turuncu)),
+              const SizedBox(width: 8),
+              Expanded(child: _kiyilamaKutu('Gece büyük', kiyilama.gece, const Color(0xFFFFD7BF))),
+            ]),
+            const SizedBox(height: 6),
+            Text('${kiyilama.neden} Şev ~${kiyilama.sev} m. Önerilen: ${kiyilama.takim}.',
+                style: const TextStyle(color: Color(0xFFD6E9E6), fontSize: 12, height: 1.35)),
+          ]),
+        ),
         if ((sat?.comment(now.month) ?? '').isNotEmpty && Premium.panel('uydu') == PanelDurum.acik) ...[
           const SizedBox(height: 6),
           Row(children: [
@@ -554,11 +627,15 @@ class _ReportCard extends StatelessWidget {
         ]),
         const SizedBox(height: 16),
         // 7 günlük tablo
-        const Row(children: [
+        const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('7 GÜNLÜK TAHMİN',
               style: TextStyle(color: Color(0xFFCFE3E0), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
-          Spacer(),
-          Text('Ayrıntı için güne dokun', style: TextStyle(color: Color(0x99FFFFFF), fontSize: 10.5)),
+          SizedBox(width: 8),
+          Flexible(
+            child: Text('Ayrıntı için güne dokun',
+                maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right,
+                style: TextStyle(color: Color(0x99FFFFFF), fontSize: 10.5)),
+          ),
         ]),
         const SizedBox(height: 6),
         for (var i = 0; i < f.days.length; i++)
@@ -596,10 +673,13 @@ class _ReportCard extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(i, color: const Color(0xFFD6E9E6), size: 16),
         const SizedBox(width: 6),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(k, style: const TextStyle(color: Color(0xFFCFE3E0), fontSize: 10.5)),
-          Text(v, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
-        ]),
+        // Dar ekranda / büyük yazıda taşmasın: metin kısalır
+        Flexible(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(k, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFCFE3E0), fontSize: 10.5)),
+            Text(v, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
+          ]),
+        ),
         if (y != null) ...[
           const SizedBox(width: 4),
           const Icon(Icons.info_outline, color: Color(0x99FFFFFF), size: 13),
@@ -651,7 +731,20 @@ class _ReportCard extends StatelessWidget {
     );
   }
 
-  Widget _dayRow(DayForecast d) => _DayRow(d: d, scoreColor: _scoreColor);
+  /// Bugünün satırı rapor başlığıyla aynı puanı gösterir (başlıkta basınç, akıntı, uydu ve üye avları da var)
+  Widget _dayRow(DayForecast d) => _DayRow(
+      d: d,
+      scoreColor: _scoreColor,
+      skor: DateUtils.isSameDay(d.date, now) ? score : null);
+
+  Widget _kiyilamaKutu(String baslik, String deger, Color renk) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(width: 8, height: 8, decoration: BoxDecoration(color: renk, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(width: 4),
+          Flexible(child: Text(baslik, style: const TextStyle(color: Color(0xFFCFE3E0), fontSize: 10.5))),
+        ]),
+        Text(deger, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+      ]);
 
   Color _scoreColor(int s) {
     if (s >= 80) return const Color(0xFF2E8B57);
@@ -684,7 +777,9 @@ class _KilitliGun extends StatelessWidget {
 class _DayRow extends StatefulWidget {
   final DayForecast d;
   final Color Function(int) scoreColor;
-  const _DayRow({required this.d, required this.scoreColor});
+  /// Verilirse (bugün) bu puan gösterilir
+  final int? skor;
+  const _DayRow({required this.d, required this.scoreColor, this.skor});
 
   @override
   State<_DayRow> createState() => _DayRowState();
@@ -696,8 +791,8 @@ class _DayRowState extends State<_DayRow> {
   @override
   Widget build(BuildContext context) {
     final d = widget.d;
-    final s = FishingScore.compute(d.date.add(const Duration(hours: 12)),
-        windKmh: d.effectiveWind, waveM: d.waveMax, rainMm: d.rainSum);
+    final s = widget.skor ??
+        FishingScore.compute(d.date.add(const Duration(hours: 12)), windKmh: d.effectiveWind, waveM: d.waveMax, rainMm: d.rainSum);
     final w = WeatherLook.of(d.weatherCode);
     return Material(
       color: _open ? const Color(0x1FFFFFFF) : Colors.transparent,
@@ -860,7 +955,8 @@ class _ReportData {
   final SpotForecast f;
   final List<CatchReport> catches;
   final SatInfo? sat;
-  const _ReportData(this.f, this.catches, this.sat);
+  final MeraInfo? info; // kıyı kesiti (kıyılama hesabı için)
+  const _ReportData(this.f, this.catches, this.sat, [this.info]);
 }
 
 

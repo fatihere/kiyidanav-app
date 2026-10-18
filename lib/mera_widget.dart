@@ -78,8 +78,7 @@ class MeraWidget {
       final last = p.getInt(_updatedKey) ?? 0;
       if (DateTime.now().millisecondsSinceEpoch - last < const Duration(minutes: 55).inMilliseconds) return;
       final name = p.getString('spot_v2');
-      final match = spots.where((s) => s.name == name);
-      final spot = match.isNotEmpty ? match.first : spots[5];
+      final spot = spotFromKey(name);
       final f = await SeaService.fetchWeek(spot);
       final score = FishingScore.compute(DateTime.now(),
           windKmh: f.now.effectiveWind,

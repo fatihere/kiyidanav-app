@@ -33,6 +33,7 @@ jobs:
           mkdir -p assets/brand assets/fonts
           curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png"
           curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
+          curl -fsSL -o assets/fonts/Lobster-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/lobster/Lobster-Regular.ttf"
           pip install --quiet pillow
 
       - name: Ortam seslerini üret (rüzgâr, yağmur, dalga, sakin deniz)
@@ -51,7 +52,9 @@ jobs:
         run: python3 tool/android_patch.py
 
       - name: Paketleri indir
-        run: flutter pub get
+        run: |
+          flutter pub get
+          (cd packages/ekran_koruma && flutter pub get)
 
       - name: Kod analizi
         run: flutter analyze --no-fatal-infos --no-fatal-warnings

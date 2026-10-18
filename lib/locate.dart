@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
 import 'app_state.dart';
+import 'harita_secici.dart';
 import 'mera.dart';
 import 'overlays.dart';
 import 'sea.dart';
@@ -65,8 +66,8 @@ class Locate {
       if (p != LocationPermission.always && p != LocationPermission.whileInUse) return;
       final pos = await _position();
       if (pos == null) return;
-      final (spot, _) = nearest(pos.latitude, pos.longitude, onlyPublic: !appState.isMember);
-      await saveSelectedSpot(spot);
+      final (spot, d) = nearest(pos.latitude, pos.longitude, onlyPublic: !appState.isMember);
+      await saveSelectedSpot(appState.isMember && d >= 2 && d <= 25 ? Spot.pin(pos.latitude, pos.longitude, spot) : spot);
     } catch (_) {}
   }
 
@@ -140,13 +141,29 @@ class Locate {
         }
         return;
       }
-      await saveSelectedSpot(member ? all : pub);
+      // 1.12.0: üye, kayıtlı meraya 2–25 km uzaktaysa tam bulunduğu kıyı noktası seçilir
+      final sec = member ? (distAll >= 2 && distAll <= 25 ? Spot.pin(pos.latitude, pos.longitude, all) : all) : pub;
+      await saveSelectedSpot(sec);
       if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
       final d = member ? distAll : distPub;
-      say('En yakın mera: ${(member ? all : pub).name} (~${d < 1 ? '1' : d.round()} km)');
+      say(sec.custom ? 'Bulunduğun kıyı seçildi: ${sec.name}' : 'En yakın mera: ${sec.name} (~${d < 1 ? '1' : d.round()} km)');
     } catch (_) {
       say('Konum alınamadı, listeden seçebilirsin.');
     }
+  }
+
+  /// Mera Bilgisi ilk açıldığında bir kez: konumdan otomatik mera (izin açıklamasıyla)
+  static Future<void> ilkAcilis(BuildContext context) async {
+    const k = 'konum_ilk_sorgu_v112';
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (p.getBool(k) ?? false) return;
+      await p.setBool(k, true);
+      if (auto.value) return; // zaten konuma göre çalışıyor
+    } catch (_) {
+      return;
+    }
+    if (context.mounted) await useMyLocation(context);
   }
 
   static Future<void> manualPick(Spot s) async {
@@ -155,9 +172,13 @@ class Locate {
   }
 }
 
-/// Mera seçici: üstte "Konumumu kullan", altında bölge bölge kıyı noktaları
-Future<void> showSpotPicker(BuildContext context) {
-  return showModalBottomSheet(
+/// Mera seçici: panelde harita açıksa harita (iğne), değilse / [listeOnly] ise bölge bölge liste
+Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) async {
+  if (!listeOnly && Api.config.features.harita) {
+    await haritadanSec(context);
+    return;
+  }
+  await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
@@ -176,6 +197,16 @@ Future<void> showSpotPicker(BuildContext context) {
               CloseX(onTap: () => Navigator.of(ctx).pop()),
             ]),
           ),
+          if (Api.config.features.harita)
+            ListTile(
+              leading: const CircleAvatar(backgroundColor: Tide.derin, child: Icon(Icons.map_outlined, color: Colors.white)),
+              title: const Text('Haritadan seç', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('İğneyi istediğin kıyıya taşı'),
+              onTap: () {
+                Navigator.of(ctx).pop();
+                haritadanSec(context);
+              },
+            ),
           if (Api.config.features.location) ...[
           ListTile(
             leading: const CircleAvatar(
@@ -207,7 +238,7 @@ Future<void> showSpotPicker(BuildContext context) {
                 for (final s in spotsOf(side))
                   ChoiceChip(
                     label: Text(s.name),
-                    selected: selectedSpot.value.name == s.name,
+                    selected: selectedSpot.value.key == s.name,
                     selectedColor: Tide.somon,
                     onSelected: (_) {
                       Navigator.of(ctx).pop();

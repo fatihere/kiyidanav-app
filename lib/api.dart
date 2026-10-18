@@ -116,14 +116,16 @@ class Api {
         () => DemoData.categories(parent),
       );
 
+  /// [filtre]: marka, renk (virgülle numaralar), min, max (TL, KDV dahil), stok=1 — sitedeki kategori filtresinin aynısı
   static Future<PageResult> products(int category,
-          {int page = 1, String sort = 'new'}) =>
+          {int page = 1, String sort = 'new', Map<String, String> filtre = const {}}) =>
       _withDemo(
         () async => PageResult.fromJson(await _get({
           'a': 'products',
           'category': '$category',
           'page': '$page',
           'sort': sort,
+          ...filtre,
         })),
         () => DemoData.products(category: category, sort: sort),
       );
@@ -140,6 +142,10 @@ class Api {
             })),
         () => DemoData.search(q),
       );
+
+  /// Kategorideki filtre seçenekleri (alt kategori, marka, renk, fiyat aralığı)
+  static Future<KategoriFiltre> filtreler(int category) async =>
+      KategoriFiltre.fromJson(await _get({'a': 'filtreler', 'category': '$category'}));
 
   static Future<ProductDetail> product(int id) => _withDemo(
       () async => ProductDetail.fromJson(

@@ -3,8 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'balik_bul.dart';
+import 'balik_rehberi.dart';
 import 'catches.dart';
 import 'gelgit.dart';
+import 'kiyilama.dart';
 import 'mera.dart';
 import 'modul_veri.dart';
 import 'moduller.dart';
@@ -253,16 +255,12 @@ class _MesafeKartiState extends State<MesafeKarti> {
 
   @override
   Widget build(BuildContext context) {
-    final m = widget.m, f = widget.f, r = f.now, sat = widget.sat;
-    final girdiler = <MesafeGirdi>[
-      MesafeGirdi(Yorum.basinc(r.pressure, f.pressureTrend), m.n('agirlikBasinc', 4)),
-      if (r.cloud != null) MesafeGirdi(Yorum.bulut(r.cloud!), m.n('agirlikIsik', 3)),
-      if (!r.strait && r.waveM != null) MesafeGirdi(Yorum.dalga(r.effectiveWave, false), m.n('agirlikDalga', 3)),
-      if (sat?.sst != null) MesafeGirdi(Yorum.uyduSst(sat!.sst!, sat.sstChange5d, widget.now.month), m.n('agirlikSu', 2)),
-      if (sat?.chl != null) MesafeGirdi(Yorum.klorofil(sat!.chl!, sat.chlChangePct), m.n('agirlikKlorofil', 2)),
-    ];
-    final h = mesafeHukmu(girdiler);
-    if (h == null) return const SizedBox.shrink();
+    final m = widget.m, f = widget.f, sat = widget.sat;
+    final h0 = bugunkuHukum(f, sat, widget.now, m);
+    if (h0 == null) return const SizedBox.shrink();
+    // Rapordaki kıyılamayla aynı hesap: meranın kesiti + rüzgârın kıyıya göre yönü
+    final k = bugunkuKiyilama(f, sat, widget.now, MeraService.hazir(f.spot), m);
+    final h = MesafeHukmu(Bant(k.buyukMin.toDouble(), k.buyukMax.toDouble()), h0.etiket, '${k.neden} ${h0.neden}'.trim());
     final dis = m.l('disiplinler');
     if (_secili >= dis.length) _secili = 0;
     final d = dis.isEmpty ? null : dis[_secili];
@@ -304,6 +302,13 @@ class _MesafeKartiState extends State<MesafeKarti> {
         }),
         const SizedBox(height: 2),
         Row(children: [Text('Kıyı', style: s.kucuk), const Spacer(), Text('100 m', style: s.kucuk), const Spacer(), Text('200 m', style: s.kucuk)]),
+        const SizedBox(height: 8),
+        Wrap(children: [
+          _cip(s, 'Küçük balık ${k.kucuk}'),
+          _cip(s, 'Büyük balık ${k.buyuk}', secili: true),
+          _cip(s, 'Gece ${k.gece}'),
+          _cip(s, 'Takım: ${k.takim}'),
+        ]),
         if (h.neden.isNotEmpty) ...[const SizedBox(height: 8), Text(h.neden, style: s.metin)],
         if (dis.isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -344,6 +349,33 @@ class _MesafeKartiState extends State<MesafeKarti> {
   }
 }
 
+/// Ölçümlerin ortak mesafe yorumu (basınç, bulut, dalga, uydu) — kart ve rapor aynı ağırlıkları kullanır
+MesafeHukmu? bugunkuHukum(SpotForecast f, SatInfo? sat, DateTime now, [ModulCfg? m]) {
+  final r = f.now;
+  final c = m ?? Moduller.ham('mesafe_karti') ?? const ModulCfg(id: 'mesafe_karti');
+  return mesafeHukmu([
+    MesafeGirdi(Yorum.basinc(r.pressure, f.pressureTrend), c.n('agirlikBasinc', 4)),
+    if (r.cloud != null) MesafeGirdi(Yorum.bulut(r.cloud!), c.n('agirlikIsik', 3)),
+    if (!r.strait && r.waveM != null) MesafeGirdi(Yorum.dalga(r.effectiveWave, false), c.n('agirlikDalga', 3)),
+    if (sat?.sst != null) MesafeGirdi(Yorum.uyduSst(sat!.sst!, sat.sstChange5d, now.month), c.n('agirlikSu', 2)),
+    if (sat?.chl != null) MesafeGirdi(Yorum.klorofil(sat!.chl!, sat.chlChangePct), c.n('agirlikKlorofil', 2)),
+  ]);
+}
+
+/// Bugünün kıyılaması: rapor kartı, "Balık kaç metrede" kartı ve takım önerisi bu tek hesaptan gelir
+Kiyilama bugunkuKiyilama(SpotForecast f, SatInfo? sat, DateTime now, MeraInfo? info, [ModulCfg? m]) {
+  final r = f.now;
+  return kiyilamaHesapla(
+    profil: info?.profile ?? const [],
+    bant: bugunkuHukum(f, sat, now, m)?.bant,
+    kiyiYon: kiyiYonu(f.spot),
+    ruzgarGeldigi: r.windDir?.toDouble(),
+    ruzgarKmh: r.effectiveWind,
+    dalgaM: r.effectiveWave,
+    korunakli: f.spot.strait,
+  );
+}
+
 /// Ürün araması açar (bait_card'daki arama ekranı) — report_screen bu işlevi bağlar
 void Function(BuildContext context, String ara, String baslik) modulUrunAc = (_, __, ___) {};
 
@@ -358,15 +390,18 @@ class KiyiYonuKarti extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final satir = m.l('meralar').where((e) => '${e['mera'] ?? ''}'.trim().toLowerCase() == f.spot.name.toLowerCase()).toList();
-    if (satir.isEmpty) return const SizedBox.shrink();
-    final kiyi = satir.first['yon'] is num ? (satir.first['yon'] as num).toDouble() : double.tryParse('${satir.first['yon']}');
+    final satir = m.l('meralar').where((e) => '${e['mera'] ?? ''}'.trim().toLowerCase() == f.spot.key.toLowerCase()).toList();
+    // Panelde bu mera yoksa uygulamadaki yaklaşık kıyı yönü (1.12.0: tüm Türkiye)
+    final kiyi = (satir.isEmpty
+            ? null
+            : (satir.first['yon'] is num ? (satir.first['yon'] as num).toDouble() : double.tryParse('${satir.first['yon']}'))) ??
+        kiyiYonu(f.spot);
     final rz = f.now.windDir?.toDouble();
     if (kiyi == null || rz == null) return const SizedBox.shrink();
     final aci = m.n('aci', 60);
     final vurur = kiyiyaVuruyor(kiyi, rz, aci: aci);
     final esiyor = kiyidanEsiyor(kiyi, rz, aci: aci);
-    final not = '${satir.first['not'] ?? ''}';
+    final not = satir.isEmpty ? '' : '${satir.first['not'] ?? ''}';
     return ModulKart(
       m: m,
       ikon: Icons.explore_outlined,
@@ -375,7 +410,7 @@ class KiyiYonuKarti extends StatelessWidget {
       govde: (s) => Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           if (m.b('ok', true))
-            SizedBox(width: 104, height: 104, child: CustomPaint(painter: _PusulaPainter(kiyi, rz, ek?.dalgaYon, s))),
+            SizedBox(width: 128, height: 128, child: CustomPaint(painter: KiyiDenizPainter(kiyi, rz, ek?.dalgaYon, yaziRengi: s.yazi))),
           if (m.b('ok', true)) const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -402,54 +437,90 @@ class KiyiYonuKarti extends StatelessWidget {
               style: s.kucuk),
         ],
         if (not.isNotEmpty) ...[const SizedBox(height: 4), Text(not, style: s.kucuk)],
+        const SizedBox(height: 4),
+        Text('Turuncu ok rüzgârın estiği yönü gösterir · kum rengi kara, mavi deniz', style: s.kucuk),
       ]),
     );
   }
 }
 
-class _PusulaPainter extends CustomPainter {
-  final double kiyi;
-  final double ruzgar;
+/// Kıyı–deniz şeması: kum rengi kara, mavi deniz (meranın gerçek baktığı yöne döner),
+/// turuncu ok rüzgârın estiği yön, mavi nokta dalganın geldiği yön.
+class KiyiDenizPainter extends CustomPainter {
+  final double kiyi; // kıyıdan denize bakış yönü (°)
+  final double ruzgar; // rüzgârın geldiği yön (°)
   final double? dalga;
-  final ModulStil s;
-  _PusulaPainter(this.kiyi, this.ruzgar, this.dalga, this.s);
+  final Color yaziRengi;
+  KiyiDenizPainter(this.kiyi, this.ruzgar, this.dalga, {this.yaziRengi = Colors.white});
+
+  static Offset _yon(double deg) => Offset(math.sin(deg * math.pi / 180), -math.cos(deg * math.pi / 180));
 
   @override
   void paint(Canvas canvas, Size size) {
     final c = size.center(Offset.zero);
-    final r = size.width / 2 - 4;
+    final r = size.shortestSide / 2 - 2;
+    final daire = Path()..addOval(Rect.fromCircle(center: c, radius: r));
+    canvas.save();
+    canvas.clipPath(daire);
+    canvas.drawCircle(c, r, Paint()..color = const Color(0xFF5FB4C4));
+    // Kara: kıyı çizgisinin deniz olmayan tarafı
+    final d = _yon(kiyi);
+    final dik = Offset(-d.dy, d.dx);
+    final kara = Path()
+      ..moveTo(c.dx + dik.dx * r * 2, c.dy + dik.dy * r * 2)
+      ..lineTo(c.dx + dik.dx * r * 2 - d.dx * r * 2, c.dy + dik.dy * r * 2 - d.dy * r * 2)
+      ..lineTo(c.dx - dik.dx * r * 2 - d.dx * r * 2, c.dy - dik.dy * r * 2 - d.dy * r * 2)
+      ..lineTo(c.dx - dik.dx * r * 2, c.dy - dik.dy * r * 2)
+      ..close();
+    canvas.drawPath(kara, Paint()..color = const Color(0xFFD9C79F));
+    // Kıyı çizgisi (köpük)
+    canvas.drawLine(c + dik * r, c - dik * r, Paint()
+      ..color = Colors.white.withAlpha(210)
+      ..strokeWidth = 2.5);
+    // Deniz tarafında küçük dalga çizgileri
+    final dalgaBoya = Paint()
+      ..color = Colors.white.withAlpha(150)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    for (final k in [-0.45, 0.0, 0.45]) {
+      final m = c + d * (r * 0.62) + dik * (r * k);
+      canvas.drawArc(Rect.fromCenter(center: m, width: 12, height: 6), math.pi, math.pi, false, dalgaBoya);
+    }
+    canvas.restore();
     canvas.drawCircle(c, r, Paint()
       ..style = PaintingStyle.stroke
-      ..color = s.cizgi
-      ..strokeWidth = 2);
-    final tp = TextPainter(
-        text: TextSpan(text: 'K', style: TextStyle(color: s.soluk, fontSize: 10, fontWeight: FontWeight.w700)),
-        textDirection: TextDirection.ltr)
-      ..layout();
-    tp.paint(canvas, Offset(c.dx - tp.width / 2, c.dy - r + 2));
-    Offset uc(double deg, double uz) => Offset(c.dx + uz * math.sin(deg * math.pi / 180), c.dy - uz * math.cos(deg * math.pi / 180));
-    // Kıyının baktığı yön (deniz tarafı)
-    canvas.drawLine(c, uc(kiyi, r * .85), Paint()
-      ..color = s.yazi
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round);
-    // Rüzgârın gittiği yön (geldiği yönün tersi)
-    final git = (ruzgar + 180) % 360;
-    final p = Paint()
-      ..color = s.vurgu
-      ..strokeWidth = 4
+      ..color = Colors.white.withAlpha(90)
+      ..strokeWidth = 1.5);
+    void yaz(String t, Offset at, Color renk, double boy) {
+      final tp = TextPainter(
+          text: TextSpan(text: t, style: TextStyle(color: renk, fontSize: boy, fontWeight: FontWeight.w800)),
+          textDirection: TextDirection.ltr)
+        ..layout();
+      tp.paint(canvas, at - Offset(tp.width / 2, tp.height / 2));
+    }
+
+    yaz('DENİZ', c + d * (r * 0.42), const Color(0xFF0D3B44), 10);
+    yaz('KARA', c - d * (r * 0.5), const Color(0xFF5A4A2A), 10);
+    yaz('K', Offset(c.dx, c.dy - r + 8), Colors.white, 9);
+    // Rüzgâr oku: geldiği yönden estiği yöne
+    final w = _yon(ruzgar);
+    final bas = c + w * (r * 0.82), son = c - w * (r * 0.55);
+    final ok = Paint()
+      ..color = Tide.turuncu
+      ..strokeWidth = 5
       ..strokeCap = StrokeCap.round;
-    canvas.drawLine(uc(ruzgar, r * .8), uc(git, r * .8), p);
-    final uc1 = uc(git, r * .8);
-    canvas.drawLine(uc1, Offset(uc1.dx + 8 * math.sin((git + 150) * math.pi / 180), uc1.dy - 8 * math.cos((git + 150) * math.pi / 180)), p);
-    canvas.drawLine(uc1, Offset(uc1.dx + 8 * math.sin((git - 150) * math.pi / 180), uc1.dy - 8 * math.cos((git - 150) * math.pi / 180)), p);
+    canvas.drawLine(bas, son, ok);
+    final g = (ruzgar + 180) % 360;
+    canvas.drawLine(son, son + _yon(g + 150) * 11, ok);
+    canvas.drawLine(son, son + _yon(g - 150) * 11, ok);
+    canvas.drawCircle(c, 4, Paint()..color = Colors.white);
     if (dalga != null) {
-      canvas.drawCircle(uc(dalga!, r * .95), 4, Paint()..color = const Color(0xFF4FC3F7));
+      canvas.drawCircle(c + _yon(dalga!) * (r * 0.93), 4.5, Paint()..color = const Color(0xFF1E88E5));
     }
   }
 
   @override
-  bool shouldRepaint(_PusulaPainter o) => o.kiyi != kiyi || o.ruzgar != ruzgar || o.dalga != dalga;
+  bool shouldRepaint(KiyiDenizPainter o) => o.kiyi != kiyi || o.ruzgar != ruzgar || o.dalga != dalga;
 }
 
 // =====================================================================
@@ -898,7 +969,7 @@ class AkintiKarti extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cep = m.l('cepler').where((e) => '${e['mera'] ?? ''}'.trim().toLowerCase() == f.spot.name.toLowerCase()).toList();
+    final cep = m.l('cepler').where((e) => '${e['mera'] ?? ''}'.trim().toLowerCase() == f.spot.key.toLowerCase()).toList();
     final yon = ek?.akintiYon;
     final hiz = ek?.akintiHiz ?? f.now.currentKmh;
     if (yon == null && cep.isEmpty) return const SizedBox.shrink();
@@ -982,7 +1053,7 @@ class AvIstatKarti extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!m.b('istatistik', true)) return const SizedBox.shrink();
     return FutureBuilder<List<AvIstat>>(
-      future: AvIstat.of(spot.name),
+      future: AvIstat.of(spot.key),
       builder: (context, snap) {
         final enAz = m.n('enAz', 10).round();
         final liste = (snap.data ?? const <AvIstat>[]).where((e) => e.n >= enAz).toList();

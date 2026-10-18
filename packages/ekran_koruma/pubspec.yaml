@@ -1,0 +1,21 @@
+name: ekran_koruma
+description: KıyıdanAv ekran görüntüsü ve ekran kaydı koruması (Android FLAG_SECURE, iPhone kayıt algılama).
+version: 1.0.0
+publish_to: none
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.kiyidanav.ekran_koruma
+        pluginClass: EkranKorumaPlugin
+      ios:
+        pluginClass: EkranKorumaPlugin

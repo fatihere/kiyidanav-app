@@ -189,7 +189,7 @@ class BrandHeader extends StatelessWidget {
             borderRadius: BorderRadius.circular(8),
             child: InkWell(
               borderRadius: BorderRadius.circular(8),
-              onTap: () => Shell.goTo(context, Shell.tabSearch),
+              onTap: () => Shell.openSearch(context),
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                 child: Row(children: [

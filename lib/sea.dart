@@ -13,7 +13,9 @@ enum Side {
   izmit('İzmit Körfezi', false),
   trakya('Trakya', false),
   guneyMarmara('G. Marmara - Çanakkale', false),
-  ege('Ege', false);
+  ege('Ege', false),
+  guneyEge('Güney Ege', false),
+  akdeniz('Akdeniz', false);
 
   final String label;
   final bool public;
@@ -29,7 +31,21 @@ class Spot {
   final bool strait;
   /// Korunaklı su etiketi (Boğaz, Körfez)
   final String shelter;
-  const Spot(this.name, this.lat, this.lon, this.side, {this.strait = false, this.shelter = 'Boğaz'});
+  /// Haritadan seçilen nokta: bilgileri (kıyı yönü, kesit, avlar) en yakın kayıtlı meradan alınır
+  final String? ref;
+  /// Deniz verisinin alınacağı nokta (iğne karadaysa en yakın meranın denizi)
+  final double? seaLat;
+  final double? seaLon;
+  const Spot(this.name, this.lat, this.lon, this.side,
+      {this.strait = false, this.shelter = 'Boğaz', this.ref, this.seaLat, this.seaLon});
+
+  /// Panel ve av kayıtlarında kullanılan mera adı (haritadan seçilen noktada en yakın mera)
+  String get key => ref ?? name;
+  bool get custom => ref != null;
+
+  /// Haritada iğnenin bırakıldığı nokta; en yakın kayıtlı meranın özelliklerini taşır
+  factory Spot.pin(double lat, double lon, Spot near) => Spot('${near.name} yakını', lat, lon, near.side,
+      strait: near.strait, shelter: near.shelter, ref: near.name, seaLat: near.lat, seaLon: near.lon);
 }
 
 /// Anadolu yakası: Riva'dan Darıca'ya (kırmızı hat)
@@ -56,7 +72,9 @@ const spots = [
   Spot('Büyükçekmece', 41.010, 28.585, Side.avrupa),
   Spot('Semizkum', 41.043, 28.470, Side.avrupa),
 
-  // Karadeniz: Yalıköy (Çatalca) - Kemalpaşa (Artvin)
+  // Karadeniz: İğneada (Kırklareli) - Kemalpaşa (Artvin)
+  Spot('İğneada', 41.872, 28.005, Side.karadeniz),
+  Spot('Kıyıköy', 41.632, 28.098, Side.karadeniz),
   Spot('Yalıköy', 41.515, 28.285, Side.karadeniz),
   Spot('Karaburun', 41.360, 28.690, Side.karadeniz),
   Spot('Kilyos', 41.258, 29.025, Side.karadeniz),
@@ -125,9 +143,59 @@ const spots = [
   Spot('Çeşme', 38.325, 26.295, Side.ege),
   Spot('Sığacık', 38.195, 26.780, Side.ege),
   Spot('Pamucak', 37.945, 27.270, Side.ege),
+
+  // Güney Ege: Kuşadası - Marmaris (1.12.0)
+  Spot('Kuşadası', 37.862, 27.248, Side.guneyEge),
+  Spot('Didim', 37.368, 27.262, Side.guneyEge),
+  Spot('Güllük', 37.238, 27.598, Side.guneyEge, strait: true, shelter: 'Körfez'),
+  Spot('Turgutreis', 37.002, 27.252, Side.guneyEge),
+  Spot('Bodrum', 37.028, 27.428, Side.guneyEge),
+  Spot('Akyaka', 37.048, 28.318, Side.guneyEge, strait: true, shelter: 'Körfez'),
+  Spot('Datça', 36.718, 27.688, Side.guneyEge),
+  Spot('Marmaris', 36.842, 28.268, Side.guneyEge, strait: true, shelter: 'Koy'),
+
+  // Akdeniz: Sarıgerme - Samandağ (1.12.0)
+  Spot('Sarıgerme', 36.705, 28.692, Side.akdeniz),
+  Spot('Fethiye', 36.628, 29.098, Side.akdeniz, strait: true, shelter: 'Körfez'),
+  Spot('Kalkan', 36.258, 29.412, Side.akdeniz),
+  Spot('Kaş', 36.195, 29.638, Side.akdeniz),
+  Spot('Finike', 36.288, 30.152, Side.akdeniz),
+  Spot('Kemer', 36.598, 30.568, Side.akdeniz),
+  Spot('Konyaaltı', 36.858, 30.628, Side.akdeniz),
+  Spot('Lara', 36.848, 30.838, Side.akdeniz),
+  Spot('Side', 36.762, 31.392, Side.akdeniz),
+  Spot('Alanya', 36.535, 31.998, Side.akdeniz),
+  Spot('Gazipaşa', 36.262, 32.302, Side.akdeniz),
+  Spot('Anamur', 36.012, 32.835, Side.akdeniz),
+  Spot('Taşucu', 36.305, 33.885, Side.akdeniz),
+  Spot('Erdemli', 36.598, 34.318, Side.akdeniz),
+  Spot('Mersin', 36.775, 34.635, Side.akdeniz),
+  Spot('Karataş', 36.555, 35.385, Side.akdeniz),
+  Spot('Yumurtalık', 36.765, 35.792, Side.akdeniz, strait: true, shelter: 'Körfez'),
+  Spot('İskenderun', 36.598, 36.175, Side.akdeniz, strait: true, shelter: 'Körfez'),
+  Spot('Arsuz', 36.405, 35.882, Side.akdeniz),
+  Spot('Samandağ', 36.085, 35.945, Side.akdeniz),
 ];
 
+
 List<Spot> spotsOf(Side s) => spots.where((e) => e.side == s).toList();
+
+/// Kayıtlı seçim → mera ("Kartal" ya da haritadan seçilen nokta "pin|enlem|boylam|en yakın mera")
+Spot spotFromKey(String? v) {
+  final s = v ?? '';
+  if (s.startsWith('pin|')) {
+    final x = s.split('|');
+    final lat = x.length > 3 ? double.tryParse(x[1]) : null;
+    final lon = x.length > 3 ? double.tryParse(x[2]) : null;
+    final near = spots.where((e) => e.name == x.last);
+    if (lat != null && lon != null && near.isNotEmpty) return Spot.pin(lat, lon, near.first);
+  }
+  final m = spots.where((e) => e.name == s);
+  return m.isNotEmpty ? m.first : spots[5];
+}
+
+String spotToKey(Spot s) =>
+    s.custom ? 'pin|${s.lat.toStringAsFixed(4)}|${s.lon.toStringAsFixed(4)}|${s.ref}' : s.name;
 
 class SeaReport {
   final double? windKmh;
@@ -399,8 +467,8 @@ class SeaService {
       'timezone': 'Europe/Istanbul',
     });
     final mr = Uri.https('marine-api.open-meteo.com', '/v1/marine', {
-      'latitude': '${s.lat}',
-      'longitude': '${s.lon}',
+      'latitude': '${s.seaLat ?? s.lat}',
+      'longitude': '${s.seaLon ?? s.lon}',
       'current': 'wave_height,sea_surface_temperature,wave_period,ocean_current_velocity',
       'hourly': 'wave_height',
       'daily': 'wave_height_max',

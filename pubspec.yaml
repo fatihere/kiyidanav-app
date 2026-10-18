@@ -1,7 +1,7 @@
 name: kiyidanav
 description: KıyıdanAv — kıyı balıkçılığı ve outdoor mağazası mobil uygulaması.
 publish_to: 'none'
-version: 1.11.0+17
+version: 1.12.1+19
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -28,6 +28,12 @@ dependencies:
   home_widget: ^0.7.0
   crypto: ^3.0.6
   in_app_purchase: ^3.2.0
+  # 1.12.0: haritadan mera seçimi, ekran kaydı/görüntüsü koruması
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.1
+  # Ekran görüntüsü / kayıt koruması (yerel eklenti: Android FLAG_SECURE, iPhone kayıt algılama)
+  ekran_koruma:
+    path: packages/ekran_koruma
 
 dev_dependencies:
   flutter_test:
@@ -44,3 +50,7 @@ flutter:
     - family: Armata
       fonts:
         - asset: assets/fonts/Armata-Regular.ttf
+    # Fishkrok yazısı (her yerde aynı yazı tipi)
+    - family: Lobster
+      fonts:
+        - asset: assets/fonts/Lobster-Regular.ttf

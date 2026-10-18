@@ -11,6 +11,7 @@ import '../araclar.dart';
 import '../app_state.dart';
 import '../catches.dart';
 import '../config.dart';
+import '../hata.dart';
 import '../mera.dart';
 import '../models.dart';
 import '../moduller.dart';
@@ -148,9 +149,18 @@ class CatchFormScreen extends StatefulWidget {
       showMemberPrompt(context, 'Av bildirmek');
       return;
     }
-    final t = await ensureCatchToken(context);
-    if (t == null || !context.mounted) return;
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CatchFormScreen(spot: spot, token: t)));
+    try {
+      final t = await ensureCatchToken(context);
+      if (!context.mounted) return;
+      if (t == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Üyeliğin doğrulanamadı. Hesabım › Giriş yap ile yeniden giriş yapıp tekrar dene.')));
+        return;
+      }
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CatchFormScreen(spot: spot, token: t)));
+    } catch (e) {
+      Hata.goster('$e');
+    }
   }
 
   @override
@@ -158,7 +168,8 @@ class CatchFormScreen extends StatefulWidget {
 }
 
 class _CatchFormScreenState extends State<CatchFormScreen> {
-  late Spot _spot = widget.spot;
+  // Haritadan seçilen noktada bildirim en yakın kayıtlı meraya yazılır
+  late Spot _spot = spots.firstWhere((s) => s.name == widget.spot.key, orElse: () => spots[5]);
   final _fish = TextEditingController();
   final _count = TextEditingController();
   final _kg = TextEditingController();
@@ -745,12 +756,12 @@ class SpotCatchesCard extends StatefulWidget {
 }
 
 class _SpotCatchesCardState extends State<SpotCatchesCard> {
-  late Future<List<CatchReport>> _f = CatchService.forSpot(widget.spot.name);
+  late Future<List<CatchReport>> _f = CatchService.forSpot(widget.spot.key);
 
   @override
   void didUpdateWidget(SpotCatchesCard old) {
     super.didUpdateWidget(old);
-    if (old.spot.name != widget.spot.name) _f = CatchService.forSpot(widget.spot.name);
+    if (old.spot.key != widget.spot.key) _f = CatchService.forSpot(widget.spot.key);
   }
 
   Future<void> _report() async {
@@ -798,7 +809,7 @@ class _SpotCatchesCardState extends State<SpotCatchesCard> {
               ),
               onPressed: _report,
               icon: const Icon(Icons.add_a_photo_outlined),
-              label: Text('Av bildir (${widget.spot.name})'),
+              label: const AvBildirYazisi(),
             ),
           ]);
         },
@@ -1123,6 +1134,28 @@ class _UrunAramaSayfasiState extends State<_UrunAramaSayfasi> {
           ),
         ]),
       ),
+    );
+  }
+}
+
+
+/// "Av bildir · KıyıdanAv İG ve KıyıdanPaylaş'ta paylaş" — KıyıdanPaylaş her yerde Lobster yazı tipiyle
+class AvBildirYazisi extends StatelessWidget {
+  final Color? renk;
+  const AvBildirYazisi({super.key, this.renk});
+
+  @override
+  Widget build(BuildContext context) {
+    final r = renk ?? DefaultTextStyle.of(context).style.color;
+    return Text.rich(
+      TextSpan(children: [
+        TextSpan(text: 'Av bildir', style: TextStyle(fontWeight: FontWeight.w800, color: r)),
+        TextSpan(text: '  ·  KıyıdanAv İG ve ', style: TextStyle(fontSize: 12.5, color: r)),
+        TextSpan(text: 'KıyıdanPaylaş', style: TextStyle(fontFamily: 'Lobster', fontSize: 15.5, color: r)),
+        TextSpan(text: "'ta paylaş", style: TextStyle(fontSize: 12.5, color: r)),
+      ]),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

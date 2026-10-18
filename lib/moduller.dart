@@ -184,6 +184,9 @@ class Moduller {
   /// Modül panelde tanımlı ve açık mı (görünürlük kuralı olmadan)
   static bool tanimli(String id) => _m.containsKey(id) || (!_yuklendi && (id == 'olcum_yorum' || id == 'web_mera'));
 
+  /// Görünürlük kuralı olmadan panel ayarı (ör. kıyı yönü tablosu raporda da kullanılır)
+  static ModulCfg? ham(String id) => _m[id];
+
   static List<ModulCfg> sirali(Iterable<String> ids, {required bool uye}) {
     final out = <ModulCfg>[];
     for (final id in ids) {

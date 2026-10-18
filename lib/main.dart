@@ -7,6 +7,11 @@ import 'package:home_widget/home_widget.dart';
 import 'api.dart';
 import 'app_state.dart';
 import 'catches.dart';
+import 'ekran_koruma.dart';
+import 'fishkrok.dart';
+import 'hata.dart';
+import 'kurallar.dart';
+import 'profil.dart';
 import 'locate.dart';
 import 'mera_widget.dart';
 import 'notices.dart';
@@ -24,6 +29,7 @@ import 'updates.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Hata.kur(); // açılamayan ekranlar boş kalmasın, nedeni yazsın
   await appState.load();
   await loadSelectedSpot();
   await Locate.loadPref();
@@ -37,6 +43,8 @@ Future<void> main() async {
     statusBarIconBrightness: Brightness.dark,
   ));
   Notices.enabled = true;
+  await Kurallar.yukle();
+  unawaited(EkranKoruma.uygula()); // panel → Ekran görüntüsü engeli
   runApp(const KiyidanAvApp());
   Premium.baslat(); // Play aboneliği + panelden verilen premium
   memberNotifier.addListener(Premium.vipYenile); // giriş / çıkışta panel hakkı yeniden sorulur
@@ -75,6 +83,8 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
       if (Notices.enabled) {
         await Future<void>.delayed(const Duration(seconds: 2));
         await AppUpdate.checkOnLaunch(); // Google Play'de yeni sürüm varsa "Güncelle"
+        final ctx = navKey.currentContext;
+        if (ctx != null && ctx.mounted) await ProfilFormu.ilkAcilis(ctx); // 1.12.0: yaş, kamış türü, il, ilçe
         await WelcomePopup.maybeShow(); // ilk girişte bir kez: Mera Bilgisi tanıtımı
         await Notices.askOnLaunch();
       }
@@ -87,6 +97,7 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
     MeraWidget.syncAccess(enabled: Api.config.features.homeWidget, member: memberNotifier.value);
     if (memberNotifier.value) {
       Future<void>.delayed(const Duration(milliseconds: 800), WelcomePopup.maybeShow);
+      Future<void>.delayed(const Duration(seconds: 3), ProfilFormu.uyeyeBagla); // ilk açılış formu üyeliğe bağlansın
     }
   }
 
@@ -128,13 +139,16 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
       title: 'KıyıdanAv',
       debugShowCheckedModeBanner: false,
       navigatorKey: navKey,
+      scaffoldMessengerKey: Hata.mesajAnahtari,
       theme: Tide.theme(background: Api.config.ui.zemin, accent: Api.config.ui.vurgu),
+      // iPhone'da ekran kaydı sürerken içerik gizlenir
+      builder: (context, child) => EkranKorumaKatmani(child: child ?? const SizedBox.shrink()),
       home: const Shell(),
     );
   }
 }
 
-/// Seçili alt sekme (0: Keşfet, 1: Mera Bilgisi, 2: Ara, 3: Sepet, 4: Hesabım)
+/// Seçili alt sekme (0: Keşfet, 1: Mera Bilgisi, 2: Fishkrok — panelde kapalıysa Ara, 3: Sepet, 4: Hesabım)
 final shellTab = ValueNotifier<int>(0);
 
 /// Ana sayfayı en üste kaydırıp yenilemek için sinyal
@@ -150,7 +164,19 @@ void goHome() {
 class Shell extends StatelessWidget {
   const Shell({super.key});
 
-  static const tabHome = 0, tabReport = 1, tabSearch = 2, tabCart = 3, tabAccount = 4;
+  static const tabHome = 0, tabReport = 1, tabFishkrok = 2, tabCart = 3, tabAccount = 4;
+  /// Fishkrok kapalıysa 2. sekme eskisi gibi "Ara"
+  static const tabSearch = 2;
+
+  /// Ürün araması: Fishkrok açıksa ayrı sayfa olarak, değilse "Ara" sekmesi
+  static void openSearch(BuildContext context) {
+    if (Api.config.features.fishkrok) {
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => Scaffold(appBar: AppBar(title: const Text('Ürün ara')), body: const SearchScreen())));
+    } else {
+      shellTab.value = tabSearch;
+    }
+  }
 
   /// Başka ekranlardan sekme değiştirmek için (kapanan ekranlardan da güvenli)
   static void goTo(BuildContext context, int index) => shellTab.value = index;
@@ -169,12 +195,12 @@ class Shell extends StatelessWidget {
       body: TickerHost(
         child: IndexedStack(
           index: index,
-          children: const [
-            HomeScreen(),
-            ReportScreen(),
-            SearchScreen(),
-            CartScreen(),
-            AccountScreen(),
+          children: [
+            const HomeScreen(),
+            const ReportScreen(),
+            Api.config.features.fishkrok ? const FishkrokEkrani() : const SearchScreen(),
+            const CartScreen(),
+            const AccountScreen(),
           ],
         ),
       ),
@@ -207,7 +233,10 @@ class Shell extends StatelessWidget {
                 icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Keşfet'),
             const NavigationDestination(
                 icon: Icon(Icons.set_meal_outlined), selectedIcon: Icon(Icons.set_meal), label: 'Mera Bilgisi'),
-            const NavigationDestination(icon: Icon(Icons.search), label: 'Ara'),
+            if (Api.config.features.fishkrok)
+              const NavigationDestination(icon: _FishkrokSekmeIkonu(secili: false), selectedIcon: _FishkrokSekmeIkonu(secili: true), label: 'Paylaş')
+            else
+              const NavigationDestination(icon: Icon(Icons.search), label: 'Ara'),
             NavigationDestination(
                 icon: Badge(
                     isLabelVisible: appState.cartCount > 0,
@@ -225,4 +254,12 @@ class Shell extends StatelessWidget {
       ),
     );
   }
+}
+
+
+class _FishkrokSekmeIkonu extends StatelessWidget {
+  final bool secili;
+  const _FishkrokSekmeIkonu({required this.secili});
+  @override
+  Widget build(BuildContext context) => FishkrokLogo(boy: 24, kanca: secili ? fishkrokKoyu : const Color(0xFF5B5F55));
 }

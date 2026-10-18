@@ -23,8 +23,8 @@ class EkDeniz {
     if (c != null && DateTime.now().difference(c.$1).inMinutes < 30) return c.$2;
     try {
       final uri = Uri.https('marine-api.open-meteo.com', '/v1/marine', {
-        'latitude': '${s.lat}',
-        'longitude': '${s.lon}',
+        'latitude': '${s.seaLat ?? s.lat}',
+        'longitude': '${s.seaLon ?? s.lon}',
         'current': 'wave_direction,ocean_current_direction,ocean_current_velocity',
         'hourly': 'sea_level_height_msl',
         'forecast_days': '2',

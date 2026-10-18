@@ -1,7 +1,8 @@
 name: iOS derle
 
-# Şimdilik imzasız derleme: kodun iPhone için hatasız derlendiğini doğrular.
-# Apple Developer hesabı ve App Store Connect API anahtarı eklenince imzalı IPA + TestFlight adımı açılacak.
+# 1) İmzasız derleme: kodun iPhone için hatasız derlendiğini doğrular.
+# 2) GitHub'da ASC_KEY_ID, ASC_ISSUER_ID ve ASC_KEY_P8 gizli değişkenleri varsa: imzalı IPA üretilir
+#    ve App Store Connect'e (TestFlight) yüklenir. Sertifika ve profil tool/asc_imza.py ile API üzerinden hazırlanır.
 on:
   push:
     branches: [main]
@@ -10,7 +11,11 @@ on:
 jobs:
   ios:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 75
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +37,7 @@ jobs:
           mkdir -p assets/brand assets/fonts
           curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png"
           curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
+          curl -fsSL -o assets/fonts/Lobster-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/lobster/Lobster-Regular.ttf"
 
       - name: Python araçları
         run: |
@@ -47,7 +53,9 @@ jobs:
         run: .venv/bin/python tool/ios_patch.py
 
       - name: Paketleri indir
-        run: flutter pub get
+        run: |
+          flutter pub get
+          (cd packages/ekran_koruma && flutter pub get)
 
       - name: Pod kurulumu ve iOS 15 hedefi
         run: |
@@ -69,3 +77,25 @@ jobs:
           /usr/libexec/PlistBuddy -c "Print :NSLocationWhenInUseUsageDescription" "$APP/Info.plist"
           ls "$APP/Frameworks/App.framework/flutter_assets/assets/sounds/"
           du -sh "$APP"
+
+      - name: İmzalı IPA ve TestFlight yüklemesi
+        if: ${{ env.ASC_KEY_ID != '' && env.ASC_ISSUER_ID != '' && env.ASC_KEY_P8 != '' }}
+        run: |
+          set -eo pipefail
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY=~/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8
+          printf '%s\n' "$ASC_KEY_P8" > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          # Her yükleme benzersiz derleme numarası ister
+          BN=$((GITHUB_RUN_NUMBER + 100))
+          echo "Derleme numarası: $BN"
+          flutter build ios --release --no-codesign --build-number=$BN
+          # Elle imza: API ile Apple Distribution sertifikası + App Store profili (test cihazı gerekmez)
+          .venv/bin/pip install --quiet pyjwt cryptography requests
+          .venv/bin/python tool/asc_imza.py
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' -archivePath build/Runner.xcarchive archive | tail -80
+          xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportOptionsPlist build/ExportOptions.plist \
+            -exportPath build/ipa "${AUTH[@]}" | tail -80
+          echo "::notice::KıyıdanAv iOS derleme $BN App Store Connect'e yüklendi (TestFlight'ta işlenmesi 10–30 dk sürer)"
+          rm -f "$KEY"
