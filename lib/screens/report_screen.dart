@@ -669,10 +669,13 @@ class _ReportCard extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(i, color: const Color(0xFFD6E9E6), size: 16),
         const SizedBox(width: 6),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(k, style: const TextStyle(color: Color(0xFFCFE3E0), fontSize: 10.5)),
-          Text(v, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
-        ]),
+        // Dar ekranda / büyük yazıda taşmasın: metin kısalır
+        Flexible(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(k, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFCFE3E0), fontSize: 10.5)),
+            Text(v, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700)),
+          ]),
+        ),
         if (y != null) ...[
           const SizedBox(width: 4),
           const Icon(Icons.info_outline, color: Color(0x99FFFFFF), size: 13),
