@@ -1,7 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/material.dart';
-import 'package:screen_protector/screen_protector.dart';
+import 'package:ekran_koruma/ekran_koruma.dart';
 
 import 'api.dart';
 import 'theme.dart';
@@ -19,15 +19,10 @@ class EkranKoruma {
     _acik = ac;
     try {
       if (Platform.isAndroid) {
-        ac ? await ScreenProtector.preventScreenshotOn() : await ScreenProtector.preventScreenshotOff();
+        await EkranKorumaKanal.koru(ac);
       } else if (Platform.isIOS) {
-        if (ac) {
-          ScreenProtector.addListener(null, (kayit) => kayitVar.value = kayit);
-          kayitVar.value = await ScreenProtector.isRecording();
-        } else {
-          ScreenProtector.removeListener();
-          kayitVar.value = false;
-        }
+        await EkranKorumaKanal.koru(ac, kayitDegisti: (kayit) => kayitVar.value = kayit);
+        kayitVar.value = ac ? await EkranKorumaKanal.kayitVar() : false;
       }
     } catch (_) {
       // Koruma kurulamasa da uygulama çalışmaya devam eder
