@@ -17,14 +17,22 @@ class BolgeBaliklariKarti extends StatefulWidget {
 }
 
 class _BolgeBaliklariKartiState extends State<BolgeBaliklariKarti> {
-  bool _sezonDisi = false;
+  static const _ilkGorunen = 4;
+  bool _hepsi = false;
+
+  @override
+  void didUpdateWidget(BolgeBaliklariKarti old) {
+    super.didUpdateWidget(old);
+    if (old.spot.key != widget.spot.key) _hepsi = false;
+  }
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final turler = bolgeTurleri(widget.spot);
-    final sezonda = turler.where((k) => baliklar[k]!.sezonda(now.month)).toList();
-    final disi = turler.where((k) => !baliklar[k]!.sezonda(now.month)).toList();
+    final bolge = balikBolgesi(widget.spot);
+    final turler = bolgeTurleri(widget.spot, now);
+    final gorunen = _hepsi ? turler : turler.take(_ilkGorunen).toList();
+    final kalan = turler.length - _ilkGorunen;
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
@@ -46,21 +54,20 @@ class _BolgeBaliklariKartiState extends State<BolgeBaliklariKarti> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('${widget.spot.name}: ${ayAdlari[now.month]} ayında av veren balıklar',
                   style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w800)),
-              Text('${balikBolgesi(widget.spot)} · ${sezonda.length} tür sezonda',
+              Text('$bolge · av ihtimali en yüksek olandan başlayarak',
                   style: const TextStyle(fontSize: 12, color: Color(0xFF6B6A60))),
             ]),
           ),
         ]),
         const SizedBox(height: 6),
-        for (final k in sezonda) _satir(k, now),
-        if (disi.isNotEmpty) ...[
-          TextButton(
+        for (var i = 0; i < gorunen.length; i++) _satir(gorunen[i], i + 1, bolge, now),
+        if (kalan > 0)
+          TextButton.icon(
             style: TextButton.styleFrom(foregroundColor: Tide.zeytinKoyu, alignment: Alignment.centerLeft),
-            onPressed: () => setState(() => _sezonDisi = !_sezonDisi),
-            child: Text('${_sezonDisi ? 'Gizle' : 'Göster'}: sezon dışı ${disi.length} tür'),
+            onPressed: () => setState(() => _hepsi = !_hepsi),
+            icon: Icon(_hepsi ? Icons.expand_less : Icons.expand_more),
+            label: Text(_hepsi ? 'Daralt' : 'Devamını göster ($kalan tür daha)'),
           ),
-          if (_sezonDisi) for (final k in disi) _satir(k, now),
-        ],
         const Divider(height: 18),
         const Text(
           'Amatör limit (6/2 Tebliğ): kiloyla sınırlı türlerde kişi başı toplam 5 kg; en büyük balık hariç tutulursa kalanı '
@@ -72,38 +79,26 @@ class _BolgeBaliklariKartiState extends State<BolgeBaliklariKarti> {
     );
   }
 
-  Widget _satir(String k, DateTime now) {
+  Widget _satir(String k, int sira, String bolge, DateTime now) {
     final b = baliklar[k]!;
-    final kl = widget.kiyilama;
-    final menzil = kl != null &&
-        ((b.mesafeMin <= kl.kucukMax && b.mesafeMax >= kl.kucukMin) || (b.mesafeMin <= kl.buyukMax && b.mesafeMax >= kl.buyukMin));
     final yasak = b.yasakta(now);
-    final yeni = herBolge.contains(k);
+    final p = avIhtimali(bolge, k, now);
+    final ihtimal = yasak ? null : p >= 2.5 ? ('Yüksek', const Color(0xFF2E8B57)) : p >= 1.5 ? ('Orta', const Color(0xFFC98A1B)) : ('Düşük', const Color(0xFF8A8A80));
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Expanded(
-            child: Text.rich(TextSpan(children: [
-              TextSpan(text: b.ad, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5)),
-              if (yeni)
-                const WidgetSpan(
-                  alignment: PlaceholderAlignment.middle,
-                  child: Padding(
-                    padding: EdgeInsets.only(left: 6),
-                    child: _Etiket('YENİ', Color(0xFF2F8F86)),
-                  ),
-                ),
-            ])),
-          ),
+          Text('$sira. ', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5, color: Tide.turuncu)),
+          Expanded(child: Text(b.ad, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5))),
           if (yasak)
             const _Etiket('AV YASAĞI', Tide.mercan)
-          else if (menzil)
-            const _Etiket('BUGÜN MENZİLDE', Color(0xFF2E8B57)),
+          else
+            _Etiket('İHTİMAL: ${ihtimal!.$1.toUpperCase()}', ihtimal.$2),
         ]),
         const SizedBox(height: 2),
         Text('Asgari boy: ${b.boy} · Limit: ${b.limit} · Kıyıdan ${b.mesafeMin}–${b.mesafeMax} m'
-            '${b.yasak != null ? ' · Yasak: ${b.yasakMetni}' : ''}',
+            '${b.yasak != null ? ' · Yasak: ${b.yasakMetni}' : ''}'
+            '${b.sezonda(now.month) ? '' : ' · şu an sezon dışı'}',
             style: const TextStyle(fontSize: 12, color: Color(0xFF55554B))),
         Text(b.teknik, style: const TextStyle(fontSize: 12.5)),
         if (b.not.isNotEmpty) Text(b.not, style: const TextStyle(fontSize: 12, color: Color(0xFF8A5A1A))),

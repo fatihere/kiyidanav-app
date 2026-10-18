@@ -40,7 +40,10 @@ const _hepsi = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const baliklar = <String, BalikBilgi>{
   'levrek': BalikBilgi('Levrek', '25 cm', '5 kg toplam', 'Spin (rapala, silikon 10–30 g); dalgalı havada köpük hattı, surf\'te canlı yem', [1, 2, 3, 10, 11, 12], 5, 40),
   'cupra': BalikBilgi('Çipura (Çupra)', '20 cm', '5 kg toplam', 'Dip / surf; yengeç, midye, boru kurdu; kum–kaya geçişi', [5, 6, 7, 8, 9, 10, 11], 8, 60,
-      not: 'Lidaki: 200 g altı çipura yavrusudur; çoğu 20 cm\'nin altında kalır, yasal boyda değilse suya iade edilmeli.'),
+),
+  'lidaki': BalikBilgi('Lidaki (çipura yavrusu)', 'Çipura asgari boyu 20 cm', 'Boyu tutmayan suya iade',
+      'LRF / hafif dip, 2–6 g; midye, boru kurdu, karides; iskele dibi ve kum–kaya geçişi', [6, 7, 8, 9, 10, 11], 3, 30,
+      not: '200 g altı çipura: 30–50 g ince lidaki, ~100 g lidaki, 100–180 g kaba lidaki. Çoğu yasal boyun altındadır.'),
   'lufer': BalikBilgi('Lüfer / Çinekop', '18 cm', '5 kg toplam', 'Spin, kaşık 20–40 g, zoka; akıntılı burunlar', [9, 10, 11, 12], 20, 90),
   'sargoz': BalikBilgi('Sargoz', '21 cm', '5 kg toplam', 'LRF / hafif dip; midye, karides, boru kurdu; kayalık dibi', [1, 2, 3, 4, 10, 11, 12], 2, 25),
   'karagoz': BalikBilgi('Karagöz', '18 cm', '5 kg toplam', 'LRF, şamandıra; gece kayalık kenarı, karides', [1, 2, 3, 4, 5, 9, 10, 11, 12], 2, 20),
@@ -66,19 +69,29 @@ const baliklar = <String, BalikBilgi>{
   'kirlangic': BalikBilgi('Kırlangıç', '18 cm', '5 kg toplam', 'Dip; kum zemin', [1, 2, 3, 4, 10, 11, 12], 20, 80),
 };
 
-/// Her bölgede mutlaka listelenen türler
-const herBolge = ['minekop', 'mirmir', 'sargoz', 'karagoz', 'eskina'];
-
-const _bolgeTurleri = <String, List<String>>{
-  'Doğu Karadeniz': ['istavrit', 'mezgit', 'lufer', 'palamut', 'kalkan', 'barbunya', 'kefal', 'levrek', 'zargana', 'iskorpit'],
-  'Batı Karadeniz': ['istavrit', 'lufer', 'palamut', 'levrek', 'kefal', 'mezgit', 'kalkan', 'barbunya', 'kolyoz', 'zargana', 'iskorpit'],
-  'İstanbul': ['istavrit', 'lufer', 'palamut', 'levrek', 'cupra', 'kefal', 'zargana', 'kolyoz', 'mezgit', 'isparoz', 'izmarit', 'iskorpit'],
-  'Trakya Marmara': ['cupra', 'levrek', 'kefal', 'lufer', 'istavrit', 'kalkan', 'barbunya', 'kolyoz', 'zargana', 'dil'],
-  'Marmara': ['cupra', 'levrek', 'kefal', 'lufer', 'istavrit', 'palamut', 'kolyoz', 'isparoz', 'izmarit', 'barbunya'],
-  'Kuzey Ege (Enez–Çanakkale)': ['cupra', 'levrek', 'kefal', 'lufer', 'kalkan', 'dil', 'mercan', 'istavrit', 'zargana', 'isparoz', 'kirlangic'],
-  'Ege': ['cupra', 'levrek', 'mercan', 'isparoz', 'izmarit', 'lufer', 'kolyoz', 'akya', 'sinarit', 'barbunya', 'iskorpit', 'istavrit', 'kefal'],
-  'Güney Ege': ['cupra', 'levrek', 'akya', 'sarikuyruk', 'mercan', 'isparoz', 'izmarit', 'sinarit', 'kolyoz', 'iskorpit', 'kefal'],
-  'Akdeniz': ['cupra', 'levrek', 'akya', 'sarikuyruk', 'mercan', 'isparoz', 'izmarit', 'kefal', 'sinarit', 'iskorpit', 'istavrit', 'barbunya'],
+/// Kıyıdan av ihtimali: bölge → tür → yaygınlık (3 çok yaygın, 2 sık, 1 ara sıra).
+/// Listede olmayan tür o bölgede kıyıdan beklenmez (ör. Kartal'da çupra, sargoz, karagöz yok).
+const bolgeAgirlik = <String, Map<String, int>>{
+  'Doğu Karadeniz': {'istavrit': 3, 'mezgit': 3, 'kefal': 3, 'barbunya': 2, 'palamut': 2, 'zargana': 2, 'iskorpit': 2,
+    'kalkan': 1, 'lufer': 1, 'levrek': 1, 'kolyoz': 1},
+  'Batı Karadeniz': {'istavrit': 3, 'lufer': 3, 'palamut': 3, 'kefal': 3, 'levrek': 2, 'mezgit': 2, 'barbunya': 2,
+    'kolyoz': 2, 'zargana': 2, 'iskorpit': 2, 'kalkan': 1, 'karagoz': 1, 'minekop': 1, 'eskina': 1},
+  'İstanbul': {'istavrit': 3, 'lufer': 3, 'kefal': 3, 'palamut': 2, 'levrek': 2, 'mezgit': 2, 'zargana': 2, 'kolyoz': 2,
+    'izmarit': 2, 'iskorpit': 2, 'barbunya': 1, 'kirlangic': 1},
+  'Trakya Marmara': {'istavrit': 3, 'kefal': 3, 'levrek': 2, 'lufer': 2, 'palamut': 2, 'mezgit': 2, 'kolyoz': 2,
+    'zargana': 2, 'izmarit': 2, 'barbunya': 1, 'kalkan': 1, 'dil': 1},
+  'Marmara': {'istavrit': 3, 'kefal': 3, 'levrek': 2, 'lufer': 2, 'palamut': 2, 'kolyoz': 2, 'mezgit': 2, 'izmarit': 2,
+    'isparoz': 1, 'barbunya': 1},
+  'Kuzey Ege (Enez–Çanakkale)': {'cupra': 3, 'lidaki': 3, 'kefal': 3, 'levrek': 2, 'sargoz': 2, 'karagoz': 2, 'mirmir': 2,
+    'istavrit': 2, 'lufer': 2, 'zargana': 2, 'isparoz': 2, 'mercan': 1, 'eskina': 1, 'minekop': 1, 'dil': 1, 'kalkan': 1,
+    'kirlangic': 1},
+  'Ege': {'cupra': 3, 'lidaki': 3, 'sargoz': 3, 'izmarit': 3, 'kefal': 3, 'karagoz': 2, 'mirmir': 2, 'isparoz': 2,
+    'levrek': 2, 'mercan': 2, 'istavrit': 2, 'iskorpit': 2, 'kolyoz': 2, 'eskina': 1, 'minekop': 1, 'akya': 1, 'lufer': 1,
+    'sinarit': 1, 'barbunya': 1},
+  'Güney Ege': {'cupra': 3, 'sargoz': 3, 'izmarit': 3, 'lidaki': 2, 'karagoz': 2, 'mirmir': 2, 'isparoz': 2, 'mercan': 2,
+    'kefal': 2, 'akya': 2, 'iskorpit': 2, 'kolyoz': 2, 'levrek': 1, 'sarikuyruk': 1, 'eskina': 1, 'sinarit': 1},
+  'Akdeniz': {'sargoz': 3, 'izmarit': 3, 'kefal': 3, 'cupra': 2, 'karagoz': 2, 'mirmir': 2, 'isparoz': 2, 'mercan': 2,
+    'akya': 2, 'iskorpit': 2, 'istavrit': 2, 'levrek': 1, 'sarikuyruk': 1, 'barbunya': 1, 'kolyoz': 1},
 };
 
 const _kuzeyEge = {'Enez', 'Saros', 'Gelibolu', 'Eceabat', 'Lapseki', 'Çanakkale', 'Babakale', 'Assos', 'Küçükkuyu'};
@@ -107,12 +120,21 @@ String balikBolgesi(Spot s) {
   }
 }
 
-/// Bölgedeki türler (bölgeye özgü + her bölgede listelenen 5 tür)
-List<String> bolgeTurleri(Spot s) {
-  final l = [...?_bolgeTurleri[balikBolgesi(s)]];
-  for (final k in herBolge) {
-    if (!l.contains(k)) l.add(k);
-  }
+/// Bugünkü av ihtimali puanı: bölgedeki yaygınlık × sezon; av yasağındaki tür en alta düşer
+double avIhtimali(String bolge, String tur, DateTime now) {
+  final w = bolgeAgirlik[bolge]?[tur] ?? 0;
+  final b = baliklar[tur];
+  if (w == 0 || b == null) return 0;
+  if (b.yasakta(now)) return 0.1;
+  return w * (b.sezonda(now.month) ? 1.0 : 0.3);
+}
+
+/// Bölgedeki türler, bugün en olası olandan başlayarak
+List<String> bolgeTurleri(Spot s, [DateTime? zaman]) {
+  final now = zaman ?? DateTime.now();
+  final bolge = balikBolgesi(s);
+  final l = (bolgeAgirlik[bolge]?.keys ?? const <String>[]).where(baliklar.containsKey).toList();
+  l.sort((a, b) => avIhtimali(bolge, b, now).compareTo(avIhtimali(bolge, a, now)));
   return l;
 }
 
