@@ -48,7 +48,9 @@ jobs:
         run: .venv/bin/python tool/ios_patch.py
 
       - name: Paketleri indir
-        run: flutter pub get
+        run: |
+          flutter pub get
+          (cd packages/ekran_koruma && flutter pub get)
 
       - name: Pod kurulumu ve iOS 15 hedefi
         run: |

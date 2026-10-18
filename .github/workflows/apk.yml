@@ -52,7 +52,9 @@ jobs:
         run: python3 tool/android_patch.py
 
       - name: Paketleri indir
-        run: flutter pub get
+        run: |
+          flutter pub get
+          (cd packages/ekran_koruma && flutter pub get)
 
       - name: Kod analizi
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
