@@ -2,7 +2,7 @@ name: iOS derle
 
 # 1) İmzasız derleme: kodun iPhone için hatasız derlendiğini doğrular.
 # 2) GitHub'da ASC_KEY_ID, ASC_ISSUER_ID ve ASC_KEY_P8 gizli değişkenleri varsa: imzalı IPA üretilir
-#    ve App Store Connect'e (TestFlight) yüklenir. İmza sertifikası ve profil Apple tarafından otomatik oluşturulur.
+#    ve App Store Connect'e (TestFlight) yüklenir. Sertifika ve profil tool/asc_imza.py ile API üzerinden hazırlanır.
 on:
   push:
     branches: [main]
@@ -90,21 +90,11 @@ jobs:
           BN=$((GITHUB_RUN_NUMBER + 100))
           echo "Derleme numarası: $BN"
           flutter build ios --release --no-codesign --build-number=$BN
+          # Elle imza: API ile Apple Distribution sertifikası + App Store profili (test cihazı gerekmez)
+          .venv/bin/pip install --quiet pyjwt cryptography requests
+          .venv/bin/python tool/asc_imza.py
           xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos \
-            -destination 'generic/platform=iOS' -archivePath build/Runner.xcarchive archive "${AUTH[@]}" | tail -80
-          cat > build/ExportOptions.plist <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0"><dict>
-            <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
-            <key>teamID</key><string>X29M47RBN6</string>
-            <key>signingStyle</key><string>automatic</string>
-            <key>uploadSymbols</key><true/>
-            <key>manageAppVersionAndBuildNumber</key><false/>
-          </dict></plist>
-          PLIST
-          sed -i '' 's/^          //' build/ExportOptions.plist
+            -destination 'generic/platform=iOS' -archivePath build/Runner.xcarchive archive | tail -80
           xcodebuild -exportArchive -archivePath build/Runner.xcarchive -exportOptionsPlist build/ExportOptions.plist \
             -exportPath build/ipa "${AUTH[@]}" | tail -80
           echo "::notice::KıyıdanAv iOS derleme $BN App Store Connect'e yüklendi (TestFlight'ta işlenmesi 10–30 dk sürer)"
