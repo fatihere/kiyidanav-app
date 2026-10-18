@@ -627,11 +627,15 @@ class _ReportCard extends StatelessWidget {
         ]),
         const SizedBox(height: 16),
         // 7 günlük tablo
-        const Row(children: [
+        const Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Text('7 GÜNLÜK TAHMİN',
               style: TextStyle(color: Color(0xFFCFE3E0), fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w700)),
-          Spacer(),
-          Text('Ayrıntı için güne dokun', style: TextStyle(color: Color(0x99FFFFFF), fontSize: 10.5)),
+          SizedBox(width: 8),
+          Flexible(
+            child: Text('Ayrıntı için güne dokun',
+                maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right,
+                style: TextStyle(color: Color(0x99FFFFFF), fontSize: 10.5)),
+          ),
         ]),
         const SizedBox(height: 6),
         for (var i = 0; i < f.days.length; i++)
