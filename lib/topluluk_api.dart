@@ -101,7 +101,7 @@ class Topluluk {
       }
       return t != null;
     } catch (e) {
-      Hata.goster('$e');
+      Hata.goster(e);
       return false;
     }
   }
