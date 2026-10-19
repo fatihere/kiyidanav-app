@@ -159,7 +159,7 @@ class CatchFormScreen extends StatefulWidget {
       }
       await Navigator.of(context).push(MaterialPageRoute(builder: (_) => CatchFormScreen(spot: spot, token: t)));
     } catch (e) {
-      Hata.goster('$e');
+      Hata.goster(e);
     }
   }
 
