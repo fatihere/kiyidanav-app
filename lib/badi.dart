@@ -320,6 +320,29 @@ class _BadiEkraniState extends State<BadiEkrani> {
 class BadiKutu extends StatefulWidget {
   const BadiKutu({super.key});
 
+  /// Üyelik denetimiyle açar (KıyıdanPaylaş, Hesabım, bildirim)
+  static Future<void> ac(BuildContext context) async {
+    if (!await Topluluk.uyeHazir(context, 'Mesajlaşmak') || !context.mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BadiKutu()));
+  }
+
+  /// 1.13.0: KıyıdanPaylaş'taki bir avı badiye mesajla gönderir
+  static Future<void> avGonder(BuildContext context, String avId, String baslik) async {
+    if (!await Topluluk.uyeHazir(context, 'Av paylaşmak') || !context.mounted) return;
+    final b = await Navigator.of(context).push<BadiSecim>(
+        MaterialPageRoute(builder: (_) => BadiSec(baslik: 'Avı kime gönderelim?', alt: baslik)));
+    if (b == null || !context.mounted) return;
+    try {
+      await Topluluk.gonder('badi_mesaj', {'alici': '${b.id}', 'av': avId, 'metin': ''});
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Av ${b.ad} adlı badine gönderildi.')));
+      await Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => BadiSohbet(id: b.id, ad: b.ad, avatar: b.avatar)));
+    } catch (e) {
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+  }
+
   @override
   State<BadiKutu> createState() => _BadiKutuState();
 }
@@ -327,20 +350,57 @@ class BadiKutu extends StatefulWidget {
 class _BadiKutuState extends State<BadiKutu> {
   late Future<Map<String, dynamic>> _f = Topluluk.al('badi_kutu');
 
+  void _yenile() => setState(() => _f = Topluluk.al('badi_kutu'));
+
+  Future<void> _yeni() async {
+    final b = await Navigator.of(context)
+        .push<BadiSecim>(MaterialPageRoute(builder: (_) => const BadiSec(baslik: 'Yeni mesaj')));
+    if (b == null || !mounted) return;
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => BadiSohbet(id: b.id, ad: b.ad, avatar: b.avatar)));
+    if (mounted) _yenile();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Mesajlarım')),
+      appBar: AppBar(
+        title: const Text('Mesajlarım'),
+        actions: [IconButton(tooltip: 'Yenile', onPressed: _yenile, icon: const Icon(Icons.refresh))],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'badiYeniMesaj',
+        backgroundColor: Tide.turuncu,
+        foregroundColor: Colors.white,
+        onPressed: _yeni,
+        icon: const Icon(Icons.edit_outlined),
+        label: const Text('Yeni mesaj', style: TextStyle(fontWeight: FontWeight.w800)),
+      ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: _f,
         builder: (context, snap) {
-          if (snap.hasError) return Center(child: Text('${snap.error}'));
+          if (snap.hasError) {
+            return Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Padding(padding: const EdgeInsets.all(16), child: Text('${snap.error}', textAlign: TextAlign.center)),
+                TextButton(onPressed: _yenile, child: const Text('Tekrar dene')),
+              ]),
+            );
+          }
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final l = ((snap.data!['items'] as List?) ?? const []).whereType<Map>().toList();
-          if (l.isEmpty) return const Center(child: Text('Henüz mesajın yok.'));
+          if (l.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text('Henüz mesajın yok.\n"Yeni mesaj" ile takip ettiğin badilere yazabilir, '
+                    'KıyıdanPaylaş\'taki avları "Badiye" düğmesiyle gönderebilirsin.',
+                    textAlign: TextAlign.center),
+              ),
+            );
+          }
           return RefreshIndicator(
-            onRefresh: () async => setState(() => _f = Topluluk.al('badi_kutu')),
-            child: ListView(children: [
+            onRefresh: () async => _yenile(),
+            child: ListView(padding: const EdgeInsets.only(bottom: 90), children: [
               for (final m in l)
                 ListTile(
                   leading: Avatar(url: '${m['avatar'] ?? ''}', ad: '${m['ad'] ?? ''}'),
@@ -352,11 +412,93 @@ class _BadiKutuState extends State<BadiKutu> {
                   onTap: () async {
                     await Navigator.of(context).push(MaterialPageRoute(
                         builder: (_) => BadiSohbet(id: tInt(m['id']), ad: '${m['ad']}', avatar: '${m['avatar'] ?? ''}')));
-                    if (mounted) setState(() => _f = Topluluk.al('badi_kutu'));
+                    if (mounted) _yenile();
                   },
                 ),
             ]),
           );
+        },
+      ),
+    );
+  }
+}
+
+/// Seçilen badi
+class BadiSecim {
+  final int id;
+  final String ad, avatar;
+  const BadiSecim(this.id, this.ad, this.avatar);
+}
+
+/// Mesaj atılabilecek badiler: takip ettiklerin, seni takip edenler ve yazıştıkların
+class BadiSec extends StatefulWidget {
+  final String baslik;
+  final String alt;
+  const BadiSec({super.key, required this.baslik, this.alt = ''});
+
+  @override
+  State<BadiSec> createState() => _BadiSecState();
+}
+
+class _BadiSecState extends State<BadiSec> {
+  late final Future<Map<String, dynamic>> _f = Topluluk.al('badi_listem');
+  String _ara = '';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.baslik)),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _f,
+        builder: (context, snap) {
+          if (snap.hasError) return Center(child: Padding(padding: const EdgeInsets.all(16), child: Text('${snap.error}')));
+          if (!snap.hasData) return const Center(child: CircularProgressIndicator());
+          final hepsi = ((snap.data!['items'] as List?) ?? const []).whereType<Map>().toList();
+          final l = _ara.isEmpty
+              ? hepsi
+              : hepsi.where((m) => '${m['ad']}'.toLowerCase().contains(_ara.toLowerCase())).toList();
+          return ListView(children: [
+            if (widget.alt.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Text(widget.alt, style: const TextStyle(fontWeight: FontWeight.w700, color: Tide.derin)),
+              ),
+            if (hepsi.length > 8)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                child: TextField(
+                  decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.search), hintText: 'Badi ara', isDense: true, border: OutlineInputBorder()),
+                  onChanged: (v) => setState(() => _ara = v.trim()),
+                ),
+              ),
+            if (hepsi.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(children: [
+                  const Text('Henüz badin yok. Badimi bul\'dan yakınındaki balıkçıları takip et; '
+                      'takip ettiklerine buradan mesaj atabilirsin.', textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  if (Api.config.features.badi)
+                    FilledButton.icon(
+                      style: FilledButton.styleFrom(backgroundColor: Tide.derin),
+                      onPressed: () => BadiEkrani.ac(context),
+                      icon: const Icon(Icons.groups_outlined),
+                      label: const Text('Badimi bul'),
+                    ),
+                ]),
+              ),
+            for (final m in l)
+              ListTile(
+                leading: Avatar(url: '${m['avatar'] ?? ''}', ad: '${m['ad'] ?? ''}'),
+                title: Text('${m['ad']}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(m['takip'] == true
+                    ? (m['takipci'] == true ? 'Karşılıklı takip' : 'Takip ediyorsun')
+                    : (m['takipci'] == true ? 'Seni takip ediyor' : 'Yazıştığın balıkçı')),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).pop(BadiSecim(tInt(m['id']), '${m['ad']}', '${m['avatar'] ?? ''}')),
+              ),
+          ]);
         },
       ),
     );
@@ -499,6 +641,7 @@ class _BadiSohbetState extends State<BadiSohbet> {
           border: bekliyor || red ? Border.all(color: const Color(0xFFF0A46C)) : (ben ? null : Border.all(color: const Color(0xFFE6E2D6))),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (m['av'] is Map) _avKarti(m['av'] as Map, ben),
           Text('${m['metin'] ?? ''}', style: TextStyle(color: bekliyor || red ? const Color(0xFF8A4A12) : (ben ? Colors.white : Tide.kaya))),
           if (bekliyor)
             const Text('Telefon numarası içeriyor · yönetici onayı bekliyor', style: TextStyle(fontSize: 10.5, color: Color(0xFF8A4A12))),
@@ -507,6 +650,36 @@ class _BadiSohbetState extends State<BadiSohbet> {
       ),
     );
   }
+}
+
+/// Mesajla paylaşılan av (KıyıdanPaylaş): fotoğraf + balık + mera
+Widget _avKarti(Map av, bool ben) {
+  final foto = '${av['foto'] ?? ''}';
+  final renk = ben ? Colors.white : Tide.kaya;
+  return Container(
+    width: 220,
+    margin: const EdgeInsets.only(bottom: 6),
+    decoration: BoxDecoration(
+      color: ben ? const Color(0x26FFFFFF) : const Color(0xFFF4F2EA),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (foto.startsWith('https://'))
+        AspectRatio(
+          aspectRatio: 4 / 3,
+          child: Image.network(foto, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+        ),
+      Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('🎣 ${av['balik'] ?? ''}', style: TextStyle(fontWeight: FontWeight.w800, color: renk)),
+          Text('${av['mera'] ?? ''}${'${av['kim'] ?? ''}'.isNotEmpty ? ' · ${av['kim']}' : ''}',
+              style: TextStyle(fontSize: 12, color: renk)),
+        ]),
+      ),
+    ]),
+  );
 }
 
 /// Mera Bilgisi'ndeki Badimi bul girişi

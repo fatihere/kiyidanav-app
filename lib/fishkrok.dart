@@ -4,9 +4,11 @@ import 'package:http/http.dart' as http;
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'badi.dart';
 import 'profil.dart';
 import 'screens/catch_screens.dart';
 import 'sea_card.dart';
+import 'share.dart';
 import 'theme.dart';
 import 'topluluk_api.dart';
 
@@ -204,6 +206,12 @@ class _FishkrokEkraniState extends State<FishkrokEkrani> {
             tooltip: 'Yenile',
             onPressed: () => _yukle(bastan: true),
             icon: const Icon(Icons.refresh),
+          ),
+          // 1.13.0: mesaj kutusu (badilerle yazışma, av paylaşma)
+          IconButton(
+            tooltip: 'Mesajlarım',
+            onPressed: () => BadiKutu.ac(context),
+            icon: const Icon(Icons.chat_bubble_outline),
           ),
           IconButton(
             tooltip: 'Profilim',
@@ -420,9 +428,10 @@ class _FkSayfaState extends State<FkSayfa> {
     try {
       final r = await http.get(Uri.parse(g.fotolar.first)).timeout(const Duration(seconds: 15));
       if (r.statusCode != 200) throw StateError('foto');
-      await Share.shareXFiles([XFile.fromData(r.bodyBytes, mimeType: 'image/jpeg', name: 'fishkrok.jpg')], text: metin);
+      await Share.shareXFiles([XFile.fromData(r.bodyBytes, mimeType: 'image/jpeg', name: 'fishkrok.jpg')],
+          text: metin, sharePositionOrigin: Sharer.origin());
     } catch (_) {
-      await Share.share(metin);
+      await Share.share(metin, sharePositionOrigin: Sharer.origin());
     }
   }
 
@@ -485,6 +494,7 @@ class _FkSayfaState extends State<FkSayfa> {
           _Eylem(g.puanim > 0 ? Icons.star : Icons.star_border, g.puanSayi == 0 ? 'Puan' : g.puan.toStringAsFixed(1), _puanla,
               renk: g.puanim > 0 ? const Color(0xFFF2A51A) : Colors.white),
           _Eylem(Icons.ios_share, 'Paylaş', _paylas),
+          _Eylem(Icons.send_outlined, 'Badiye', () => BadiKutu.avGonder(context, g.id, '${g.balik} · ${g.mera}')),
           _Eylem(Icons.flag_outlined, 'Şikâyet', _sikayet),
         ]),
       ),

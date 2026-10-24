@@ -5,6 +5,7 @@ import 'package:ekran_koruma/ekran_koruma.dart';
 
 import 'api.dart';
 import 'theme.dart';
+import 'yonetici.dart';
 
 /// Ekran görüntüsü / ekran kaydı engeli (panel → Eklentiler → Ekran görüntüsü engeli)
 ///  - Android: FLAG_SECURE — ekran görüntüsü ve kayıt alınamaz (görüntü siyah çıkar)
@@ -13,9 +14,10 @@ class EkranKoruma {
   static final kayitVar = ValueNotifier<bool>(false);
   static bool _acik = false;
 
-  static Future<void> uygula() async {
-    final ac = Api.config.features.ekranKoruma;
-    if (ac == _acik) return;
+  /// Yönetici girişli telefonda (1.13.0) engel uygulanmaz: yönetici ekran görüntüsü alabilir
+  static Future<void> uygula({bool zorla = false}) async {
+    final ac = Api.config.features.ekranKoruma && !Yonetici.girisli;
+    if (ac == _acik && !zorla) return;
     _acik = ac;
     try {
       if (Platform.isAndroid) {

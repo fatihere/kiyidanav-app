@@ -12,6 +12,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import 'badi.dart';
 import 'bait_card.dart';
 import 'config.dart';
 import 'main.dart';
@@ -80,7 +81,17 @@ class Notices {
   /// Android'de kanal sesi sonradan değiştirilemediği için yeni kanal açıldı; eski kanal silinir.
   static const channelId = 'kiyidanav_kalama';
   static const _oldChannelId = 'kiyidanav_duyuru';
-  static const _sound = RawResourceAndroidNotificationSound('kalama');
+
+  /// 1.13.0: kalama sesinin süresi panelden 1–10 sn seçilir. Android'de kanal sesi sonradan
+  /// değişmediği için her süre ayrı kanaldır (kiyidanav_kalama_N, res/raw/kalama_N.ogg).
+  static int kalamaSure = 10;
+  static String get kalamaKanal => 'kiyidanav_kalama_$kalamaSure';
+  static RawResourceAndroidNotificationSound get _sound => RawResourceAndroidNotificationSound('kalama_$kalamaSure');
+  static String get _iosSes => 'kalama_$kalamaSure.caf';
+
+  /// KıyıdanPaylaş paylaşımları ve mesajlar: telefonun kendi (varsayılan) bildirim sesi
+  static const toplulukChannelId = 'kiyidanav_topluluk';
+  static bool toplulukTipi(String t) => t == 'paylas' || t == 'mesaj';
 
   /// Panelde "Olta makinesi bildirim sesi" kapatılırsa telefonun standart sesiyle çalan kanal
   static const plainChannelId = 'kiyidanav_genel';
@@ -88,17 +99,39 @@ class Notices {
   /// Sunucudan gelir (bildirimler yanıtındaki "ses"); varsayılan kalama sesi
   static bool reelSound = true;
 
-  static const _channel = AndroidNotificationDetails(
-    channelId,
-    'Kampanyalar ve mera bilgisi',
-    channelDescription: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri',
-    importance: Importance.high,
-    priority: Priority.high,
-    icon: 'ic_stat_notify',
-    color: Tide.turuncu,
-    sound: _sound,
-    playSound: true,
-  );
+  static AndroidNotificationDetails get _channel => AndroidNotificationDetails(
+        kalamaKanal,
+        'Kampanyalar ve mera bilgisi',
+        channelDescription: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri',
+        importance: Importance.high,
+        priority: Priority.high,
+        icon: 'ic_stat_notify',
+        color: Tide.turuncu,
+        sound: _sound,
+        playSound: true,
+      );
+
+  /// Panelden gelen süreye göre kalama kanalını kurar; eski süre kanallarını kaldırır
+  static Future<void> kalamaKanaliKur([int? sure]) async {
+    if (sure != null) kalamaSure = sure.clamp(1, 10);
+    final a = _android;
+    if (a == null) return;
+    try {
+      await a.createNotificationChannel(AndroidNotificationChannel(
+        kalamaKanal,
+        'Kampanyalar ve mera bilgisi',
+        description: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri (olta makinesi sesi)',
+        importance: Importance.high,
+        sound: _sound,
+        playSound: true,
+      ));
+      for (var n = 1; n <= 10; n++) {
+        if (n != kalamaSure) await a.deleteNotificationChannel(channelId: 'kiyidanav_kalama_$n');
+      }
+    } catch (e) {
+      debugPrint('kalama kanalı: $e');
+    }
+  }
 
   // ---------------- Sunucu ----------------
   static Future<List<Notice>> fetch() async {
@@ -108,6 +141,8 @@ class Notices {
     final j = jsonDecode(res.body);
     if (j is! Map || j['ok'] != true) return const [];
     reelSound = j['ses'] != false;
+    final sure = j['ses_sure'];
+    if (sure is num && sure.toInt().clamp(1, 10) != kalamaSure) await kalamaKanaliKur(sure.toInt());
     return ((j['items'] as List?) ?? [])
         .whereType<Map>()
         .map((e) => Notice.fromJson(Map<String, dynamic>.from(e)))
@@ -135,10 +170,18 @@ class Notices {
       // Firebase bildirimleri de bu kanalı kullanır; önceden oluşturulmalı
       await _android?.createNotificationChannel(const AndroidNotificationChannel(
         channelId,
-        'Kampanyalar ve mera bilgisi',
+        'Kampanyalar ve mera bilgisi (eski)',
         description: 'KıyıdanAv kampanya, ürün ve günlük mera balık bilgisi bildirimleri',
         importance: Importance.high,
-        sound: _sound,
+        sound: RawResourceAndroidNotificationSound('kalama'),
+        playSound: true,
+      ));
+      await kalamaKanaliKur();
+      await _android?.createNotificationChannel(const AndroidNotificationChannel(
+        toplulukChannelId,
+        'KıyıdanPaylaş ve mesajlar',
+        description: 'Yeni KıyıdanPaylaş paylaşımları ve badi mesajları (telefonun bildirim sesiyle)',
+        importance: Importance.high,
         playSound: true,
       ));
       await _android?.createNotificationChannel(const AndroidNotificationChannel(
@@ -267,6 +310,12 @@ class Notices {
   /// Bildirim izni açık mı? (bilinmiyorsa null)
   static Future<bool?> permissionEnabled() async {
     try {
+      if (Platform.isIOS) {
+        // iPhone: izin durumu Firebase üzerinden okunur
+        final s = await FirebaseMessaging.instance.getNotificationSettings();
+        return s.authorizationStatus == AuthorizationStatus.authorized ||
+            s.authorizationStatus == AuthorizationStatus.provisional;
+      }
       return await _android?.areNotificationsEnabled();
     } catch (_) {
       return null;
@@ -282,7 +331,7 @@ class Notices {
       id: 1,
       title: 'Bildirimler açık ✅',
       body: 'KıyıdanAv kampanya ve mera balık bilgisi bildirimlerini alacaksın.',
-      notificationDetails: const NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(sound: 'kalama.caf')),
+      notificationDetails: NotificationDetails(android: _channel, iOS: DarwinNotificationDetails(sound: _iosSes)),
     );
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -391,6 +440,19 @@ class Notices {
       case 'guncelleme':
         AppUpdate.start();
         break;
+      case 'paylas': // 1.13.0: yeni KıyıdanPaylaş paylaşımı
+        nav?.popUntil((r) => r.isFirst);
+        shellTab.value = Shell.tabFishkrok;
+        break;
+      case 'mesaj': // 1.13.0: badi mesajı → sohbet
+        final id = int.tryParse(n.target);
+        if (id != null && id > 0) {
+          final ad = n.title.replaceAll(' sana mesaj gönderdi', '').trim();
+          nav?.push(MaterialPageRoute(builder: (_) => BadiSohbet(id: id, ad: ad.isEmpty ? 'Balıkçı' : ad)));
+        } else {
+          nav?.push(MaterialPageRoute(builder: (_) => const BadiKutu()));
+        }
+        break;
       case 'urun':
         final id = int.tryParse(n.target);
         if (id != null && id > 0) nav?.push(MaterialPageRoute(builder: (_) => ProductScreen(id: id)));
@@ -453,7 +515,20 @@ class Notices {
       }
     }
     if (style == null && body.length > 40) style = BigTextStyleInformation(body);
-    final details = (style == null && reelSound)
+    final topluluk = toplulukTipi(n.type);
+    final details = topluluk
+        ? AndroidNotificationDetails(
+            toplulukChannelId,
+            'KıyıdanPaylaş ve mesajlar',
+            channelDescription: 'Yeni KıyıdanPaylaş paylaşımları ve badi mesajları (telefonun bildirim sesiyle)',
+            importance: Importance.high,
+            priority: Priority.high,
+            icon: 'ic_stat_notify',
+            color: Tide.turuncu,
+            playSound: true,
+            styleInformation: style,
+          )
+        : (style == null && reelSound)
         ? _channel
         : AndroidNotificationDetails(
             reelSound ? _channel.channelId : plainChannelId,
@@ -472,7 +547,7 @@ class Notices {
       title: n.title,
       body: body,
       notificationDetails: NotificationDetails(
-          android: details, iOS: DarwinNotificationDetails(sound: reelSound ? 'kalama.caf' : null)),
+          android: details, iOS: DarwinNotificationDetails(sound: (!topluluk && reelSound) ? _iosSes : null)),
       payload: jsonEncode(n.toJson()),
     );
   }
