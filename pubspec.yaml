@@ -1,7 +1,7 @@
 name: kiyidanav
 description: KıyıdanAv — kıyı balıkçılığı ve outdoor mağazası mobil uygulaması.
 publish_to: 'none'
-version: 1.12.2+20
+version: 1.13.0+21
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
   http: ^1.2.2
   shared_preferences: ^2.3.2
+  # 1.13.0: 2.5.0–2.5.1 Android sürüm derlemesinde R8 yüzünden çöküyordu (NoSuchMethodError) → av bildir, beğeni, yorum çalışmıyordu
+  shared_preferences_android: ^2.5.3
   webview_flutter: ^4.10.0
   webview_flutter_android: ^4.0.0
   share_plus: ^10.1.4
