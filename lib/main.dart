@@ -8,6 +8,7 @@ import 'api.dart';
 import 'app_state.dart';
 import 'catches.dart';
 import 'ekran_koruma.dart';
+import 'ekran_turu.dart';
 import 'fishkrok.dart';
 import 'hata.dart';
 import 'kurallar.dart';
@@ -43,7 +44,7 @@ Future<void> main() async {
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
   ));
-  Notices.enabled = true;
+  Notices.enabled = !ekranTuru; // mağaza ekran görüntüsü derlemesinde izin pencereleri açılmasın
   Notices.kalamaSure = Api.config.kalamaSure; // panel → kalama sesi süresi
   await Kurallar.yukle();
   await Yonetici.yukle(); // 1.13.0: uygulamada yönetici girişi (ekran görüntüsü izni dahil)
@@ -51,10 +52,11 @@ Future<void> main() async {
   runApp(const KiyidanAvApp());
   Premium.baslat(); // Play aboneliği + panelden verilen premium
   memberNotifier.addListener(Premium.vipYenile); // giriş / çıkışta panel hakkı yeniden sorulur
-  Notices.start().whenComplete(Push.start);
+  if (!ekranTuru) Notices.start().whenComplete(Push.start);
+  if (ekranTuru) unawaited(EkranTuru.baslat());
   // Android ana ekran kartı: panel ayarı ve üyeliğe göre hazırlanır
   MeraWidget.syncAccess(enabled: Api.config.features.homeWidget, member: appState.isMember);
-  if (Api.config.features.location) Locate.silentUpdate(); // izin daha önce verildiyse en yakın merayı seç
+  if (!ekranTuru && Api.config.features.location) Locate.silentUpdate(); // izin daha önce verildiyse en yakın merayı seç
 }
 
 class KiyidanAvApp extends StatefulWidget {
