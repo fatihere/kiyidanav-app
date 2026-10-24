@@ -12,6 +12,17 @@ from pathlib import Path
 
 APP = Path('android/app')
 
+# R8: eklentilerin Kotlin/JNI tarafı ad değiştirmeden ve silinmeden kalsın
+PROGUARD = """# KıyıdanAv — tool/android_patch.py üretir
+-keep class io.flutter.plugins.sharedpreferences.** { *; }
+-keep class io.flutter.plugins.** { *; }
+-keep class dev.flutter.pigeon.** { *; }
+-keep class com.github.dart_lang.jni.** { *; }
+-keep class kotlin.coroutines.Continuation { *; }
+-keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod
+-dontwarn io.flutter.embedding.**
+"""
+
 
 def fail(msg):
     print('HATA:', msg)
@@ -63,6 +74,15 @@ def patch_gradle():
         s, count=1)
     if n != 1:
         fail('release signingConfig satırı yok')
+
+    # 1.13.0: R8 küçültmesi eklentilerin JNI/Pigeon sınıflarını silmesin (shared_preferences çöküyordu)
+    if 'proguard-rules.pro' not in s:
+        s, n = re.subn(r'(signingConfig = if \(\(System\.getenv\("KS_FILE"\)[^\n]*\n)',
+                       r'\1            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")\n',
+                       s, count=1)
+        if n != 1:
+            fail('release bloğuna proguard kuralları eklenemedi')
+    (APP / 'proguard-rules.pro').write_text(PROGUARD)
 
     # Firebase: google-services eklentisi (uygulama modülü)
     if 'com.google.gms.google-services' not in s:
@@ -131,6 +151,18 @@ def patch_manifest():
     print(s)
 
 
+def kalama_kisalt(src, hedef, n, ios=False):
+    """kalama sesinin ilk n saniyesi, sonu yumuşak kısılarak (ffmpeg derleme makinesinde kurulu)"""
+    import subprocess
+    d = min(0.35, n * 0.3)
+    kod = ['-c:a', 'adpcm_ima_qt', '-ar', '22050', '-ac', '1', '-f', 'caf'] if ios else \
+        ['-c:a', 'libvorbis', '-q:a', '4', '-ar', '24000', '-ac', '1']
+    r = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(src), '-t', str(n),
+                        '-af', f'afade=t=out:st={round(n - d, 2)}:d={d}'] + kod + [str(hedef)])
+    if r.returncode != 0 or not Path(hedef).exists():
+        fail(f'kalama sesi {n} sn üretilemedi')
+
+
 def patch_sound():
     """Bildirim sesi: olta makinesi kalama sesi (res/raw/kalama.ogg) + küçültmede silinmesin"""
     import shutil
@@ -140,10 +172,15 @@ def patch_sound():
     if not src.exists():
         fail('tool/android/kalama.ogg yok (bildirim sesi)')
     shutil.copy(src, raw / 'kalama.ogg')
+    # 1.13.0: panelden seçilen süre (1–10 sn) için kısaltılmış sesler: kalama_1 … kalama_10
+    keep = ['@raw/kalama']
+    for n in range(1, 11):
+        kalama_kisalt(src, raw / f'kalama_{n}.ogg', n)
+        keep.append(f'@raw/kalama_{n}')
     (raw / 'keep.xml').write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n'
-        '<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@raw/kalama"/>\n')
-    print('bildirim sesi eklendi:', (raw / 'kalama.ogg').stat().st_size, 'bayt')
+        '<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="' + ','.join(keep) + '"/>\n')
+    print('bildirim sesleri eklendi:', ', '.join(keep))
 
 
 def patch_widget():
