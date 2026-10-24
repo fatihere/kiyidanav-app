@@ -99,6 +99,7 @@ jobs:
           if "$BT/aapt2" dump permissions "$APK" | grep -q "FOREGROUND_SERVICE"; then echo "::error::Gereksiz ön plan hizmeti izni APK'da"; exit 1; fi
           if "$BT/aapt2" dump permissions "$APK" | grep -qE "ACCESS_FINE_LOCATION|ACCESS_BACKGROUND_LOCATION"; then echo "::error::Gereksiz hassas/arka plan konum izni"; exit 1; fi
           "$BT/aapt2" dump resources "$APK" | grep -q "raw/kalama" || { echo "::error::Bildirim sesi (raw/kalama) APK'da yok"; exit 1; }
+          for n in 1 5 10; do "$BT/aapt2" dump resources "$APK" | grep -q "raw/kalama_$n" || { echo "::error::kalama_$n sesi APK'da yok"; exit 1; }; done
           echo "== Bildirim sesi: tamam"
           unzip -l "$APK" | grep -q "assets/flutter_assets/assets/sounds/dalga.ogg" || { echo "::error::Ortam sesleri APK'da yok"; exit 1; }
           if "$BT/apksigner" verify --print-certs "$APK" | grep -q "CN=Android Debug"; then echo "::warning::APK/AAB hata ayıklama anahtarıyla imzalı — Google Play'e yüklenemez. KEYSTORE_B64 ve KEYSTORE_PASS secrets eklenmeli."; fi
