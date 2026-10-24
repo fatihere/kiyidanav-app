@@ -365,6 +365,8 @@ class RemoteConfig {
   /// Panel → Topluluk → Mera düzeni: bölüm sırası ve kapalı bölümler (boşsa varsayılan)
   final List<String> meraSira;
   final List<String> meraKapali;
+  /// 1.13.0: kalama bildirim sesinin süresi (panelden 1–10 sn)
+  final int kalamaSure;
 
   const RemoteConfig({
     this.announcement = '',
@@ -378,6 +380,7 @@ class RemoteConfig {
     this.features = const Features(),
     this.meraSira = const [],
     this.meraKapali = const [],
+    this.kalamaSure = 10,
   });
 
   factory RemoteConfig.fromJson(Map<String, dynamic> j) => RemoteConfig(
@@ -395,6 +398,7 @@ class RemoteConfig {
         features: Features.fromJson(j['eklentiler']),
         meraSira: ((j['mera_sira'] as List?) ?? const []).map((e) => '$e').toList(),
         meraKapali: ((j['mera_kapali'] as List?) ?? const []).map((e) => '$e').toList(),
+        kalamaSure: (_i(j['kalama_sure']) < 1 ? 10 : _i(j['kalama_sure'])).clamp(1, 10),
         ui: Ui.fromJson(j['tema'] is Map ? Map<String, dynamic>.from(j['tema'] as Map) : null),
       );
 }

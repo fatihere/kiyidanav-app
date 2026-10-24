@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:io' show Platform;
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/widgets.dart';
 
+import 'app_state.dart';
+import 'catches.dart';
 import 'notices.dart';
+import 'topluluk_api.dart';
 
 /// Tüm telefonların abone olduğu ortak kanal (panel bu kanala gönderir)
 const pushTopic = 'hepsi';
@@ -29,13 +35,36 @@ class Push {
     try {
       await Firebase.initializeApp();
       FirebaseMessaging.onBackgroundMessage(pushBackgroundHandler);
+      if (Platform.isIOS) {
+        // 1.13.0: iPhone bildirimleri (APNs). İzin + uygulama açıkken de bildirimi göster.
+        await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+        await FirebaseMessaging.instance
+            .setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+        // Konu aboneliği APNs kimliği gelmeden yapılamaz; birkaç saniye beklenir
+        for (var i = 0; i < 10; i++) {
+          if (await FirebaseMessaging.instance.getAPNSToken() != null) break;
+          await Future<void>.delayed(const Duration(milliseconds: 800));
+        }
+      }
       await FirebaseMessaging.instance.subscribeToTopic(pushTopic);
       ready = true;
+      // Mesaj bildirimleri bu telefona gelsin: üye girişliyse cihaz kimliği sunucuya kaydedilir
+      unawaited(cihazKaydet());
+      FirebaseMessaging.instance.onTokenRefresh.listen((_) => cihazKaydet());
+      memberNotifier.addListener(() {
+        if (memberNotifier.value) cihazKaydet();
+      });
 
       // Uygulama açıkken: Android bildirimi kendisi göstermez, biz gösteririz
+      // (iPhone'da sistem gösterir; ikinci kez gösterilmesin)
       FirebaseMessaging.onMessage.listen((m) {
         final n = _notice(m);
-        if (n != null) Notices.showIncoming(n);
+        if (n == null) return;
+        if (Platform.isIOS && m.notification != null) {
+          Notices.markNotifiedIds([n.id]);
+          return;
+        }
+        Notices.showIncoming(n);
       });
 
       // Bildirime dokunarak açılış (arka plandan)
@@ -59,6 +88,21 @@ class Push {
       return await FirebaseMessaging.instance.getToken().timeout(const Duration(seconds: 4));
     } catch (_) {
       return null;
+    }
+  }
+
+  static String? _sonKayit;
+
+  /// Üyenin bu telefonunu (Firebase kimliği) topluluk sunucusuna bildirir: badi mesajları buraya gelir
+  static Future<void> cihazKaydet() async {
+    if (!ready || !memberNotifier.value) return;
+    try {
+      final t = await token();
+      if (t == null || t == _sonKayit || await CatchService.token() == null) return;
+      await Topluluk.gonder('cihaz', {'token': t, 'platform': Topluluk.platform});
+      _sonKayit = t;
+    } catch (e) {
+      debugPrint('cihaz kaydı: $e');
     }
   }
 

@@ -140,17 +140,18 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
     return _ReportData(f, await catches, await sat, await info);
   }
 
-  Future<void> _share(SpotForecast f, int score, SeaMood mood, SatInfo? sat) async {
+  Future<void> _share(SpotForecast f, int score, SeaMood mood, SatInfo? sat, [BuildContext? dugme]) async {
     setState(() => _sharing = true);
     final text = '${f.spot.name} günlük mera balık bilgisi: av verimliliği %$score, '
         '${Moon.phaseName(DateTime.now())}. KıyıdanAv uygulamasıyla hazırlandı 🎣 kiyidanav.com';
     try {
       final bytes = await ShareCard.render(_cardData(f, score, mood, sat)).timeout(const Duration(seconds: 12));
       if (bytes == null) throw StateError('görsel boş');
-      Sharer.imageBytes(bytes, text: text);
+      if (!mounted) return;
+      Sharer.imageBytes(bytes, text: text, context: dugme != null && dugme.mounted ? dugme : context);
     } catch (_) {
       // Görsel hazırlanamazsa (ya da çok uzun sürerse) en azından yazılı rapor paylaşılsın
-      Sharer.textOnly(text);
+      Sharer.textOnly(text, context: mounted ? context : null);
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(const SnackBar(content: Text('Rapor görseli hazırlanamadı, yazılı rapor paylaşılıyor.')));
@@ -214,15 +215,15 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
     Expanded(
       child: SizedBox(
     height: 50,
-    child: FilledButton.icon(
+    child: Builder(builder: (dugme) => FilledButton.icon(
       style: FilledButton.styleFrom(
           backgroundColor: Tide.turuncu,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-      onPressed: _sharing ? null : () => _share(f, score, mood, sat),
+      onPressed: _sharing ? null : () => _share(f, score, mood, sat, dugme),
       icon: const Icon(Icons.ios_share),
       label: Text(_sharing ? 'Hazırlanıyor…' : 'Raporu paylaş',
           maxLines: 1, overflow: TextOverflow.ellipsis),
-    ),
+    )),
       ),
     ),
     if (Api.config.features.ambientSound) ...[

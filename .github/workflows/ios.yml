@@ -71,6 +71,8 @@ jobs:
           APP=build/ios/iphoneos/Runner.app
           test -d "$APP"
           test -f "$APP/kalama.caf" || { echo "::error::kalama.caf uygulamada yok"; exit 1; }
+          test -f "$APP/kalama_5.caf" || { echo "::error::kalama_5.caf uygulamada yok"; exit 1; }
+          test -f "$APP/GoogleService-Info.plist" || { echo "::error::GoogleService-Info.plist yok (iPhone bildirimleri)"; exit 1; }
           test -f "$APP/PrivacyInfo.xcprivacy" || { echo "::error::Gizlilik bildirimi yok"; exit 1; }
           /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :MinimumOSVersion" "$APP/Info.plist"

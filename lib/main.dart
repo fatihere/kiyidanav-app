@@ -26,6 +26,7 @@ import 'screens/report_screen.dart';
 import 'screens/search_screen.dart';
 import 'theme.dart';
 import 'updates.dart';
+import 'yonetici.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,7 +44,9 @@ Future<void> main() async {
     statusBarIconBrightness: Brightness.dark,
   ));
   Notices.enabled = true;
+  Notices.kalamaSure = Api.config.kalamaSure; // panel → kalama sesi süresi
   await Kurallar.yukle();
+  await Yonetici.yukle(); // 1.13.0: uygulamada yönetici girişi (ekran görüntüsü izni dahil)
   unawaited(EkranKoruma.uygula()); // panel → Ekran görüntüsü engeli
   runApp(const KiyidanAvApp());
   Premium.baslat(); // Play aboneliği + panelden verilen premium

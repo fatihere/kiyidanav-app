@@ -11,6 +11,7 @@ import json
 import plistlib
 import re
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -195,6 +196,17 @@ def main():
         fail('tool/ios/kalama.caf yok')
     shutil.copy(snd, RUNNER / 'kalama.caf')
     files.append(RUNNER / 'kalama.caf')
+    # 1.13.0: panelden seçilen süre (1–10 sn) için kısaltılmış sesler
+    for n in range(1, 11):
+        hedef = RUNNER / f'kalama_{n}.caf'
+        if not hedef.exists():
+            d = min(0.35, n * 0.3)
+            r = subprocess.run(['ffmpeg', '-v', 'error', '-y', '-i', str(snd), '-t', str(n),
+                                '-af', f'afade=t=out:st={round(n - d, 2)}:d={d}',
+                                '-c:a', 'adpcm_ima_qt', '-ar', '22050', '-ac', '1', '-f', 'caf', str(hedef)])
+            if r.returncode != 0 or not hedef.exists():
+                fail(f'kalama_{n}.caf üretilemedi (ffmpeg)')
+        files.append(hedef)
     files.append(privacy_manifest())
     gs = Path('GoogleService-Info.plist')
     if gs.exists():

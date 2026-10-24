@@ -13,6 +13,7 @@ import '../theme.dart';
 import '../web_page_screen.dart';
 import 'favorites_screen.dart';
 import 'knots_screen.dart';
+import '../yonetici.dart';
 
 class AccountScreen extends StatelessWidget {
   const AccountScreen({super.key});
@@ -81,9 +82,7 @@ class AccountScreen extends StatelessWidget {
             // 1.12.0: topluluk
             _tile(Icons.account_circle_outlined, 'Profilim (fotoğraf, balıkçı bilgileri)', () => ProfilEkrani.ac(context)),
             if (Api.config.features.badi) _tile(Icons.groups_outlined, 'Badimi bul', () => BadiEkrani.ac(context)),
-            if (Api.config.features.badi)
-              _tile(Icons.chat_bubble_outline, 'Mesajlarım',
-                  () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BadiKutu()))),
+            _tile(Icons.chat_bubble_outline, 'Mesajlarım', () => BadiKutu.ac(context)),
             ListenableBuilder(
               listenable: appState,
               builder: (_, __) => _tile(
@@ -129,6 +128,15 @@ class AccountScreen extends StatelessWidget {
             _tile(Icons.person_remove_outlined, 'Hesabımı sil', () => _openUrl(context, 'Hesabımı sil', 'hesap-sil.php')),
             _tile(Icons.logout, 'Çıkış yap', () => _open(context, 'Çıkış', 'account/logout')),
           ]),
+          const SizedBox(height: 16),
+          // 1.13.0: yönetici girişi (mobil uygulama ve etkinlik panelleri uygulama içinde)
+          ValueListenableBuilder<YoneticiOturum?>(
+            valueListenable: Yonetici.aktif,
+            builder: (_, o, __) => _group([
+              _tile(Icons.admin_panel_settings_outlined,
+                  (o?.gecerli ?? false) ? 'Yönetim panelleri (${o!.ad})' : 'Yönetici girişi', () => Yonetici.ac(context)),
+            ]),
+          ),
           const SizedBox(height: 16),
           const Text(
             'Giriş ve ödeme bilgileri doğrudan kiyidanav.com\'un güvenli sayfalarına gider; uygulama şifre veya kart bilgisi saklamaz.',
