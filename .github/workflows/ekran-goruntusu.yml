@@ -5,7 +5,7 @@ name: Mağaza ekran görüntüleri (iPhone)
 on:
   workflow_dispatch:
   push:
-    branches: [ekran-goruntusu]
+    branches: [ekran-goruntusu, surum-1131]
 
 permissions:
   contents: write
