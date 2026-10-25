@@ -362,6 +362,13 @@ class _ProfilEkraniState extends State<ProfilEkrani> {
                 const SizedBox(width: 10),
                 Expanded(child: _sayac('${tInt(p['takipci_sayi'])}', 'Beni takip edenler', () => TakipEkrani.ac(context, sekme: 1))),
               ]),
+              const SizedBox(height: 8),
+              // 1.13.2: uygulamayı kullanan herkesi bul, takip et / takipten çık
+              OutlinedButton.icon(
+                onPressed: () => TakipEkrani.ac(context, sekme: 2),
+                icon: const Icon(Icons.person_search_outlined),
+                label: const Text('Balıkçı bul ve takip et'),
+              ),
               const SizedBox(height: 18),
               ProfilAlanlari(
                 yas: tIntN(p['yas']) ?? 0,

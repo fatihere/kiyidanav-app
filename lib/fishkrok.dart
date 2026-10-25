@@ -76,7 +76,7 @@ class FkYorum {
 }
 
 class FkGonderi {
-  final String id, ad, instagram, avatar, mera, balik, miktar, yem, not, meraBilgi, saat;
+  final String id, ad, instagram, avatar, mera, balik, miktar, yem, not, meraBilgi, saat, saatAralik;
   final List<String> fotolar;
   int begeni;
   bool begendim;
@@ -98,6 +98,7 @@ class FkGonderi {
         not = '${j['not'] ?? ''}',
         meraBilgi = '${j['mera_bilgi'] ?? ''}',
         saat = '${j['saat'] ?? ''}',
+        saatAralik = '${j['saat_aralik'] ?? ''}',
         fotolar = ((j['fotolar'] as List?) ?? const []).map((e) => '$e').where((u) => u.startsWith('https://')).take(3).toList(),
         begeni = tInt(j['begeni']),
         begendim = j['begendim'] == true,
@@ -518,6 +519,7 @@ class _FkSayfaState extends State<FkSayfa> {
           Text('${g.balik}${g.miktar.isNotEmpty ? ' · ${g.miktar}' : ''} — ${g.mera}',
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16)),
           if (g.yem.isNotEmpty) Text('Yem / teknik: ${g.yem}', style: const TextStyle(color: Colors.white, fontSize: 13)),
+          if (g.saatAralik.isNotEmpty) Text('Av saati: ${g.saatAralik}', style: const TextStyle(color: Colors.white, fontSize: 13)),
           if (g.meraBilgi.isNotEmpty) Text('Mera: ${g.meraBilgi}', style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
           if (g.not.isNotEmpty)
             Text(g.not, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 12.5)),

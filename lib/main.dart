@@ -14,6 +14,7 @@ import 'hata.dart';
 import 'kurallar.dart';
 import 'profil.dart';
 import 'locate.dart';
+import 'meralarim.dart';
 import 'mera_widget.dart';
 import 'notices.dart';
 import 'overlays.dart';
@@ -34,6 +35,7 @@ Future<void> main() async {
   Hata.kur(); // açılamayan ekranlar boş kalmasın, nedeni yazsın
   await appState.load();
   await loadSelectedSpot();
+  await Meralarim.yukle(); // 1.13.2: haritadan öğrenilen meralar
   await Locate.loadPref();
   await CampaignTicker.load();
   await AppUpdate.loadVersion();
