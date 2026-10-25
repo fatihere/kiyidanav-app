@@ -1,0 +1,99 @@
+name: Mağaza ekran görüntüleri (iPhone)
+
+# iPhone simülatöründe uygulamayı EKRAN_TURU modunda açar, ekranları sırayla gezer ve
+# App Store için 1206×2622 (6.3") ekran görüntülerini alır. Görüntüler "magaza-gorselleri" dalına yazılır.
+on:
+  workflow_dispatch:
+  push:
+    branches: [ekran-goruntusu]
+
+permissions:
+  contents: write
+
+jobs:
+  goruntu:
+    runs-on: macos-15
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Xcode (en güncel kararlı)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: iOS iskeleti, logo, yazı tipi, sesler
+        run: |
+          flutter create --org com.kiyidanav --project-name kiyidanav --platforms ios .
+          mkdir -p assets/brand assets/fonts
+          curl -fsSL -o assets/brand/logo.png "https://kiyidanav.com/image/catalog/kiyidanav_logo_500x500.png"
+          curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
+          curl -fsSL -o assets/fonts/Lobster-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/lobster/Lobster-Regular.ttf"
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet pillow numpy scipy
+          brew install ffmpeg >/dev/null 2>&1 || true
+          .venv/bin/python tool/make_sounds.py assets/sounds --ios
+          flutter pub get
+          (cd packages/ekran_koruma && flutter pub get)
+          # Simülatör: imza ayarı yok; yalnızca iOS 15 hedefi (Firebase gereği)
+          sed -i '' -E "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]+;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g" ios/Runner.xcodeproj/project.pbxproj
+          if [ -f ios/Podfile ]; then sed -i '' -E "s/^# platform :ios.*/platform :ios, '15.0'/" ios/Podfile; (cd ios && pod install --repo-update); fi
+
+      - name: Simülatör derlemesi (ekran turu)
+        run: flutter build ios --simulator --debug --dart-define=EKRAN_TURU=true
+
+      - name: Simülatörü aç (iPhone Pro, 6.3")
+        run: |
+          xcrun simctl list devices available
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(" | head -1 | grep -oE "[0-9A-F-]{36}")
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --dataNetwork wifi --wifiMode active --wifiBars 3 \
+            --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100 || true
+          xcrun simctl install "$UDID" build/ios/iphonesimulator/Runner.app
+
+      - name: Ekran görüntüleri
+        run: |
+          mkdir -p cikti
+          xcrun simctl launch "$UDID" com.kiyidanav.kiyidanav
+          sleep 3
+          TMP="$(xcrun simctl get_app_container "$UDID" com.kiyidanav.kiyidanav data)/tmp"
+          echo "uygulama tmp: $TMP"
+          ADLAR="1-kesfet 2-mera-bilgisi 3-kiyidanpaylas 4-tatli-su 5-olta-makineleri 6-lrf 7-hesabim"
+          n=0
+          for ad in $ADLAR; do
+            n=$((n+1))
+            # Uygulama ekranı hazırlayınca hazir_N yazar (en fazla 3 dk beklenir)
+            for i in $(seq 1 180); do [ -f "$TMP/hazir_$n" ] && break; sleep 1; done
+            [ -f "$TMP/hazir_$n" ] || echo "uyarı: hazir_$n gelmedi"
+            sleep 1
+            xcrun simctl io "$UDID" screenshot --type=png "cikti/$ad.png"
+            sips -g pixelWidth -g pixelHeight "cikti/$ad.png" | tail -2
+            touch "$TMP/cekildi_$n"
+          done
+          ls -la cikti
+
+      - name: Görüntüleri dala yaz
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          mkdir -p /tmp/g && cp cikti/*.png /tmp/g/
+          git fetch origin magaza-gorselleri || true
+          git checkout --orphan magaza-gorselleri-yeni
+          git rm -rf --cached . >/dev/null
+          rm -rf ./* .github .gitignore 2>/dev/null || true
+          mkdir -p ios && cp /tmp/g/*.png ios/
+          git add ios
+          git commit -m "App Store ekran görüntüleri (${GITHUB_SHA::7})"
+          git push -f origin HEAD:magaza-gorselleri
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: magaza-ekran-goruntuleri
+          path: cikti/
