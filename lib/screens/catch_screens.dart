@@ -194,6 +194,10 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
     return null;
   }
   DateTime _time = DateTime.now();
+  // 1.13.2: av saati aralığı (başlangıç – bitiş), elle yazılır: "05:30"
+  late final _basKutu = TextEditingController(
+      text: '${_two(DateTime.now().subtract(const Duration(hours: 2)).hour)}:${_two(DateTime.now().minute)}');
+  late final _bitKutu = TextEditingController(text: '${_two(_time.hour)}:${_two(_time.minute)}');
   bool _sending = false;
   bool _consent = false;
   // Modül: av bildirimine mesafe ve derinlik
@@ -240,7 +244,7 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
 
   @override
   void dispose() {
-    for (final c in [_fish, _count, _kg, _bait, _note, _spotInfo, _insta, _boy]) {
+    for (final c in [_fish, _count, _kg, _bait, _note, _spotInfo, _insta, _boy, _basKutu, _bitKutu]) {
       c.dispose();
     }
     super.dispose();
@@ -336,26 +340,71 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
     return DateTime(now.year, now.month, now.day).difference(DateTime(_time.year, _time.month, _time.day)).inDays;
   }
 
-  Future<void> _pickTime() async {
+  /// "5:3", "0530", "05.30", "5" → TimeOfDay (geçersizse null)
+  static TimeOfDay? _saatOku(String v) {
+    final t = v.trim().replaceAll(RegExp(r'[.,;\s]'), ':');
+    int? h, m;
+    final a = RegExp(r'^(\d{1,2}):(\d{1,2})$').firstMatch(t);
+    if (a != null) {
+      h = int.parse(a.group(1)!);
+      m = int.parse(a.group(2)!);
+    } else if (RegExp(r'^\d{3,4}$').hasMatch(t)) {
+      h = int.parse(t.substring(0, t.length - 2));
+      m = int.parse(t.substring(t.length - 2));
+    } else if (RegExp(r'^\d{1,2}$').hasMatch(t)) {
+      h = int.parse(t);
+      m = 0;
+    }
+    if (h == null || m == null || h > 23 || m > 59) return null;
+    return TimeOfDay(hour: h, minute: m);
+  }
+
+  String _saatYaz(TimeOfDay t) => '${_two(t.hour)}:${_two(t.minute)}';
+
+  /// Bitiş saati avın kaydedilen saatidir (_time)
+  void _bitisDegisti(String v) {
+    final t = _saatOku(v);
+    if (t == null) return;
+    final now = DateTime.now();
+    var d = DateTime(_time.year, _time.month, _time.day, t.hour, t.minute);
+    if (d.isAfter(now)) d = now;
+    setState(() => _time = d);
+  }
+
+  Future<void> _pickTime({bool baslangic = false}) async {
+    final kutu = baslangic ? _basKutu : _bitKutu;
     final t = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.fromDateTime(_time),
-      helpText: 'AVLANDIĞIN SAAT',
+      initialTime: _saatOku(kutu.text) ?? TimeOfDay.fromDateTime(_time),
+      helpText: baslangic ? 'AV BAŞLANGIÇ SAATİ' : 'AV BİTİŞ SAATİ',
       cancelText: 'Vazgeç',
       confirmText: 'Tamam',
-      initialEntryMode: TimePickerEntryMode.dial,
+      initialEntryMode: TimePickerEntryMode.input,
       builder: (ctx, child) =>
           MediaQuery(data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true), child: child!),
     );
     if (t == null || !mounted) return;
-    final now = DateTime.now();
-    final v = DateTime(_time.year, _time.month, _time.day, t.hour, t.minute);
-    if (v.isAfter(now)) {
-      _say('İleri bir saat seçilemez. Saat şu ana ayarlandı.');
-      setState(() => _time = now);
-      return;
+    if (!baslangic) {
+      final now = DateTime.now();
+      final v = DateTime(_time.year, _time.month, _time.day, t.hour, t.minute);
+      if (v.isAfter(now)) {
+        _say('İleri bir saat seçilemez. Bitiş saati şu ana ayarlandı.');
+        setState(() {
+          _time = now;
+          _bitKutu.text = _saatYaz(TimeOfDay.fromDateTime(now));
+        });
+        return;
+      }
+      setState(() => _time = v);
     }
-    setState(() => _time = v);
+    setState(() => kutu.text = _saatYaz(t));
+  }
+
+  /// "05:30–08:00" (geçersizse boş)
+  String get _saatAralik {
+    final a = _saatOku(_basKutu.text), b = _saatOku(_bitKutu.text);
+    if (a == null || b == null) return '';
+    return '${_saatYaz(a)}–${_saatYaz(b)}';
   }
 
   Future<void> _send() async {
@@ -392,6 +441,11 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
         return;
       }
     }
+    if (_saatOku(_basKutu.text) == null || _saatOku(_bitKutu.text) == null) {
+      _say('Av başlangıç ve bitiş saatini 05:30 biçiminde yaz.');
+      return;
+    }
+    _bitisDegisti(_bitKutu.text);
     if ((_mesafeModul?.b('zorunlu') ?? false) && _mesafe.isEmpty) {
       _say('Balığı kaç metrede tuttuğunu seç.');
       return;
@@ -411,6 +465,7 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
       instagram: ig,
       instagramConsent: _consent,
       time: _time,
+      timeRange: _saatAralik,
       photoPaths: _photos.map((p) => p.path).toList(),
       distance: _mesafe,
       depth: _derinlik,
@@ -439,6 +494,24 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
   }
 
   String _two(int v) => v.toString().padLeft(2, '0');
+
+  Widget _saatKutusu(String etiket, TextEditingController c, bool baslangic) => TextField(
+        controller: c,
+        keyboardType: TextInputType.datetime,
+        maxLength: 5,
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+        onChanged: baslangic ? null : _bitisDegisti,
+        decoration: _dec(hint: '05:30').copyWith(
+          labelText: etiket,
+          counterText: '',
+          suffixIcon: IconButton(
+            tooltip: '$etiket saatini seç',
+            icon: const Icon(Icons.schedule, color: Tide.turuncu),
+            onPressed: () => _pickTime(baslangic: baslangic),
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -606,22 +679,16 @@ class _CatchFormScreenState extends State<CatchFormScreen> {
               ),
           ]),
           const SizedBox(height: 8),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Tide.zeytinKoyu,
-              alignment: Alignment.centerLeft,
-              minimumSize: const Size.fromHeight(50),
-              side: const BorderSide(color: Tide.turuncu),
-            ),
-            onPressed: _pickTime,
-            icon: const Icon(Icons.schedule, color: Tide.turuncu),
-            label: Row(children: [
-              Text('Saat ${_two(_time.hour)}:${_two(_time.minute)}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-              const Spacer(),
-              const Text('Değiştir', style: TextStyle(color: Tide.turuncu, fontWeight: FontWeight.w700)),
-              const Icon(Icons.edit, size: 16, color: Tide.turuncu),
-            ]),
+          // 1.13.2: av saati aralığı — başlangıç ve bitiş saati yazılır (saat simgesiyle de seçilebilir)
+          Row(children: [
+            Expanded(child: _saatKutusu('Başlangıç', _basKutu, true)),
+            const Padding(padding: EdgeInsets.symmetric(horizontal: 8), child: Text('–', style: TextStyle(fontSize: 22))),
+            Expanded(child: _saatKutusu('Bitiş', _bitKutu, false)),
+          ]),
+          const Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text('Ava başladığın ve bitirdiğin saati yaz (ör. 05:30 – 08:00).',
+                style: TextStyle(fontSize: 12, color: Color(0xFF6B6A60))),
           ),
           _label('Not (isteğe bağlı)'),
           TextField(controller: _note, maxLength: 300, maxLines: 3, decoration: _dec(hint: 'Hava, akıntı, saat… kısa bir not')),

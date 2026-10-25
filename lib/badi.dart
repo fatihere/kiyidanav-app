@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -530,10 +532,37 @@ class _TakipEkraniState extends State<TakipEkrani> {
   String? _hata;
   final Set<int> _isleniyor = {};
 
+  // 1.13.2: Balıkçı bul — uygulamayı kullanan herkes listelenir / adla aranır
+  List<Map>? _bulunan;
+  String? _araHata;
+  final _araKutu = TextEditingController();
+  Timer? _araZaman;
+
+  @override
+  void dispose() {
+    _araZaman?.cancel();
+    _araKutu.dispose();
+    super.dispose();
+  }
+
+  Future<void> _ara([String? q]) async {
+    try {
+      final j = await Topluluk.al('badi_ara', {'q': (q ?? _araKutu.text).trim()});
+      if (!mounted) return;
+      setState(() {
+        _araHata = null;
+        _bulunan = ((j['items'] as List?) ?? const []).whereType<Map>().map((e) => Map.of(e)).toList();
+      });
+    } catch (e) {
+      if (mounted) setState(() => _araHata = '$e');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
     _yukle();
+    _ara('');
   }
 
   Future<void> _yukle() async {
@@ -552,11 +581,33 @@ class _TakipEkraniState extends State<TakipEkrani> {
 
   Future<void> _degistir(Map u) async {
     final id = tInt(u['id']);
+    if (u['takip'] == true) {
+      final evet = await showDialog<bool>(
+        context: context,
+        builder: (c) => AlertDialog(
+          title: const Text('Takipten çık'),
+          content: Text('${u['ad']} adlı balıkçıyı takip etmeyi bırakmak istiyor musun?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Vazgeç')),
+            FilledButton(
+                style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
+                onPressed: () => Navigator.pop(c, true),
+                child: const Text('Takipten çık')),
+          ],
+        ),
+      );
+      if (evet != true || !mounted) return;
+    }
     setState(() => _isleniyor.add(id));
     try {
       final j = await Topluluk.gonder('badi_takip', {'hedef': '$id'});
       final aktif = j['aktif'] == true;
       if (!mounted) return;
+      for (final l in [_bulunan, _takip, _takipci]) {
+        for (final x in l ?? const <Map>[]) {
+          if (tInt(x['id']) == id) x['takip'] = aktif;
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(aktif ? '${u['ad']} adlı balıkçıyı takip ediyorsun.' : '${u['ad']} takipten çıkarıldı.')));
       await _yukle();
@@ -599,13 +650,16 @@ class _TakipEkraniState extends State<TakipEkrani> {
       padding: const EdgeInsets.symmetric(vertical: 6),
       itemCount: l.length,
       separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
-      itemBuilder: (_, i) {
-        final u = l[i];
+      itemBuilder: (_, i) => _satir(l[i]),
+    );
+  }
+
+  Widget _satir(Map u) {
         final takip = u['takip'] == true;
         final takipci = u['takipci'] == true;
         final id = tInt(u['id']);
         final alt = [
-          if (takip && takipci) 'Karşılıklı takip' else if (takipci) 'Seni takip ediyor' else 'Takip ediyorsun',
+          if (takip && takipci) 'Karşılıklı takip' else if (takipci) 'Seni takip ediyor' else if (takip) 'Takip ediyorsun' else 'KıyıdanAv balıkçısı',
           if ('${u['il'] ?? ''}'.isNotEmpty) '${u['il']}',
           if ('${u['kamis'] ?? ''}'.isNotEmpty) '${u['kamis']}',
         ].join(' · ');
@@ -630,7 +684,7 @@ class _TakipEkraniState extends State<TakipEkrani> {
                       ? OutlinedButton(
                           style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), foregroundColor: Tide.kaya),
                           onPressed: () => _degistir(u),
-                          child: const Text('Takiptesin', style: TextStyle(fontSize: 12.5)))
+                          child: const Text('Takipten çık', style: TextStyle(fontSize: 12.5)))
                       : FilledButton(
                           style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8), backgroundColor: Tide.turuncu),
                           onPressed: () => _degistir(u),
@@ -638,15 +692,63 @@ class _TakipEkraniState extends State<TakipEkrani> {
             ),
           ]),
         );
-      },
-    );
+  }
+
+  Widget _bul() {
+    final l = _bulunan;
+    return Column(children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+        child: TextField(
+          controller: _araKutu,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            prefixIcon: const Icon(Icons.search),
+            hintText: 'Ad veya il ile balıkçı ara',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            isDense: true,
+          ),
+          onChanged: (_) {
+            _araZaman?.cancel();
+            _araZaman = Timer(const Duration(milliseconds: 450), _ara);
+          },
+          onSubmitted: (_) => _ara(),
+        ),
+      ),
+      Expanded(
+        child: RefreshIndicator(
+          onRefresh: _ara,
+          child: l == null
+              ? ListView(children: [
+                  Padding(
+                      padding: const EdgeInsets.all(28),
+                      child: Center(
+                          child: _araHata != null
+                              ? Text(_araHata!, textAlign: TextAlign.center)
+                              : const CircularProgressIndicator())),
+                ])
+              : l.isEmpty
+                  ? ListView(children: const [
+                      Padding(
+                          padding: EdgeInsets.all(28),
+                          child: Text('Bu aramayla eşleşen balıkçı bulunamadı.', textAlign: TextAlign.center)),
+                    ])
+                  : ListView.separated(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      itemCount: l.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 72),
+                      itemBuilder: (_, i) => _satir(l[i]),
+                    ),
+        ),
+      ),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
-      initialIndex: widget.sekme.clamp(0, 1),
+      length: 3,
+      initialIndex: widget.sekme.clamp(0, 2),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Takip'),
@@ -656,12 +758,16 @@ class _TakipEkraniState extends State<TakipEkrani> {
             tabs: [
               Tab(text: 'Takip ettiklerim${_takip == null ? '' : ' (${_takip!.length})'}'),
               Tab(text: 'Beni takip edenler${_takipci == null ? '' : ' (${_takipci!.length})'}'),
+              const Tab(text: 'Balıkçı bul'),
             ],
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
           ),
         ),
         body: TabBarView(children: [
           RefreshIndicator(onRefresh: _yukle, child: _liste(_takip, false)),
           RefreshIndicator(onRefresh: _yukle, child: _liste(_takipci, true)),
+          _bul(),
         ]),
       ),
     );

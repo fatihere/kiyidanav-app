@@ -43,9 +43,15 @@ class Spot {
   String get key => ref ?? name;
   bool get custom => ref != null;
 
-  /// Haritada iğnenin bırakıldığı nokta; en yakın kayıtlı meranın özelliklerini taşır
-  factory Spot.pin(double lat, double lon, Spot near) => Spot('${near.name} yakını', lat, lon, near.side,
-      strait: near.strait, shelter: near.shelter, ref: near.name, seaLat: near.lat, seaLon: near.lon);
+  /// Haritada iğnenin bırakıldığı nokta; en yakın kayıtlı meranın özelliklerini taşır.
+  /// 1.13.2: [ad] haritadan öğrenilen gerçek yer adıdır (ör. "Anadolu Kavağı"); yoksa "X yakını".
+  /// Hava ve deniz tahmini iğnenin kendi noktasından alınır (deniz verisi yoksa en yakın meranın denizi).
+  factory Spot.pin(double lat, double lon, Spot near, {String? ad, Side? side}) =>
+      Spot((ad == null || ad.trim().isEmpty) ? '${near.name} yakını' : ad.trim(), lat, lon, side ?? near.side,
+          strait: near.strait, shelter: near.shelter, ref: near.name, seaLat: near.lat, seaLon: near.lon);
+
+  /// Haritadan öğrenilmiş, adı olan mera (Meralarım)
+  bool get ogrenilmis => custom && !name.endsWith(' yakını');
 }
 
 /// Anadolu yakası: Riva'dan Darıca'ya (kırmızı hat)
@@ -187,15 +193,21 @@ Spot spotFromKey(String? v) {
     final x = s.split('|');
     final lat = x.length > 3 ? double.tryParse(x[1]) : null;
     final lon = x.length > 3 ? double.tryParse(x[2]) : null;
-    final near = spots.where((e) => e.name == x.last);
-    if (lat != null && lon != null && near.isNotEmpty) return Spot.pin(lat, lon, near.first);
+    // 1.13.2: "pin|enlem|boylam|en yakın mera|ad|yaka" (eski kayıtlarda ad yok)
+    final near = spots.where((e) => e.name == (x.length > 3 ? x[3] : x.last));
+    final yaka = x.length > 5 ? Side.values.where((e) => e.name == x[5]) : const <Side>[];
+    if (lat != null && lon != null && near.isNotEmpty) {
+      return Spot.pin(lat, lon, near.first, ad: x.length > 4 ? x[4] : null, side: yaka.isNotEmpty ? yaka.first : null);
+    }
   }
   final m = spots.where((e) => e.name == s);
   return m.isNotEmpty ? m.first : spots[5];
 }
 
-String spotToKey(Spot s) =>
-    s.custom ? 'pin|${s.lat.toStringAsFixed(4)}|${s.lon.toStringAsFixed(4)}|${s.ref}' : s.name;
+String spotToKey(Spot s) => s.custom
+    ? 'pin|${s.lat.toStringAsFixed(4)}|${s.lon.toStringAsFixed(4)}|${s.ref}'
+        '${s.ogrenilmis ? '|${s.name.replaceAll('|', ' ')}|${s.side.name}' : ''}'
+    : s.name;
 
 class SeaReport {
   final double? windKmh;
@@ -466,9 +478,19 @@ class SeaService {
       'wind_speed_unit': 'kmh',
       'timezone': 'Europe/Istanbul',
     });
+    // 1.13.2: haritadan seçilen noktada deniz verisi önce iğnenin kendi yerinden istenir
+    Uri deniz(double la, double lo) => Uri.https('marine-api.open-meteo.com', '/v1/marine', {
+      'latitude': '$la',
+      'longitude': '$lo',
+      'current': 'wave_height,sea_surface_temperature,wave_period,ocean_current_velocity',
+      'hourly': 'wave_height',
+      'daily': 'wave_height_max',
+      'forecast_days': '7',
+      'timezone': 'Europe/Istanbul',
+    });
     final mr = Uri.https('marine-api.open-meteo.com', '/v1/marine', {
-      'latitude': '${s.seaLat ?? s.lat}',
-      'longitude': '${s.seaLon ?? s.lon}',
+      'latitude': '${s.custom ? s.lat : (s.seaLat ?? s.lat)}',
+      'longitude': '${s.custom ? s.lon : (s.seaLon ?? s.lon)}',
       'current': 'wave_height,sea_surface_temperature,wave_period,ocean_current_velocity',
       'hourly': 'wave_height',
       'daily': 'wave_height_max',
@@ -500,6 +522,12 @@ class SeaService {
     try {
       m = jsonDecode(res[1].body) as Map<String, dynamic>;
     } catch (_) {}
+    // İğne karada kaldıysa (deniz verisi boş) en yakın kayıtlı meranın denizine düş
+    if (s.custom && s.seaLat != null && ((m['current'] ?? const {}) as Map)['wave_height'] == null) {
+      try {
+        m = jsonDecode((await Cevrimdisi.get(deniz(s.seaLat!, s.seaLon!))).body) as Map<String, dynamic>;
+      } catch (_) {}
+    }
     final wc = (w['current'] ?? {}) as Map;
     final mc = (m['current'] ?? {}) as Map;
     final d = (w['daily'] ?? {}) as Map;

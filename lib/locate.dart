@@ -8,6 +8,7 @@ import 'api.dart';
 import 'app_state.dart';
 import 'harita_secici.dart';
 import 'mera.dart';
+import 'meralarim.dart';
 import 'overlays.dart';
 import 'sea.dart';
 import 'sea_card.dart';
@@ -20,6 +21,8 @@ class Locate {
 
   /// Kullanıcı "konumumu kullan"ı açtıysa uygulama her açılışta en yakın merayı seçer
   static final auto = ValueNotifier<bool>(false);
+
+  static double km(double lat1, double lon1, double lat2, double lon2) => _km(lat1, lon1, lat2, lon2);
 
   static double _km(double lat1, double lon1, double lat2, double lon2) {
     const r = 6371.0;
@@ -219,6 +222,38 @@ Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) asyn
             },
           ),
           const Divider(),
+          ],
+          // 1.13.2: haritadan öğrenilen meralar
+          if (Meralarim.liste.value.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
+              child: Text('Meralarım (haritadan eklediklerin)',
+                  style: TextStyle(fontWeight: FontWeight.w800, color: Tide.zeytinKoyu, fontSize: 14)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Wrap(spacing: 8, runSpacing: 8, children: [
+                for (final s in Meralarim.liste.value)
+                  InputChip(
+                    avatar: const Icon(Icons.push_pin, size: 16, color: Tide.turuncu),
+                    label: Text(s.name),
+                    selected: spotToKey(selectedSpot.value) == spotToKey(s),
+                    selectedColor: Tide.somon,
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      if (!s.side.public && !appState.isMember) {
+                        showMemberPrompt(context, '${s.side.label} meraları');
+                        return;
+                      }
+                      Locate.manualPick(s);
+                    },
+                    onDeleted: () {
+                      Navigator.of(ctx).pop();
+                      Meralarim.sil(s);
+                    },
+                  ),
+              ]),
+            ),
           ],
           for (final side in Side.values) ...[
             Padding(

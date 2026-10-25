@@ -89,7 +89,9 @@ class Notices {
   static RawResourceAndroidNotificationSound get _sound => RawResourceAndroidNotificationSound('kalama_$kalamaSure');
   static String get _iosSes => 'kalama_$kalamaSure.caf';
 
-  /// KıyıdanPaylaş paylaşımları ve mesajlar: telefonun kendi (varsayılan) bildirim sesi
+  /// KıyıdanPaylaş paylaşımları, mesajlar ve takip istekleri.
+  /// 1.13.2: bunlar da olta makinesi kalama sesiyle çalar (kalama kanalını kullanır); eski
+  /// "telefonun sesiyle" kanalı (kiyidanav_topluluk) kaldırılır.
   static const toplulukChannelId = 'kiyidanav_topluluk';
   static bool toplulukTipi(String t) => t == 'paylas' || t == 'mesaj' || t == 'takip';
 
@@ -177,13 +179,9 @@ class Notices {
         playSound: true,
       ));
       await kalamaKanaliKur();
-      await _android?.createNotificationChannel(const AndroidNotificationChannel(
-        toplulukChannelId,
-        'KıyıdanPaylaş ve mesajlar',
-        description: 'Yeni KıyıdanPaylaş paylaşımları ve badi mesajları (telefonun bildirim sesiyle)',
-        importance: Importance.high,
-        playSound: true,
-      ));
+      try {
+        await _android?.deleteNotificationChannel(channelId: toplulukChannelId);
+      } catch (_) {}
       await _android?.createNotificationChannel(const AndroidNotificationChannel(
         plainChannelId,
         'Kampanyalar ve mera bilgisi (standart ses)',
@@ -519,15 +517,17 @@ class Notices {
     }
     if (style == null && body.length > 40) style = BigTextStyleInformation(body);
     final topluluk = toplulukTipi(n.type);
+    // 1.13.2: KıyıdanPaylaş / mesaj / takip bildirimleri her zaman kalama sesiyle
     final details = topluluk
         ? AndroidNotificationDetails(
-            toplulukChannelId,
-            'KıyıdanPaylaş ve mesajlar',
-            channelDescription: 'Yeni KıyıdanPaylaş paylaşımları ve badi mesajları (telefonun bildirim sesiyle)',
+            kalamaKanal,
+            _channel.channelName,
+            channelDescription: _channel.channelDescription,
             importance: Importance.high,
             priority: Priority.high,
             icon: 'ic_stat_notify',
             color: Tide.turuncu,
+            sound: _sound,
             playSound: true,
             styleInformation: style,
           )
@@ -550,7 +550,7 @@ class Notices {
       title: n.title,
       body: body,
       notificationDetails: NotificationDetails(
-          android: details, iOS: DarwinNotificationDetails(sound: (!topluluk && reelSound) ? _iosSes : null)),
+          android: details, iOS: DarwinNotificationDetails(sound: (topluluk || reelSound) ? _iosSes : null)),
       payload: jsonEncode(n.toJson()),
     );
   }
