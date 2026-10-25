@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
 import 'app_state.dart';
+import 'harita_secici.dart';
 import 'main.dart';
 import 'models.dart';
 import 'notices.dart';
@@ -57,6 +59,12 @@ class EkranTuru {
       () {
         _kok();
         shellTab.value = Shell.tabAccount;
+      },
+      // 1.13.2: haritadan yeni mera (Anadolu Kavağı) öğrenme
+      () {
+        _kok();
+        shellTab.value = Shell.tabHome;
+        _ac(HaritaSecici(baslangic: LatLng(41.1753, 29.0889)));
       },
     ];
     for (var n = 0; n < adimlar.length; n++) {
