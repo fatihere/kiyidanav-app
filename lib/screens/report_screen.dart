@@ -36,6 +36,7 @@ import '../app_state.dart';
 import '../solunar.dart';
 import '../theme.dart';
 import '../weather_icon.dart';
+import '../ekran_turu.dart';
 
 const _gunler = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
@@ -101,7 +102,7 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
   void _onTab() {
     _syncSound();
     // 1.12.0: Mera Bilgisi ilk açıldığında konumdan otomatik mera
-    if (_visible && !_konumSoruldu && Api.config.features.location && memberNotifier.value) {
+    if (_visible && !_konumSoruldu && !ekranTuru && Api.config.features.location && memberNotifier.value) {
       _konumSoruldu = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) Locate.ilkAcilis(context);

@@ -4,19 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:ekran_koruma/ekran_koruma.dart';
 
 import 'api.dart';
+import 'ekran_turu.dart';
 import 'theme.dart';
 import 'yonetici.dart';
 
 /// Ekran görüntüsü / ekran kaydı engeli (panel → Eklentiler → Ekran görüntüsü engeli)
 ///  - Android: FLAG_SECURE — ekran görüntüsü ve kayıt alınamaz (görüntü siyah çıkar)
-///  - iPhone: Apple ekran görüntüsünü engellemeye izin vermez; ekran kaydı başladığında içerik gizlenir
+///  - iPhone (1.13.1): uygulama güvenli katmanda çizilir — ekran görüntüsü boş çıkar; ekran kaydında içerik ayrıca gizlenir
 class EkranKoruma {
   static final kayitVar = ValueNotifier<bool>(false);
   static bool _acik = false;
 
   /// Yönetici girişli telefonda (1.13.0) engel uygulanmaz: yönetici ekran görüntüsü alabilir
   static Future<void> uygula({bool zorla = false}) async {
-    final ac = Api.config.features.ekranKoruma && !Yonetici.girisli;
+    // Mağaza ekran görüntüsü derlemesinde (simülatör) koruma kapalı: görüntüler boş çıkmasın
+    final ac = Api.config.features.ekranKoruma && !Yonetici.girisli && !ekranTuru;
     if (ac == _acik && !zorla) return;
     _acik = ac;
     try {

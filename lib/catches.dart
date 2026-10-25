@@ -100,6 +100,41 @@ class CatchService {
     return _all!;
   }
 
+  /// 1.13.1: Keşfet'teki "Balıkçılarımızın son avları": süre sınırı olmadan en yeni 20 onaylı av (bölüm hiç kaybolmaz)
+  static List<CatchReport>? _son;
+  static DateTime? _sonAt;
+  static Future<List<CatchReport>> latest() async {
+    if (_son != null && _sonAt != null && DateTime.now().difference(_sonAt!).inSeconds < 60) return _son!;
+    final uri = Uri.parse(AppConfig.apiUrl).replace(queryParameters: {'a': 'avlar', 'son': '1'});
+    final r = await http.get(uri, headers: const {'Accept': 'application/json'}).timeout(const Duration(seconds: 12));
+    final j = jsonDecode(utf8.decode(r.bodyBytes));
+    if (j is! Map || j['ok'] != true) return _son ?? const [];
+    _son = ((j['items'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((e) => CatchReport.fromJson(Map<String, dynamic>.from(e)))
+        .where((c) => c.id.isNotEmpty && c.fish.isNotEmpty)
+        .toList();
+    _sonAt = DateTime.now();
+    if (_son!.isEmpty) {
+      // Sunucu eski sürümse son 14 günü dene
+      try {
+        final r2 = await http
+            .get(Uri.parse(AppConfig.apiUrl).replace(queryParameters: {'a': 'avlar', 'saat': '336'}),
+                headers: const {'Accept': 'application/json'})
+            .timeout(const Duration(seconds: 12));
+        final j2 = jsonDecode(utf8.decode(r2.bodyBytes));
+        if (j2 is Map && j2['ok'] == true) {
+          _son = ((j2['items'] as List?) ?? const [])
+              .whereType<Map>()
+              .map((e) => CatchReport.fromJson(Map<String, dynamic>.from(e)))
+              .where((c) => c.id.isNotEmpty && c.fish.isNotEmpty)
+              .toList();
+        }
+      } catch (_) {}
+    }
+    return _son!;
+  }
+
   static Future<List<CatchReport>> forSpot(String spot) async {
     try {
       return (await recent()).where((c) => c.spot == spot).toList();

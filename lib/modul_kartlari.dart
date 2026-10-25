@@ -665,7 +665,7 @@ class BerraklikKarti extends StatelessWidget {
               ),
           ]),
         ],
-        Text('Kd490 = ${kd.toStringAsFixed(3)} m⁻¹ · NOAA VIIRS uydusu, mera çevresi ortalaması', style: s.kucuk),
+        Text('Kd490 = ${kd.toStringAsFixed(3)} m⁻¹ · uydu ölçümü, mera çevresi ortalaması', style: s.kucuk),
       ]),
     );
   }
@@ -801,7 +801,7 @@ class TermalKarti extends StatelessWidget {
             '~9 km içinde ${fark.toStringAsFixed(1)}°C fark var: sıcak su ${yonDe(sat.termalSicakYon)}, soğuk su ${yonDe(sat.termalSogukYon)}. '
             'Palamut ve lüfer bu sınırda yem balığını sıkıştırır; sınıra yakın burun ve mendirekleri dene.',
             style: s.metin),
-        Text('NOAA MUR deniz suyu sıcaklığı (1 km), son gün', style: s.kucuk),
+        Text('Uydudan deniz suyu sıcaklığı (1 km), son gün', style: s.kucuk),
       ]),
     );
   }
@@ -896,7 +896,7 @@ class _DenizSeviyesiKartiState extends State<DenizSeviyesiKarti> {
           ),
         ),
         const SizedBox(height: 6),
-        Text('Open-Meteo deniz modeli (gelgit + rüzgâr kabarması), gün ortalamasına göre', style: s.kucuk),
+        Text('Deniz modeli (gelgit + rüzgâr kabarması), gün ortalamasına göre', style: s.kucuk),
       ]),
     );
   }
