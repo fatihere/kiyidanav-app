@@ -65,19 +65,26 @@ public class EkranKorumaPlugin: NSObject, FlutterPlugin {
           }
           return
         }
-        let alan = UITextField()
+        // 1.13.1 (23): güvenli alan pencereyle aynı boyutta ve (0,0) noktasında olmalı; aksi halde
+        // görüntü ekranın ortasından başlayıp kayık çizilir (22. derlemedeki hata)
+        let alan = UITextField(frame: pencere.bounds)
         alan.isUserInteractionEnabled = false
         alan.isSecureTextEntry = true
-        alan.translatesAutoresizingMaskIntoConstraints = false
+        alan.backgroundColor = .clear
+        alan.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         pencere.addSubview(alan)
-        alan.centerYAnchor.constraint(equalTo: pencere.centerYAnchor).isActive = true
-        alan.centerXAnchor.constraint(equalTo: pencere.centerXAnchor).isActive = true
+        pencere.sendSubviewToBack(alan)
         pencere.layer.superlayer?.addSublayer(alan.layer)
+        let kap: CALayer?
         if #available(iOS 17.0, *) {
-          alan.layer.sublayers?.last?.addSublayer(pencere.layer)
+          kap = alan.layer.sublayers?.last
         } else {
-          alan.layer.sublayers?.first?.addSublayer(pencere.layer)
+          kap = alan.layer.sublayers?.first
         }
+        guard let kapsayici = kap else { return }
+        kapsayici.frame = CGRect(origin: .zero, size: pencere.bounds.size)
+        kapsayici.addSublayer(pencere.layer)
+        pencere.layer.frame = CGRect(origin: .zero, size: pencere.bounds.size)
         self.guvenliAlan = alan
       }
       self.guvenliAlan?.isSecureTextEntry = acik
