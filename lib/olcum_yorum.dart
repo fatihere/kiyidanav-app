@@ -138,7 +138,7 @@ class Yorum {
       ],
       kurallar: [for (final x in ozelBasinc) (x.kosul, x.durum)],
       aktif: i,
-      not: ozelNot.isNotEmpty ? ozelNot : 'Değer deniz seviyesine indirgenmiş basınçtır (Open-Meteo).',
+      not: ozelNot.isNotEmpty ? ozelNot : 'Değer deniz seviyesine indirgenmiş basınçtır.',
     );
   }
   // ---------------------------------------------------------------- Basınç
@@ -196,7 +196,7 @@ class Yorum {
       ],
       kurallar: basincKurallari,
       aktif: s,
-      not: 'Değer deniz seviyesine indirgenmiş basınçtır (Open-Meteo). Bu kurallar Marmara ve Karadeniz kıyı avcılığındaki yaygın gözleme dayanır; kesin değil, yön göstericidir.',
+      not: 'Değer deniz seviyesine indirgenmiş basınçtır. Bu kurallar Marmara ve Karadeniz kıyı avcılığındaki yaygın gözleme dayanır; kesin değil, yön göstericidir.',
     );
   }
 
@@ -231,7 +231,7 @@ class Yorum {
       maddeler: maddeler,
       kurallar: periyotKurallari,
       aktif: s,
-      not: 'Kaynak: Open-Meteo deniz modeli. Boğaz ve körfez içlerinde dalga modeli güvenilir değildir, bu yüzden orada gösterilmez.',
+      not: 'Deniz modeli tahminidir. Boğaz ve körfez içlerinde dalga modeli güvenilir değildir, bu yüzden orada gösterilmez.',
     );
   }
 
@@ -259,7 +259,7 @@ class Yorum {
       ],
       kurallar: bulutKurallari,
       aktif: s,
-      not: 'Bulutluluk tüm gökyüzünün kapalı olan yüzdesidir (Open-Meteo).',
+      not: 'Bulutluluk tüm gökyüzünün kapalı olan yüzdesidir.',
     );
   }
 
@@ -334,7 +334,7 @@ class Yorum {
       ],
       kurallar: sstKurallari,
       aktif: s,
-      not: 'Kaynak: NOAA MUR (1 km). Tür aralıkları yaklaşıktır. Uydu yüzeyi ölçer; 10 m altındaki su daha serin olabilir.',
+      not: 'Uydu ölçümü (1 km). Tür aralıkları yaklaşıktır. Uydu yüzeyi ölçer; 10 m altındaki su daha serin olabilir.',
     );
   }
 
@@ -367,7 +367,7 @@ class Yorum {
       ],
       kurallar: klorofilKurallari,
       aktif: s,
-      not: 'Kaynak: NOAA VIIRS (9 km çözünürlük). Kıyı şeridinin değil, merayı çevreleyen açık suyun ortalamasıdır.',
+      not: 'Uydu ölçümü (9 km çözünürlük). Kıyı şeridinin değil, merayı çevreleyen açık suyun ortalamasıdır.',
     );
   }
 
@@ -380,7 +380,7 @@ class Yorum {
       durum: const ['Tahmin güvenilir', 'Tahmin kısmen güvenilir', 'Hava değişken: tahmine güvenme'][s],
       ton: const [Ton.iyi, Ton.orta, Ton.zayif][s],
       maddeler: [
-        '$modelSayisi ayrı hava modelinin (ICON, GFS, ECMWF) önümüzdeki 6 saatlik rüzgâr tahmini karşılaştırılır. Ortalama ${ortalama.round()} km/s.',
+        '$modelSayisi ayrı hava modelinin önümüzdeki 6 saatlik rüzgâr tahmini karşılaştırılır. Ortalama ${ortalama.round()} km/s.',
         const [
           'Modeller aynı şeyi söylüyor: planını rahatça yapabilirsin.',
           'Modeller arasında fark var: yola çıkmadan önce raporu bir kez daha kontrol et.',
@@ -420,7 +420,7 @@ class Yorum {
         ('3 km/s üstü', 'Sert'),
       ],
       aktif: s,
-      not: 'Kaynak: Open-Meteo deniz modeli (yüzey akıntısı).',
+      not: 'Deniz modeli tahmini (yüzey akıntısı).',
     );
   }
 
@@ -515,7 +515,7 @@ class Yorum {
       deger: '${su?.round() ?? '-'}° / ${hava?.round() ?? '-'}°',
       durum: su == null ? 'Su sıcaklığı yok' : (Yorum.uygunTurler(su).isEmpty ? 'Su sıcaklığı kıyı türleri için sınırda' : 'Uygun türler: ${Yorum.uygunTurler(su).take(4).join(', ')}'),
       maddeler: [
-        'Su sıcaklığı modelden (Open-Meteo), hava sıcaklığı 2 m yükseklikten.',
+        'Su sıcaklığı deniz modelinden, hava sıcaklığı 2 m yükseklikten.',
         if (fark != null && fark <= -6) 'Hava sudan çok soğuk: sığ su gece soğur; balık öğleye doğru ısınan sığ kıyıya gelir.',
         if (fark != null && fark >= 6) 'Hava sudan çok sıcak: yüzey ısınır; balık gündüz derinde, akşam ve gece kıyıda.',
         'Daha doğru değer için "Uydu su sıcaklığı" kutusuna dokun.',

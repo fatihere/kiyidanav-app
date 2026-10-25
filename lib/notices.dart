@@ -91,7 +91,7 @@ class Notices {
 
   /// KıyıdanPaylaş paylaşımları ve mesajlar: telefonun kendi (varsayılan) bildirim sesi
   static const toplulukChannelId = 'kiyidanav_topluluk';
-  static bool toplulukTipi(String t) => t == 'paylas' || t == 'mesaj';
+  static bool toplulukTipi(String t) => t == 'paylas' || t == 'mesaj' || t == 'takip';
 
   /// Panelde "Olta makinesi bildirim sesi" kapatılırsa telefonun standart sesiyle çalan kanal
   static const plainChannelId = 'kiyidanav_genel';
@@ -452,6 +452,9 @@ class Notices {
         } else {
           nav?.push(MaterialPageRoute(builder: (_) => const BadiKutu()));
         }
+        break;
+      case 'takip': // 1.13.1: yeni takipçi → Beni takip edenler
+        nav?.push(MaterialPageRoute(builder: (_) => const TakipEkrani(sekme: 1)));
         break;
       case 'urun':
         final id = int.tryParse(n.target);

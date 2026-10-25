@@ -242,9 +242,7 @@ void showMeraSheet(BuildContext context, Spot spot, MeraInfo info) {
           if (info.note.isNotEmpty) _row(Icons.set_meal_outlined, 'Balıkçılık notu', info.note),
           const SizedBox(height: 8),
           Text(
-            info.source.isNotEmpty
-                ? 'Kaynak: ${info.source}. Derinlikler tahminidir; kıyıya yakın kaya ve dolgu topukları modelde görünmeyebilir.'
-                : 'Derinlikler tahminidir; kıyıya yakın kaya ve dolgu topukları modelde görünmeyebilir.',
+            'Derinlikler tahminidir; kıyıya yakın kaya ve dolgu topukları modelde görünmeyebilir.',
             style: const TextStyle(color: Color(0xFF8FB0AA), fontSize: 11.5, height: 1.35),
           ),
         ]),

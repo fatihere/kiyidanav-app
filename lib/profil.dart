@@ -8,6 +8,7 @@ import 'api.dart';
 import 'app_state.dart';
 import 'catches.dart';
 import 'overlays.dart';
+import 'badi.dart';
 import 'theme.dart';
 import 'topluluk_api.dart';
 
@@ -297,6 +298,26 @@ class _ProfilEkraniState extends State<ProfilEkrani> {
     }
   }
 
+  Widget _sayac(String sayi, String ad, Future<void> Function() ac) => Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () async {
+            await ac();
+            _yukle();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE6E2D6))),
+            child: Column(children: [
+              Text(sayi, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Tide.derin)),
+              Text(ad, style: const TextStyle(fontSize: 12.5, color: Color(0xFF6B6A60))),
+            ]),
+          ),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final p = _p;
@@ -334,6 +355,13 @@ class _ProfilEkraniState extends State<ProfilEkrani> {
                 child: Text('Fotoğrafın KıyıdanPaylaş ve Badimi bul\'da adının yanında görünür.',
                     style: TextStyle(fontSize: 12.5, color: Color(0xFF6B6A60))),
               ),
+              const SizedBox(height: 14),
+              // 1.13.1: takip ettiklerim / beni takip edenler
+              Row(children: [
+                Expanded(child: _sayac('${tInt(p['takip_sayi'])}', 'Takip ettiklerim', () => TakipEkrani.ac(context, sekme: 0))),
+                const SizedBox(width: 10),
+                Expanded(child: _sayac('${tInt(p['takipci_sayi'])}', 'Beni takip edenler', () => TakipEkrani.ac(context, sekme: 1))),
+              ]),
               const SizedBox(height: 18),
               ProfilAlanlari(
                 yas: tIntN(p['yas']) ?? 0,

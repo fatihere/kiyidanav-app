@@ -127,12 +127,12 @@ String? yorumDenetle(String s) {
 }
 
 /// Paylaşım metni: KıyıdanAv bilgileri her zaman metnin bir parçası
-String fishkrokPaylasimMetni(FkGonderi g, String link) => '🎣 ${g.balik}${g.miktar.isNotEmpty ? ' (${g.miktar})' : ''} — ${g.mera}\n'
-    '${g.kim} KıyıdanPaylaş\'ta paylaştı.\n\n'
-    'Görmek için: $link\n'
-    '(Bağlantı yalnızca KıyıdanAv üyelerine açılır)\n\n'
+/// 1.13.1: bağlantı metnin içinde açık adres olarak değil, "KıyıdanPaylaş avı" adıyla verilir
+/// (bağlantı sona eklenir; WhatsApp / Telegram / iMessage onu "KıyıdanPaylaş avı" başlıklı kart olarak gösterir).
+String fishkrokPaylasimMetni(FkGonderi g, String link) => '🎣 ${g.balik}${g.miktar.isNotEmpty ? ' (${g.miktar})' : ''}\n'
+    '${g.kim} KıyıdanPaylaş\'ta yeni bir av paylaştı.\n'
     'KıyıdanAv · olta, makine ve kıyı balıkçılığı ekipmanları\n'
-    'kiyidanav.com · Instagram @kiyidanav · YouTube kiyidabirivar';
+    '${link.isEmpty ? '' : '\nKıyıdanPaylaş avı 👇\n$link'}';
 
 // =====================================================================
 // Akış ekranı (alt sekme)
@@ -388,9 +388,10 @@ class _FkSayfaState extends State<FkSayfa> {
             Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
               _PaylasDugme('Instagram', const Color(0xFFE1306C), Icons.camera_alt_outlined, () async {
                 Navigator.of(ctx).pop();
-                await Clipboard.setData(ClipboardData(text: metin));
+                final aciklama = fishkrokPaylasimMetni(g, '');
+                await Clipboard.setData(ClipboardData(text: aciklama));
                 _soyle('Açıklama kopyalandı; Instagram\'da yapıştırabilirsin.');
-                await _gorsellePaylas(metin);
+                await _gorsellePaylas(aciklama);
               }),
               _PaylasDugme('WhatsApp', const Color(0xFF25D366), Icons.chat_outlined, () {
                 Navigator.of(ctx).pop();
@@ -399,20 +400,21 @@ class _FkSayfaState extends State<FkSayfa> {
               _PaylasDugme('Telegram', const Color(0xFF229ED9), Icons.send_outlined, () {
                 Navigator.of(ctx).pop();
                 launchUrl(
-                    Uri.parse('https://t.me/share/url?url=${Uri.encodeComponent(link)}&text=${Uri.encodeComponent(metin)}'),
+                    Uri.parse('https://t.me/share/url?url=${Uri.encodeComponent(link)}&text=${Uri.encodeComponent(fishkrokPaylasimMetni(g, ''))}'),
                     mode: LaunchMode.externalApplication);
               }),
               _PaylasDugme('Bağlantıyı\nkopyala', Tide.derin, Icons.link, () async {
                 Navigator.of(ctx).pop();
-                await Clipboard.setData(ClipboardData(text: metin));
-                _soyle('Bağlantı ve açıklama kopyalandı.');
+                await Clipboard.setData(ClipboardData(text: link));
+                _soyle('KıyıdanPaylaş avı bağlantısı kopyalandı.');
               }),
             ]),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(color: const Color(0xFFF5F1EA), borderRadius: BorderRadius.circular(10)),
-              child: Text(metin, style: const TextStyle(fontSize: 12, height: 1.4)),
+              child: Text('${fishkrokPaylasimMetni(g, '').trim()}\n\n🔗 KıyıdanPaylaş avı',
+                  style: const TextStyle(fontSize: 12, height: 1.4)),
             ),
             const SizedBox(height: 6),
             const Text('Bağlantıyı açan kişi KıyıdanAv üyesi değilse paylaşımı göremez; üye olmaya davet edilir.',
