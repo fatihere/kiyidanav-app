@@ -83,6 +83,7 @@ class AccountScreen extends StatelessWidget {
             _tile(Icons.account_circle_outlined, 'Profilim (fotoğraf, balıkçı bilgileri)', () => ProfilEkrani.ac(context)),
             if (Api.config.features.badi) _tile(Icons.groups_outlined, 'Badimi bul', () => BadiEkrani.ac(context)),
             _tile(Icons.chat_bubble_outline, 'Mesajlarım', () => BadiKutu.ac(context)),
+            _tile(Icons.people_alt_outlined, 'Takip ettiklerim ve takipçilerim', () => TakipEkrani.ac(context)),
             ListenableBuilder(
               listenable: appState,
               builder: (_, __) => _tile(

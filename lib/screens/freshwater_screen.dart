@@ -505,7 +505,7 @@ class _PlaceList extends StatelessWidget {
     }
     rows.add(Padding(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-      child: Text('${places.length} göl ve baraj. $note\n$mapSource',
+      child: Text('${places.length} göl ve baraj. $note',
           style: const TextStyle(fontSize: 11.5, color: Color(0xFF77766A), height: 1.4)),
     ));
     return ListView(controller: controller, padding: EdgeInsets.zero, children: rows);

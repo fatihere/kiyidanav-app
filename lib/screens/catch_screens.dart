@@ -924,23 +924,26 @@ void showCatchSheet(BuildContext context, CatchReport c) {
 
 /// Tüm meralardaki son avlar
 class CatchesFeedScreen extends StatefulWidget {
-  const CatchesFeedScreen({super.key});
+  /// true: süre sınırı olmadan en yeni avlar (Keşfet › Balıkçılarımızın son avları › Tümü)
+  final bool son;
+  const CatchesFeedScreen({super.key, this.son = false});
 
   @override
   State<CatchesFeedScreen> createState() => _CatchesFeedScreenState();
 }
 
 class _CatchesFeedScreenState extends State<CatchesFeedScreen> {
-  late Future<List<CatchReport>> _f = CatchService.recent(force: true);
+  late Future<List<CatchReport>> _f = _getir();
+  Future<List<CatchReport>> _getir() => widget.son ? CatchService.latest() : CatchService.recent(force: true);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Son 48 saatin avları')),
+      appBar: AppBar(title: Text(widget.son ? 'Balıkçılarımızın son avları' : 'Son 48 saatin avları')),
       body: RefreshIndicator(
         color: Tide.turuncu,
         onRefresh: () async {
-          setState(() => _f = CatchService.recent(force: true));
+          setState(() => _f = _getir());
           await _f.catchError((_) => const <CatchReport>[]);
         },
         child: FutureBuilder<List<CatchReport>>(
@@ -951,10 +954,11 @@ class _CatchesFeedScreenState extends State<CatchesFeedScreen> {
             }
             final list = snap.data ?? const <CatchReport>[];
             if (list.isEmpty) {
-              return ListView(children: const [
+              return ListView(children: [
                 Padding(
-                  padding: EdgeInsets.all(32),
-                  child: Text('Son 48 saatte onaylanmış av bildirimi yok. İlk bildiren sen ol!', textAlign: TextAlign.center),
+                  padding: const EdgeInsets.all(32),
+                  child: Text(widget.son ? 'Henüz onaylanmış av bildirimi yok. İlk bildiren sen ol!' : 'Son 48 saatte onaylanmış av bildirimi yok. İlk bildiren sen ol!',
+                      textAlign: TextAlign.center),
                 ),
               ]);
             }
@@ -980,8 +984,9 @@ class RecentCatchesStrip extends StatefulWidget {
 }
 
 class _RecentCatchesStripState extends State<RecentCatchesStrip> {
-  late final Future<List<CatchReport>> _f =
-      Api.config.features.catchList ? CatchService.recent() : Future.value(const <CatchReport>[]);
+  late final Future<List<CatchReport>> _f = Api.config.features.catchList
+      ? CatchService.latest().catchError((_) => CatchService.recent()).catchError((_) => const <CatchReport>[])
+      : Future.value(const <CatchReport>[]);
 
   @override
   Widget build(BuildContext context) {
@@ -1002,7 +1007,7 @@ class _RecentCatchesStripState extends State<RecentCatchesStrip> {
                     child: Text('Balıkçılarımızın son avları', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800))),
                 TextButton(
                   style: TextButton.styleFrom(foregroundColor: Tide.turuncu),
-                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CatchesFeedScreen())),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CatchesFeedScreen(son: true))),
                   child: const Text('Tümü'),
                 ),
               ]),
