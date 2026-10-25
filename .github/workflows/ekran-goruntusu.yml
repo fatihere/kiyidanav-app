@@ -1,11 +1,11 @@
 name: Mağaza ekran görüntüleri (iPhone)
 
 # iPhone simülatöründe uygulamayı EKRAN_TURU modunda açar, ekranları sırayla gezer ve
-# App Store için 1206×2622 (6.3") ekran görüntülerini alır. Görüntüler "magaza-gorselleri" dalına yazılır.
+# App Store için en yüksek çözünürlükte (iPhone Pro Max 6.9", 1320×2868) ekran görüntülerini alır. Görüntüler "magaza-gorselleri" dalına yazılır.
 on:
   workflow_dispatch:
   push:
-    branches: [ekran-goruntusu, surum-1131]
+    branches: [ekran-goruntusu, surum-1131, fatihere-patch-2]
 
 permissions:
   contents: write
@@ -47,10 +47,10 @@ jobs:
       - name: Simülatör derlemesi (ekran turu)
         run: flutter build ios --simulator --debug --dart-define=EKRAN_TURU=true
 
-      - name: Simülatörü aç (iPhone Pro, 6.3")
+      - name: Simülatörü aç (iPhone Pro Max, 6.9")
         run: |
           xcrun simctl list devices available
-          UDID=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro \(" | head -1 | grep -oE "[0-9A-F-]{36}")
+          UDID=$(xcrun simctl list devices available | grep -E "iPhone 1[6-9] Pro Max \(" | tail -1 | grep -oE "[0-9A-F-]{36}")
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
@@ -65,7 +65,7 @@ jobs:
           sleep 3
           TMP="$(xcrun simctl get_app_container "$UDID" com.kiyidanav.kiyidanav data)/tmp"
           echo "uygulama tmp: $TMP"
-          ADLAR="1-kesfet 2-mera-bilgisi 3-kiyidanpaylas 4-tatli-su 5-olta-makineleri 6-lrf 7-hesabim"
+          ADLAR="1-kesfet 2-mera-bilgisi 3-kiyidanpaylas 4-tatli-su 5-olta-makineleri 6-lrf 7-hesabim 8-mera-haritasi"
           n=0
           for ad in $ADLAR; do
             n=$((n+1))
