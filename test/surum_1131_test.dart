@@ -20,7 +20,7 @@ void main() {
     expect(mesajDenetle(''), isNull);
   });
 
-  test('yeni takipçi bildirimi telefonun kendi sesiyle gelir', () {
+  test('yeni takipçi bildirimi topluluk tipidir (1.13.2: kalama sesiyle)', () {
     expect(Notices.toplulukTipi('takip'), isTrue);
   });
 
