@@ -2,7 +2,7 @@ import 'package:flutter/services.dart';
 
 /// Yerel ekran koruması.
 ///  - Android: pencereye FLAG_SECURE (ekran görüntüsü ve kayıt siyah çıkar)
-///  - iPhone: ekran kaydı/yansıtma başlayınca [kayitDegisti] çağrılır (içerik gizlenir)
+///  - iPhone: güvenli katman (ekran görüntüsü boş çıkar) + ekran kaydı/yansıtma başlayınca [kayitDegisti] çağrılır
 class EkranKorumaKanal {
   static const _k = MethodChannel('kiyidanav/ekran_koruma');
   static void Function(bool kayit)? _dinleyici;
