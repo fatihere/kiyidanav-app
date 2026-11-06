@@ -218,6 +218,14 @@ def kaydet(zemin, on, hedef, harf):
     fg = Image.new('RGBA', (S, S), (0, 0, 0, 0))
     fg.alpha_composite(k, ((S - k.width) // 2, (S - k.height) // 2))
     fg.resize((1024, 1024), Image.LANCZOS).save(hedef / f'levrek_{harf}_fg.png', optimize=True)
+    # Android uyarlanabilir simge arka yüzü (güneş + deniz, saydamlık yok): ön yüzle aynı oranda küçültülür,
+    # dışta kalan kısım gökyüzü / deniz rengiyle doldurulur (yuvarlak maskede iOS simgesiyle aynı görünüm)
+    sol = [zemin.getpixel((0, y))[:3] for y in range(S)]
+    deniz_y = next((y for y, c in enumerate(sol) if c == GECE_ACIK), S)
+    bg = Image.new('RGBA', (S, S), GECE + (255,))
+    ImageDraw.Draw(bg).rectangle([0, int(S * 0.15 + deniz_y * 0.70) + 8, S, S], fill=GECE_ACIK + (255,))
+    bg.alpha_composite(zemin.resize((int(S * 0.70), int(S * 0.70)), Image.LANCZOS), ((S - k.width) // 2, (S - k.height) // 2))
+    bg.convert('RGB').resize((1024, 1024), Image.LANCZOS).save(hedef / f'levrek_{harf}_bg.png', optimize=True)
 
 
 if __name__ == '__main__':

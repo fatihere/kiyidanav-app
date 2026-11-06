@@ -94,6 +94,10 @@ def app_icon():
     size, inner = 1024, int(1024 * 0.96)
     canvas = Image.new('RGBA', (size, size), (0x3A, 0x24, 0x16, 255))   # Android simgesiyle aynı ahşap zemin
     canvas.alpha_composite(sq.resize((inner, inner), Image.LANCZOS), ((size - inner) // 2, (size - inner) // 2))
+    # 1.14.0: sıçrayan levrek simgesi (assets/icon/levrek.png, 1024×1024, saydamsız)
+    levrek = Path('assets/icon/levrek.png')
+    if levrek.exists():
+        canvas = Image.open(levrek).convert('RGBA').resize((size, size), Image.LANCZOS)
     d = RUNNER / 'Assets.xcassets' / 'AppIcon.appiconset'
     if d.exists():
         shutil.rmtree(d)

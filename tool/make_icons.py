@@ -52,47 +52,62 @@ def fish(size):
     return im.resize((size, size), Image.LANCZOS)
 
 
+LEVREK = Path('assets/icon/levrek.png')         # 1.14.0: sıçrayan levrek (tam simge, saydamsız)
+LEVREK_FG = Path('assets/icon/levrek_fg.png')   # uyarlanabilir simge ön yüzü (balık + köpük)
+LEVREK_BG = Path('assets/icon/levrek_bg.png')   # uyarlanabilir simge arka yüzü (güneş + deniz)
+
+
+def kare(yol, boyut):
+    return Image.open(yol).convert('RGBA').resize((boyut, boyut), Image.LANCZOS)
+
+
 def main():
     logo = load_logo()
+    levrek = LEVREK.exists() and LEVREK_FG.exists() and LEVREK_BG.exists()
 
     for name, k in DPI.items():
         # Klasik simge (eski Android'ler)
         d = RES / f'mipmap-{name}'
         d.mkdir(parents=True, exist_ok=True)
-        centered(logo, int(48 * k), 1.0).save(d / 'ic_launcher.png')
+        (kare(LEVREK, int(48 * k)) if levrek else centered(logo, int(48 * k), 1.0)).save(d / 'ic_launcher.png')
         # Uyarlanabilir simgenin ön katmanı (108dp tuval). Yuvarlak maske tuvalin ~%67'sini gösterir;
         # logo %74 ile halat çerçevesi görünür alanın kenarına oturur, beyaz boşluk kalmaz.
         d = RES / f'drawable-{name}'
         d.mkdir(parents=True, exist_ok=True)
-        centered(logo, int(108 * k), 0.74).save(d / 'ic_launcher_foreground.png')
+        if levrek:
+            kare(LEVREK_FG, int(108 * k)).save(d / 'ic_launcher_foreground.png')
+            kare(LEVREK_BG, int(108 * k)).save(d / 'ic_launcher_zemin.png')
+        else:
+            centered(logo, int(108 * k), 0.74).save(d / 'ic_launcher_foreground.png')
         fish(int(24 * k)).save(d / 'ic_stat_notify.png')
 
     any_dir = RES / 'mipmap-anydpi-v26'
     any_dir.mkdir(parents=True, exist_ok=True)
+    arka = '@drawable/ic_launcher_zemin' if levrek else '@color/ic_launcher_background'
     (any_dir / 'ic_launcher.xml').write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
-        '    <background android:drawable="@color/ic_launcher_background"/>\n'
+        f'    <background android:drawable="{arka}"/>\n'
         '    <foreground android:drawable="@drawable/ic_launcher_foreground"/>\n'
         '</adaptive-icon>\n')
     (RES / 'values').mkdir(parents=True, exist_ok=True)
     (RES / 'values' / 'ic_launcher_background.xml').write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'
-        '    <color name="ic_launcher_background">#3A2416</color>\n'
+        '    <color name="ic_launcher_background">#0E3B43</color>\n'
         '    <color name="bildirim_rengi">#F46C22</color>\n</resources>\n')
     # Kod küçültme (R8) bildirim simgesini silmesin
     (RES / 'raw').mkdir(parents=True, exist_ok=True)
     (RES / 'raw' / 'keep.xml').write_text(
         '<?xml version="1.0" encoding="utf-8"?>\n'
         '<resources xmlns:tools="http://schemas.android.com/tools"\n'
-        '    tools:keep="@drawable/ic_stat_notify,@drawable/ic_launcher_foreground,@mipmap/ic_launcher" />\n')
+        '    tools:keep="@drawable/ic_stat_notify,@drawable/ic_launcher_foreground,@drawable/ic_launcher_zemin,@mipmap/ic_launcher" />\n')
 
     # Uygulama içi logo (APK boyutu için 512 px)
     centered(logo, 512, 1.0).save('assets/brand/logo.png', optimize=True)
 
     # Play Store görselleri
     STORE.mkdir(parents=True, exist_ok=True)
-    centered(logo, 512, 0.86, bg=(255, 255, 255, 255)).convert('RGB').save(STORE / 'play-simge-512.png')
+    (kare(LEVREK, 512) if levrek else centered(logo, 512, 0.86, bg=(255, 255, 255, 255))).convert('RGB').save(STORE / 'play-simge-512.png')
     fg = Image.new('RGB', (1024, 500), ZEYTIN)
     d = ImageDraw.Draw(fg)
     d.rectangle((0, 430, 1024, 500), fill=ZEYTIN_KOYU)
