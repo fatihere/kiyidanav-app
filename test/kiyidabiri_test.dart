@@ -37,6 +37,21 @@ class SahteVeri implements KbVeri {
   @override
   Future<MeraInfo?> kesit(Spot s) async =>
       const MeraInfo(dip: 'Kaya → kum', profile: [MapEntry(50, 4.0), MapEntry(100, 9.0)], note: 'Akşamüstü levrek');
+  final talepler = <Map<String, String>>[];
+  @override
+  Future<bool> tekneTalep(Map<String, String> talep) async {
+    talepler.add(talep);
+    return true;
+  }
+
+  @override
+  Future<List<KbBlogYazi>> blog() async => const [
+        KbBlogYazi('Kiyidan Mirmir Avi Nasil Yapilir, Hangi Meralar ve Yem Kullanilir.', 'Mırmır gece kum zeminde tutulur.',
+            'https://www.kiyidanav.com/kiyidan-av-yontemleri/mirmir'),
+        KbBlogYazi('Amatör Balıkçı Belgesi Nasıl Alınır? 2026 Rehber', 'Belge e-Devlet üzerinden alınır.',
+            'https://www.kiyidanav.com/kiyidan-av-yontemleri/belge'),
+      ];
+
   @override
   Future<List<ProductCard>> urunAra(String q) async => const [
         ProductCard(id: 7, name: 'Shimano Sienna 2500', price: 1500, special: 1200),
@@ -110,6 +125,40 @@ void main() {
     final b = KiyidabiriBeyin(SahteVeri())..adim = KbAdim.serbest;
     final y = await b.yanitla('levrek nasıl tutulur');
     expect(y.metin, contains('25 cm'));
+  });
+
+  test('yemli çinekop: mantarlı takım + çizim + tekne talebi', () async {
+    final v = SahteVeri();
+    final b = KiyidabiriBeyin(v)..adim = KbAdim.serbest;
+    final y = await b.yanitla('yemli çinekop avı nasıl yapılır');
+    expect(y.niyet, 'cinekop');
+    expect(y.gorsel, KbGorsel.mantarliTakim);
+    expect(y.metin, contains('fileto hamsi'));
+    expect(y.metin, contains('Tekne avına çıkmak ister misiniz?'));
+    expect(y.secenekler.any((s) => s.eylem == KbEylem.whatsapp), isTrue);
+    expect((await b.yanitla('evet')).metin, contains('Kaç kişisiniz?'));
+    expect((await b.yanitla('3')).metin, contains('Adınız ve soyadınız?'));
+    expect((await b.yanitla('Ali')).niyet, 'tekne_ad'); // soyadı eksik
+    expect((await b.yanitla('Ali Yılmaz')).niyet, 'tekne_tel');
+    expect((await b.yanitla('12345')).girdiGizli, isTrue);
+    final son = await b.yanitla('0532 123 45 67');
+    expect(son.niyet, 'tekne_talep');
+    expect(son.girdiGizli, isTrue);
+    expect(v.talepler.single, containsPair('telefon', '05321234567'));
+    expect(v.talepler.single, containsPair('kisi', '3'));
+  });
+
+  test('lüfer sorusu da mantarlı takıma gider (mera adımında bile)', () async {
+    final b = KiyidabiriBeyin(SahteVeri());
+    expect((await b.yanitla('yemli lüfer çinekop avı')).niyet, 'cinekop');
+  });
+
+  test('bilinmeyen soru önce blogda aranır', () async {
+    final b = KiyidabiriBeyin(SahteVeri())..adim = KbAdim.serbest;
+    final y = await b.yanitla('amatör belgesi nereden alınır');
+    expect(y.niyet, 'blog');
+    expect(y.metin, contains('Amatör Balıkçı Belgesi'));
+    expect(y.secenekler.first.eylem, KbEylem.blogAc);
   });
 
   test('öneri JSON ve "önerildi" yazısı', () {

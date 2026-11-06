@@ -27,6 +27,7 @@ import 'locate.dart';
 import 'screens/knots_screen.dart';
 import 'sea.dart';
 import 'sea_card.dart';
+import 'takim_cizimi.dart';
 import 'theme.dart';
 import 'updates.dart';
 
@@ -119,13 +120,32 @@ class KiyidabiriSes {
     return t;
   }
 
-  static Future<void> konus(String metin) async {
+  static Future<void> konus(String metin, {bool tekrarDene = false}) async {
     if (!KiyidabiriAyar.sesli.value) return;
+    final yazi = metin.replaceAll(RegExp(r'[📍🎯🐟⚠️🔔🎣👋📌📖🚤•]'), '');
     try {
       final t = await _al();
       await t.stop();
-      await t.speak(metin.replaceAll(RegExp(r'[📍🎯🐟⚠️🔔🎣👋📌•]'), ''));
-    } catch (_) {}
+      var r = await t.speak(yazi);
+      // Android'de metin okuma motoru uygulama açılırken henüz hazır olmayabilir: bir kez daha dene
+      if (r != 1 && tekrarDene) {
+        await Future<void>.delayed(const Duration(milliseconds: 2500));
+        r = await t.speak(yazi);
+      }
+      debugPrint('Kıyıdabiri ses: $r');
+    } catch (e) {
+      debugPrint('Kıyıdabiri ses hatası: $e');
+    }
+  }
+
+  /// Telefonda Türkçe ses var mı? (ayar kartında bilgi için)
+  static Future<bool> turkceVar() async {
+    try {
+      final v = await (await _al()).isLanguageAvailable('tr-TR');
+      return v == true || v == 1;
+    } catch (_) {
+      return false;
+    }
   }
 
   static Future<void> dur() async {
@@ -138,7 +158,7 @@ class KiyidabiriSes {
   static Future<void> karsila() async {
     if (_karsiladi || !KiyidabiriAyar.sesli.value || !KiyidabiriAyar.gorunur.value) return;
     _karsiladi = true;
-    await konus(karsilamaSozu);
+    await konus(karsilamaSozu, tekrarDene: true);
   }
 }
 
@@ -287,86 +307,65 @@ class _UygulamaVerisi implements KbVeri {
 
   @override
   Future<List<ProductCard>> urunAra(String q) async => (await Api.search(q)).items;
-}
 
-// =================================================================== robot çizimi
-class _RobotBoyaci extends CustomPainter {
-  final double kirp; // göz kırpma 0–1
-  final double salla; // anten salınımı -1..1
-  _RobotBoyaci(this.kirp, this.salla);
+  static List<KbBlogYazi>? _blog;
 
+  /// kiyidanav.com/blog yazıları (RSS beslemesi; oturum boyunca bir kez indirilir)
   @override
-  void paint(Canvas c, Size s) {
-    final w = s.width, h = s.height;
-    final p = Paint()..isAntiAlias = true;
-    // gövde gölgesi
-    p.color = const Color(0x33000000);
-    c.drawOval(Rect.fromCenter(center: Offset(w * .5, h * .95), width: w * .62, height: h * .08), p);
-    // anten
-    final tepe = Offset(w * .5 + salla * w * .06, h * .06);
-    p
-      ..color = Tide.zeytinKoyu
-      ..strokeWidth = w * .035
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    c.drawLine(Offset(w * .5, h * .2), tepe, p);
-    p.style = PaintingStyle.fill;
-    p.color = Tide.turuncu;
-    c.drawCircle(tepe, w * .065, p);
-    // kafa (kask)
-    final kafa = RRect.fromRectAndRadius(Rect.fromLTWH(w * .1, h * .18, w * .8, h * .56), Radius.circular(w * .26));
-    p.shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFFFFFFFF), Color(0xFFE5EEF0)])
-        .createShader(kafa.outerRect);
-    c.drawRRect(kafa, p);
-    p.shader = null;
-    p
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * .03
-      ..color = Tide.derin;
-    c.drawRRect(kafa, p);
-    p.style = PaintingStyle.fill;
-    // yüz camı
-    final cam = RRect.fromRectAndRadius(Rect.fromLTWH(w * .2, h * .3, w * .6, h * .32), Radius.circular(w * .16));
-    p.color = Tide.derin;
-    c.drawRRect(cam, p);
-    // gözler
-    p.color = const Color(0xFF7FE7F2);
-    final gy = h * .45;
-    final gh = math.max(h * .02, h * .12 * (1 - kirp));
-    c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(w * .37, gy), width: w * .1, height: gh), Radius.circular(w * .05)), p);
-    c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(w * .63, gy), width: w * .1, height: gh), Radius.circular(w * .05)), p);
-    // gülümseme
-    p
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * .03
-      ..color = const Color(0xFF7FE7F2);
-    c.drawArc(Rect.fromCenter(center: Offset(w * .5, h * .52), width: w * .16, height: h * .08), 0.2, math.pi - 0.4, false, p);
-    p.style = PaintingStyle.fill;
-    // yanak ışıkları
-    p.color = Tide.turuncu.withValues(alpha: .85);
-    c.drawCircle(Offset(w * .1, h * .46), w * .05, p);
-    c.drawCircle(Offset(w * .9, h * .46), w * .05, p);
-    // küçük gövde + olta kancası rozeti
-    final govde = RRect.fromRectAndRadius(Rect.fromLTWH(w * .3, h * .72, w * .4, h * .2), Radius.circular(w * .08));
-    p.color = Tide.turuncu;
-    c.drawRRect(govde, p);
-    p
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * .025
-      ..color = Colors.white;
-    final kanca = Path()
-      ..moveTo(w * .53, h * .75)
-      ..lineTo(w * .53, h * .84)
-      ..arcToPoint(Offset(w * .45, h * .84), radius: Radius.circular(w * .04))
-      ..lineTo(w * .45, h * .81);
-    c.drawPath(kanca, p);
+  Future<List<KbBlogYazi>> blog() async {
+    if (_blog != null) return _blog!;
+    final r = await http
+        .get(Uri.parse('${AppConfig.siteUrl}index.php?route=opencartvip/blog/feed'), headers: const {'Accept': 'application/rss+xml'})
+        .timeout(const Duration(seconds: 10));
+    if (r.statusCode != 200) return const [];
+    _blog = kbRssCoz(utf8.decode(r.bodyBytes, allowMalformed: true));
+    return _blog!;
   }
 
   @override
-  bool shouldRepaint(_RobotBoyaci o) => o.kirp != kirp || o.salla != salla;
+  Future<bool> tekneTalep(Map<String, String> talep) async {
+    final t = await CatchService.token();
+    final r = await http
+        .post(Uri.parse('${AppConfig.siteUrl}mobil-kiyidabiri.php?a=tekne'),
+            headers: {'Accept': 'application/json', if (t != null) 'X-Av-Anahtar': t},
+            body: {...talep, 'cihaz': KiyidabiriAyar.cihaz, 'platform': Platform.isIOS ? 'ios' : 'android'})
+        .timeout(const Duration(seconds: 15));
+    try {
+      final j = jsonDecode(utf8.decode(r.bodyBytes));
+      return j is Map && j['ok'] == true;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
-/// Hareketli robot simgesi (sohbet başlığında ve düğmede)
+/// RSS → blog yazıları (başlık, düz metin özet, bağlantı)
+List<KbBlogYazi> kbRssCoz(String xml) {
+  String temizle(String h) => h
+      .replaceAll(RegExp(r'<!\[CDATA\[|\]\]>'), '')
+      .replaceAll(RegExp(r'<[^>]+>'), ' ')
+      .replaceAll(RegExp(r'Read More|Devamını oku'), '')
+      .replaceAll('&amp;', '&')
+      .replaceAll('&quot;', '"')
+      .replaceAll('&#039;', "'")
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .replaceAll(' ..', '…')
+      .trim();
+  final out = <KbBlogYazi>[];
+  for (final m in RegExp(r'<item>([\s\S]*?)</item>').allMatches(xml)) {
+    final it = m.group(1)!;
+    String al(String e) => RegExp('<$e>([\\s\\S]*?)</$e>').firstMatch(it)?.group(1) ?? '';
+    final b = temizle(al('title'));
+    final l = temizle(al('link'));
+    if (b.isEmpty || !l.startsWith('http')) continue;
+    out.add(KbBlogYazi(b, temizle(al('description')), l));
+  }
+  return out;
+}
+
+// =================================================================== robot simgesi
+/// Kıyıdabiri'nin simgesi: gün batımında olta ucunda sıçrayan levrek (assets/brand/kiyidabiri.png,
+/// tool/levrek_simge.py ile üretilir). Hafifçe süzülür ve olta çekiliyormuş gibi sallanır.
 class KiyidabiriRobot extends StatefulWidget {
   final double boy;
   const KiyidabiriRobot({super.key, this.boy = 54});
@@ -376,7 +375,7 @@ class KiyidabiriRobot extends StatefulWidget {
 }
 
 class _KiyidabiriRobotState extends State<KiyidabiriRobot> with SingleTickerProviderStateMixin {
-  late final AnimationController _a = AnimationController(vsync: this, duration: const Duration(milliseconds: 3600));
+  late final AnimationController _a = AnimationController(vsync: this, duration: const Duration(milliseconds: 3200));
 
   @override
   void didChangeDependencies() {
@@ -397,17 +396,27 @@ class _KiyidabiriRobotState extends State<KiyidabiriRobot> with SingleTickerProv
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
         animation: _a,
-        builder: (_, __) {
+        builder: (_, child) {
           final t = _a.value;
-          // 3,6 sn'de bir kısa göz kırpma, hafif yukarı-aşağı süzülme
-          final kirp = t > .92 && t < .97 ? math.sin((t - .92) / .05 * math.pi) : 0.0;
-          final dy = math.sin(t * 2 * math.pi) * widget.boy * .035;
+          // süzülme + her turda kısa bir "vuruş" (olta silkelenmesi)
+          final dy = math.sin(t * 2 * math.pi) * widget.boy * .03;
+          final vurus = t > .86 ? math.sin((t - .86) / .14 * 3 * math.pi) * .07 : 0.0;
           return Transform.translate(
             offset: Offset(0, dy),
-            child: CustomPaint(
-                size: Size.square(widget.boy), painter: _RobotBoyaci(kirp, math.sin(t * 4 * math.pi))),
+            child: Transform.rotate(angle: vurus, child: child),
           );
         },
+        child: ClipOval(
+          child: Image.asset('assets/brand/kiyidabiri.png',
+              width: widget.boy,
+              height: widget.boy,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                  width: widget.boy,
+                  height: widget.boy,
+                  color: Tide.turuncu,
+                  child: Icon(Icons.set_meal, color: Colors.white, size: widget.boy * .55))),
+        ),
       );
 }
 
@@ -419,6 +428,14 @@ class KiyidabiriKatmani extends StatefulWidget {
 
   /// Sohbeti başka yerden açmak için
   static final acSinyali = ValueNotifier<int>(0);
+
+  /// Sohbet açılınca kullanıcı adına gönderilecek ilk mesaj (ör. Göç takvimi › "Tekne avı")
+  static String? ilkMesaj;
+
+  static void mesajlaAc(String mesaj) {
+    ilkMesaj = mesaj;
+    acSinyali.value++;
+  }
 
   @override
   State<KiyidabiriKatmani> createState() => _KiyidabiriKatmaniState();
@@ -510,8 +527,8 @@ class _KiyidabiriKatmaniState extends State<KiyidabiriKatmani> {
                     border: Border.all(color: Tide.turuncu, width: 2),
                     boxShadow: const [BoxShadow(color: Color(0x40000000), blurRadius: 10, offset: Offset(0, 3))],
                   ),
-                  padding: const EdgeInsets.all(4),
-                  child: const KiyidabiriRobot(boy: 46),
+                  padding: const EdgeInsets.all(2),
+                  child: const KiyidabiriRobot(boy: 52),
                 ),
               ),
             ),
@@ -549,7 +566,8 @@ class _Mesaj {
   final String metin;
   final List<KbSecenek> secenekler;
   final Spot? spot;
-  const _Mesaj(this.robot, this.metin, {this.secenekler = const [], this.spot});
+  final KbGorsel? gorsel;
+  const _Mesaj(this.robot, this.metin, {this.secenekler = const [], this.spot, this.gorsel});
 }
 
 /// Sohbet geçmişi uygulama açık kaldıkça korunur
@@ -598,6 +616,11 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
       KbKayit.ekle('robot', KiyidabiriBeyin.karsilama, niyet: 'karsilama');
     }
     _asagi();
+    final ilk = KiyidabiriKatmani.ilkMesaj;
+    if (ilk != null) {
+      KiyidabiriKatmani.ilkMesaj = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _gonder(ilk));
+    }
   }
 
   @override
@@ -620,7 +643,8 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
     if (m.isEmpty || _dusunuyor) return;
     _yazi.clear();
     setState(() {
-      _gecmis.add(_Mesaj(false, m));
+      // Telefon adımında ekranda da numaranın tamamı görünmesin
+      _gecmis.add(_Mesaj(false, _b.adim == KbAdim.tekneTel ? _maskele(m) : m));
       _dusunuyor = true;
     });
     _asagi();
@@ -630,18 +654,24 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
     } catch (_) {
       y = const KbYanit('Bir sorun oldu, tekrar dener misin?', niyet: 'hata');
     }
-    KbKayit.ekle('kullanici', m, niyet: y.niyet);
+    // Telefon numarası adımında yazılan numara sohbet kaydına yazılmaz (talep ayrı ve izinli gönderilir)
+    KbKayit.ekle('kullanici', y.girdiGizli ? '[telefon numarası]' : m, niyet: y.niyet);
     KbKayit.ekle('robot', y.metin, niyet: y.niyet);
     if (y.spot != null) KbKayit.mera = y.spot!.name;
     if (y.kampanya != null) unawaited(KampanyaHatirlatici.ekle(y.kampanya!));
     if (!mounted) return;
     setState(() {
       _dusunuyor = false;
-      _gecmis.add(_Mesaj(true, y.metin, secenekler: y.secenekler, spot: y.spot));
+      _gecmis.add(_Mesaj(true, y.metin, secenekler: y.secenekler, spot: y.spot, gorsel: y.gorsel));
     });
     _asagi();
     unawaited(KiyidabiriSes.konus(y.metin.split('\n').first));
     unawaited(KbKayit.gonder());
+  }
+
+  static String _maskele(String t) {
+    final r = t.replaceAll(RegExp(r'\D'), '');
+    return r.length < 4 ? t : '${'•' * (r.length - 2)}${r.substring(r.length - 2)}';
   }
 
   Future<void> _secenek(KbSecenek s, Spot? spot) async {
@@ -682,6 +712,9 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
               ok ? 'Bildirimler açık. Kampanya gelince haber vereceğim 🔔' : 'Bildirim izni verilmedi; telefon ayarlarından açabilirsin.')));
           _asagi();
         }
+      case KbEylem.blogAc:
+        final u = Uri.tryParse(s.gonder ?? '');
+        if (u != null) await launchUrl(u, mode: LaunchMode.inAppBrowserView);
       case KbEylem.urunAra:
         final q = s.gonder ?? s.etiket;
         await Navigator.of(context).push(MaterialPageRoute(builder: (_) => SearchResultsScreen(query: q, title: q)));
@@ -702,9 +735,9 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
           Container(
             width: 46,
             height: 46,
-            padding: const EdgeInsets.all(3),
+            padding: const EdgeInsets.all(2),
             decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-            child: const KiyidabiriRobot(boy: 40),
+            child: const KiyidabiriRobot(boy: 42),
           ),
           const SizedBox(width: 10),
           const Expanded(
@@ -792,7 +825,10 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
                     ),
                     border: m.robot ? Border.all(color: const Color(0xFFE6E2D6)) : null,
                   ),
-                  child: SelectableText(m.metin, style: const TextStyle(fontSize: 14.5, height: 1.38)),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
+                    SelectableText(m.metin, style: const TextStyle(fontSize: 14.5, height: 1.38)),
+                    if (m.gorsel == KbGorsel.mantarliTakim) const MantarliTakimCizimi(),
+                  ]),
                 ),
               ),
               if (m.robot && son && m.secenekler.isNotEmpty)
@@ -897,6 +933,19 @@ class KiyidabiriAyarKarti extends StatelessWidget {
               value: v,
               onChanged: KiyidabiriAyar.sesAyarla,
             ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.record_voice_over_outlined, color: Tide.turuncu),
+            title: const Text('Sesi dene'),
+            subtitle: const Text('Ses gelmiyorsa telefonun Ayarlar › Metin okuma bölümünden Türkçe sesi indir.'),
+            onTap: () async {
+              final tr = await KiyidabiriSes.turkceVar();
+              await KiyidabiriSes.konus(KiyidabiriSes.karsilamaSozu, tekrarDene: true);
+              if (!tr && context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Telefonunda Türkçe metin okuma sesi bulunamadı. Ayarlar › Erişilebilirlik › Metin okuma çıkışı › Türkçe ses verisini yükle.')));
+              }
+            },
           ),
         ]),
       );

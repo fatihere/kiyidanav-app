@@ -227,3 +227,19 @@ if __name__ == '__main__':
         z, o = taslak(h)
         kaydet(z, o, hedef, h)
         print('taslak', h, hedef)
+
+
+def robot_simgesi(hedef='assets/brand/kiyidabiri.png', boyut=512):
+    """1.14.0: Kıyıdabiri robotunun simgesi (gün batımında olta ucunda sıçrayan levrek, daire içine sığar)"""
+    z, o = taslak('B')
+    im = Image.alpha_composite(z, o)
+    # küçük dairede balık seçilsin: ortadaki %78'lik alan (kuyruk ve misina kenara taşmadan)
+    k = int(S * 0.78)
+    x0, y0 = int(S * 0.15), int(S * 0.07)
+    im = im.crop((x0, y0, x0 + k, y0 + k)).resize((boyut, boyut), Image.LANCZOS)
+    mask = Image.new('L', (boyut, boyut), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, boyut - 1, boyut - 1], fill=255)
+    out = Image.new('RGBA', (boyut, boyut), (0, 0, 0, 0))
+    out.paste(im, (0, 0), mask)
+    out.save(hedef, optimize=True)
+    return hedef

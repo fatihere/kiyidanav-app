@@ -168,5 +168,33 @@ void main() {
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/10_topluluk_meralari.png'));
   }, skip: !_acik);
 
+  testWidgets('11 Çinekop: mantarlı takım çizimi ve tekne sorusu', (t) async {
+    await _boyut(t);
+    await t.pumpWidget(_uygulama(Scaffold(
+      body: SafeArea(
+          child: Material(
+              color: const Color(0xFFF7F5EE), child: KiyidabiriSohbet(veri: SahteVeri()))),
+    )));
+    await t.pump(const Duration(milliseconds: 300));
+    await t.enterText(find.byType(TextField), 'yemli çinekop avı nasıl yapılır');
+    await t.tap(find.byIcon(Icons.send));
+    for (var i = 0; i < 6; i++) {
+      await t.pump(const Duration(milliseconds: 200));
+    }
+    await t.drag(find.byType(ListView), const Offset(0, 900));
+    await t.pump(const Duration(milliseconds: 400));
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/11_cinekop_mantarli_takim.png'));
+    await t.drag(find.byType(ListView), const Offset(0, -3000));
+    await t.pump(const Duration(milliseconds: 400));
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/12_cinekop_tekne_sorusu.png'));
+  }, skip: !_acik);
+
+  testWidgets('13 Mera Bilgisi: Mera öner kartı', (t) async {
+    await _boyut(t);
+    await t.pumpWidget(_uygulama(const Scaffold(body: SafeArea(child: Column(children: [MeraOnerGirisKarti()])))));
+    await t.pump();
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/13_mera_oner_karti.png'));
+  }, skip: !_acik);
+
   test('Locate yüklü', () => expect(Locate.nearest(41, 29).$1, isNotNull));
 }

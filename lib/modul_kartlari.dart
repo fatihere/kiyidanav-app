@@ -1,3 +1,4 @@
+import 'kiyidabiri.dart' show KiyidabiriKatmani;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -1003,6 +1004,12 @@ class AkintiKarti extends StatelessWidget {
   }
 }
 
+/// Tekneden daha verimli avlanan göçmen türler
+bool _tekneTuru(String tur) {
+  final t = tur.toLowerCase();
+  return t.contains('lüfer') || t.contains('çinekop') || t.contains('çinakop') || t.contains('palamut') || t.contains('torik');
+}
+
 // =====================================================================
 // 9) Göç takvimi
 // =====================================================================
@@ -1032,7 +1039,26 @@ class GocKarti extends StatelessWidget {
                     Text([k[i]['bolge'], k[i]['not']].where((e) => '${e ?? ''}'.isNotEmpty).join(' · '), style: s.kucuk),
                   ]),
                 ),
-                _etiket(s, '${k[i]['durum'] ?? ''}', renk('${k[i]['durum'] ?? ''}')),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  _etiket(s, '${k[i]['durum'] ?? ''}', renk('${k[i]['durum'] ?? ''}')),
+                  // 1.14.0: lüfer / çinekop / palamut sezonunda tekneden çok daha verimli → Kıyıdabiri tekne avı
+                  if (_tekneTuru('${k[i]['tur'] ?? ''}') && '${k[i]['durum'] ?? ''}' != 'Sezon dışı')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => KiyidabiriKatmani.mesajlaAc('${k[i]['tur']} için tekne avı'),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                              color: const Color(0x33F46C22),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFF46C22))),
+                          child: Text('🚤 Tekne avı', style: s.kucuk.copyWith(fontWeight: FontWeight.w800)),
+                        ),
+                      ),
+                    ),
+                ]),
               ]),
             ),
         ]);

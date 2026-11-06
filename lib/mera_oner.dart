@@ -603,3 +603,93 @@ class _MeraOnerFormuState extends State<MeraOnerFormu> {
           ),
       ]);
 }
+
+// ======================================================================= Mera Bilgisi kartı
+/// Mera Bilgisi'nde "Kural oluştur" ile "Bugün balık kaç metrede?" arasındaki kart
+class MeraOnerGirisKarti extends StatelessWidget {
+  const MeraOnerGirisKarti({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Tide.derin, Color(0xFF15535E)]),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(color: Tide.turuncu, borderRadius: BorderRadius.circular(10)),
+              child: const Icon(Icons.add_location_alt_outlined, color: Colors.white, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Mera öner · Topluluk meraları',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                Text('Bildiğin merayı paylaş, balıkçıların önerdiği meraları keşfet',
+                    style: TextStyle(color: Color(0xFFBFD6D1), fontSize: 12.5)),
+              ]),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          ValueListenableBuilder<List<MeraOnerisi>>(
+            valueListenable: MeraOnerApi.onaylilar,
+            builder: (context, l, _) => Row(children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: Tide.turuncu, padding: const EdgeInsets.symmetric(vertical: 12)),
+                  onPressed: () => _turSec(context),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Mera öner', style: TextStyle(fontWeight: FontWeight.w800)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Colors.white54),
+                      padding: const EdgeInsets.symmetric(vertical: 12)),
+                  onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MeraOnerileriEkrani())),
+                  icon: const Icon(Icons.groups_2_outlined, size: 18),
+                  label: Text(l.isEmpty ? 'Topluluk' : 'Topluluk (${l.length})', style: const TextStyle(fontWeight: FontWeight.w700)),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Future<void> _turSec(BuildContext context) async {
+    final t = await showModalBottomSheet<MeraTuru>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+            child: Text('Hangi merayı önereceksin?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          ),
+          for (final t in MeraTuru.values)
+            ListTile(
+              leading: CircleAvatar(
+                  backgroundColor: Tide.somon, child: Icon(t == MeraTuru.tatli ? Icons.water : Icons.waves, color: Tide.zeytinKoyu)),
+              title: Text(t.ad, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(t.aciklama),
+              onTap: () => Navigator.of(ctx).pop(t),
+            ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+    if (t != null && context.mounted) await meraOner(context, t);
+  }
+}

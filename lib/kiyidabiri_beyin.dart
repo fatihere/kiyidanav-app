@@ -26,9 +26,18 @@ String kbNorm(String s) {
   return b.toString().replaceAll(RegExp(r"['’`]"), '').replaceAll(RegExp(r"[^a-z0-9 ]"), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
-enum KbAdim { mera, stil, kampanya, serbest, temsilci }
+enum KbAdim { mera, stil, kampanya, serbest, temsilci, tekneSor, tekneKisi, tekneAd, tekneTel }
 
-enum KbEylem { whatsapp, haritadanSec, meraBilgisiAc, meraOner, toplulukMeralari, dugumler, bildirimIzni, urunAra }
+enum KbEylem { whatsapp, haritadanSec, meraBilgisiAc, meraOner, toplulukMeralari, dugumler, bildirimIzni, urunAra, blogAc }
+
+/// Sohbet balonunda gösterilecek çizim
+enum KbGorsel { mantarliTakim }
+
+/// kiyidanav.com blog yazısı (RSS)
+class KbBlogYazi {
+  final String baslik, ozet, link;
+  const KbBlogYazi(this.baslik, this.ozet, this.link);
+}
 
 class KbSecenek {
   final String etiket;
@@ -46,7 +55,19 @@ class KbYanit {
   final Spot? spot;
   /// Kampanya hatırlatıcısı kurulacak ürün/kategori
   final String? kampanya;
-  const KbYanit(this.metin, {this.secenekler = const [], this.niyet = '', this.spot, this.kampanya});
+  final KbGorsel? gorsel;
+  /// Kullanıcının yazdığı metin sohbet kaydına yazılmasın (telefon numarası adımı)
+  final bool girdiGizli;
+  /// Tekne avı talebi tamamlandı (sunucuya gönderildi)
+  final Map<String, String>? tekneTalebi;
+  const KbYanit(this.metin,
+      {this.secenekler = const [],
+      this.niyet = '',
+      this.spot,
+      this.kampanya,
+      this.gorsel,
+      this.girdiGizli = false,
+      this.tekneTalebi});
 }
 
 /// Avlanma stilleri ve koşul tercihleri (deniz)
@@ -147,6 +168,10 @@ abstract class KbVeri {
   Future<List<SpotForecast>> simdi(List<Spot> l);
   Future<MeraInfo?> kesit(Spot s);
   Future<List<ProductCard>> urunAra(String q);
+  /// kiyidanav.com/blog yazıları (RSS)
+  Future<List<KbBlogYazi>> blog();
+  /// Tekne avı talebini sunucuya gönderir (ad, telefon, kişi sayısı)
+  Future<bool> tekneTalep(Map<String, String> talep);
 }
 
 class KiyidabiriBeyin {
@@ -154,6 +179,7 @@ class KiyidabiriBeyin {
   KbAdim adim = KbAdim.mera;
   Spot? sonMera;
   KbStil? sonStil;
+  final Map<String, String> _tekne = {};
   KiyidabiriBeyin(this.veri);
 
   static const karsilama = 'Merhaba, ben Kıyıdabiri! Sana yardımcı olmak için buradayım. Bugün hangi meradasın?';
@@ -178,6 +204,10 @@ class KiyidabiriBeyin {
   Future<KbYanit> yanitla(String girdi) async {
     final n = kbNorm(girdi);
     if (n.isEmpty) return const KbYanit('Bir şey yazmadın gibi görünüyor 🙂', niyet: 'bos');
+
+    // Tekne avı talebi adımları
+    final t = await _tekneAdimi(girdi.trim(), n);
+    if (t != null) return t;
 
     // Temsilci sorusuna yanıt
     if (adim == KbAdim.temsilci) {
@@ -206,6 +236,7 @@ class KiyidabiriBeyin {
           return const KbYanit('Tabii, sor bakalım! Meralar, hava ve deniz durumu, balık türleri, yem ve teknik, kargo… '
               'Mera bilgilerimizden yanıtlamaya çalışırım.', niyet: 'serbest_bas');
         }
+        if (cinekopSorusu(n)) return cinekopYaniti();
         final m = _meraBul(n);
         if (m == null) {
           final y = await _serbest(n);
@@ -245,10 +276,145 @@ class KiyidabiriBeyin {
         return kampanyaKur(girdi.trim());
       case KbAdim.serbest:
       case KbAdim.temsilci:
+      case KbAdim.tekneSor:
+      case KbAdim.tekneKisi:
+      case KbAdim.tekneAd:
+      case KbAdim.tekneTel:
         final y = await _serbest(n);
         if (y != null) return y;
-        return _temsilciyeYonlendir('Bu soruya mera bilgilerimden güvenilir bir yanıt bulamadım.', niyet: 'bilinmiyor');
+        final b = await blogdaAra(n);
+        if (b != null) return b;
+        return _temsilciyeYonlendir('Bu soruya mera bilgilerimden ve blogumuzdan güvenilir bir yanıt bulamadım. '
+            'Sorunu not aldım, ekibimize ileteceğim.', niyet: 'bilinmiyor');
     }
+  }
+
+  // ------------------------------------------------------------------ çinekop / lüfer yemli av + tekne
+  static const _tekneSecenek = [KbSecenek('Evet, tekneye çıkmak isterim', gonder: 'evet'), KbSecenek('Hayır, kıyıdan', gonder: 'hayır')];
+
+  static bool cinekopSorusu(String n) =>
+      _icerir(n, ['cinekop', 'cinakop', 'lufer', 'mantarli takim', 'yemli takim', 'sarikanat', 'kofana']);
+
+  KbYanit cinekopYaniti() {
+    adim = KbAdim.tekneSor;
+    final sezon = const [9, 10, 11, 12].contains(DateTime.now().month);
+    return KbYanit(
+        '🎣 Yemli çinekop – lüfer avı: mantarlı takım\n'
+        '• Ana beden 0,30–0,35 mm misina; ucunda kayar zeytin kurşun (akıntıya göre 30–80 g) ve boncuk.\n'
+        '• Boncuğun altına fırdöndü, ondan sonra 0,28–0,30 mm (tercihen florokarbon) 80–120 cm köstek.\n'
+        '• İğneden 20–30 cm yukarıda köstek üzerinde mantar (köpük yüzdürücü): yemi dipten kaldırır, akıntıda oynatır.\n'
+        '• İğne: uzun gövdeli; çinekop için 1–2 numara, lüfer için 1/0–2/0. İri lüfer bekleniyorsa iğne önüne 10–15 cm çelik tel.\n'
+        '• Yem: taze fileto hamsi (kılçıksız şerit, deri tarafı dışta, iğneye boydan sarılır) ya da fileto istavrit. '
+        'Yem taze ve parlak olmalı; 15–20 dakikada bir yenile.\n'
+        '• Zaman: gün doğumu ve gün batımı; akıntılı burunlar ve mendirek uçları.\n'
+        'Aşağıdaki çizimde takımın bağlanışı var. Daha fazla tavsiye için WhatsApp hattımıza yazabilirsin.\n\n'
+        '🚤 ${sezon ? 'Bu dönemde kıyılar aktifleşse bile' : 'Sezonunda'} çinekop ve lüfer tekneden çok daha verimli tutuluyor. '
+        'Tekne için takım önerisi: 2,10–2,70 m 20–80 g kamış, 3000–4000 boy makine, 0,30 mm misina, 60–100 g kurşunla '
+        'mantarlı takım ya da çapari üstüne yemli takım; akıntıda sürükleme (kurşun arkası) da çok iyi sonuç verir.\n\n'
+        'Tekne avına çıkmak ister misiniz?',
+        niyet: 'cinekop',
+        gorsel: KbGorsel.mantarliTakim,
+        secenekler: const [
+          ..._tekneSecenek,
+          KbSecenek('Mantarlı takım ürünleri', gonder: 'mantarlı takım', eylem: KbEylem.urunAra),
+          KbSecenek("WhatsApp'tan tavsiye al", eylem: KbEylem.whatsapp),
+        ]);
+  }
+
+  Future<KbYanit?> _tekneAdimi(String ham, String n) async {
+    switch (adim) {
+      case KbAdim.tekneSor:
+        if (_evet(n) || _icerir(n, ['tekneye cikmak', 'tekne istiyorum'])) {
+          adim = KbAdim.tekneKisi;
+          _tekne.clear();
+          return const KbYanit('Harika! Kaç kişisiniz?', niyet: 'tekne_kisi', secenekler: [
+            KbSecenek('1'), KbSecenek('2'), KbSecenek('3'), KbSecenek('4'), KbSecenek('5+', gonder: '5 kişiden fazla'),
+          ]);
+        }
+        if (_hayir(n) || _icerir(n, ['kiyidan'])) {
+          adim = KbAdim.serbest;
+          return const KbYanit('Tamam, kıyıdan rastgele! 🎣 Başka bir sorun olursa buradayım.', niyet: 'tekne_hayir');
+        }
+        adim = KbAdim.serbest;
+        return null;
+      case KbAdim.tekneKisi:
+        final sayi = RegExp(r'\d+').firstMatch(n)?.group(0);
+        if (sayi == null) {
+          return const KbYanit('Kaç kişi olacağınızı rakamla yazar mısın? (ör. 2)', niyet: 'tekne_kisi');
+        }
+        _tekne['kisi'] = n.contains('fazla') ? '$sayi+' : sayi;
+        adim = KbAdim.tekneAd;
+        return const KbYanit('Adınız ve soyadınız?', niyet: 'tekne_ad');
+      case KbAdim.tekneAd:
+        if (ham.trim().split(RegExp(r'\s+')).length < 2 || ham.length > 60) {
+          return const KbYanit('Ad ve soyadını birlikte yazar mısın? (ör. Ali Yılmaz)', niyet: 'tekne_ad');
+        }
+        _tekne['ad'] = ham.trim();
+        adim = KbAdim.tekneTel;
+        return const KbYanit('Telefon numaranız? (ör. 05xx xxx xx xx)\n'
+            'Numaran yalnızca tekne avı için sana dönüş yapmak amacıyla kullanılır.', niyet: 'tekne_tel');
+      case KbAdim.tekneTel:
+        final tel = ham.replaceAll(RegExp(r'[^0-9]'), '');
+        if (!RegExp(r'^(90)?0?5\d{9}$').hasMatch(tel)) {
+          return const KbYanit('Telefon numarası geçerli görünmüyor. 05 ile başlayan 11 haneli numaranı yazar mısın?',
+              niyet: 'tekne_tel', girdiGizli: true);
+        }
+        _tekne['telefon'] = '0${tel.substring(tel.length - 10)}';
+        _tekne['mera'] = (sonMera ?? veri.secili).name;
+        adim = KbAdim.serbest;
+        final talep = Map<String, String>.from(_tekne);
+        var ok = false;
+        try {
+          ok = await veri.tekneTalep(talep);
+        } catch (_) {}
+        if (!ok) {
+          return const KbYanit("Talebini şu an gönderemedim (bağlantı sorunu). WhatsApp'tan yazarsan ekibimiz hemen yardımcı olur.",
+              niyet: 'tekne_hata', girdiGizli: true, secenekler: [KbSecenek("WhatsApp'ta yaz", eylem: KbEylem.whatsapp)]);
+        }
+        return KbYanit('Teşekkürler ${talep['ad']!.split(' ').first}! ${talep['kisi']} kişilik tekne avı talebini aldık; '
+            'ekibimiz en kısa sürede ${talep['telefon']} numarasından sana dönüş yapacak. 🚤',
+            niyet: 'tekne_talep', girdiGizli: true, tekneTalebi: talep);
+      default:
+        return null;
+    }
+  }
+
+  // ------------------------------------------------------------------ blog
+  /// Bilinmeyen soruyu kiyidanav.com/blog yazılarında arar
+  Future<KbYanit?> blogdaAra(String n) async {
+    List<KbBlogYazi> l;
+    try {
+      l = await veri.blog();
+    } catch (_) {
+      return null;
+    }
+    const bos = {'nasil', 'nedir', 'neden', 'hangi', 'icin', 'gibi', 'olur', 'mudur', 'midir', 'nerede', 'zaman', 'bana',
+      'acaba', 'balik', 'yapilir', 'tutulur', 'olan', 'daha', 'kadar', 'nasıl'};
+    final kelimeler =
+        n.split(' ').where((k) => k.length >= 4 && !bos.contains(k)).map((k) => k.length > 6 ? k.substring(0, 6) : k).toSet();
+    if (kelimeler.isEmpty) return null;
+    KbBlogYazi? en;
+    var enPuan = 0.0;
+    for (final y in l) {
+      final b = kbNorm(y.baslik), o = kbNorm(y.ozet);
+      var p = 0.0;
+      for (final k in kelimeler) {
+        if (b.contains(k)) p += 2;
+        if (o.contains(k)) p += 1;
+      }
+      if (p > enPuan) {
+        enPuan = p;
+        en = y;
+      }
+    }
+    if (en == null || enPuan < 2) return null;
+    final ozet = en.ozet.length > 220 ? '${en.ozet.substring(0, 220)}…' : en.ozet;
+    return KbYanit('📖 Blogumuzda bu konuyla ilgili bir yazı buldum:\n"${en.baslik}"\n$ozet',
+        niyet: 'blog',
+        secenekler: [
+          KbSecenek('Yazıyı oku', gonder: en.link, eylem: KbEylem.blogAc),
+          const KbSecenek('Temsilciye bağlan', gonder: 'temsilci'),
+        ]);
   }
 
   KbYanit _temsilciyeYonlendir(String once, {required String niyet}) {
@@ -463,6 +629,13 @@ class KiyidabiriBeyin {
           '• Stiline (LRF, spin, surf…) göre bugün en uygun merayı bulmak\n• Bölgede hangi balığın çıktığı, yasal boy ve yasaklar\n'
           '• Ürün kampanyası için hatırlatma kurmak\n• Tatlı su göl ve barajları\nBilemediğimde seni müşteri temsilcimize bağlarım.',
           niyet: 'yardim');
+    }
+    // Yemli çinekop / lüfer avı → mantarlı takım + tekne
+    if (cinekopSorusu(n)) return cinekopYaniti();
+    if (_icerir(n, ['tekne', 'balik turu', 'charter'])) {
+      adim = KbAdim.tekneSor;
+      return const KbYanit('Çinekop, lüfer ve palamutta tekneden avlanmak kıyıya göre çok daha verimli. '
+          'Ekibimizle tekne avı ayarlayabiliriz. Tekne avına çıkmak ister misiniz?', niyet: 'tekne', secenekler: _tekneSecenek);
     }
     // Mera adı geçiyorsa
     final m = _meraBul(n);

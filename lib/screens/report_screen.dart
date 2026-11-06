@@ -21,6 +21,7 @@ import 'knots_screen.dart';
 import '../locate.dart';
 import '../main.dart';
 import '../mera_widget.dart';
+import '../mera_oner.dart';
 import '../mera.dart';
 import '../modul_kartlari.dart';
 import '../moduller.dart';
@@ -330,6 +331,8 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
                     ],
                 'paylas': () => [_paylasSatiri(f, score, mood, data.sat)],
                 'kurallar': () => [if (fx.kurallar) KuralKarti(f: f, bugunSkor: score)],
+                // 1.14.0: Mera öner + Topluluk meraları (Kural oluştur ile "Bugün balık kaç metrede" arasında)
+                'oneri': () => [const MeraOnerGirisKarti()],
                 'moduller': () => [ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value)],
                 'avlar': () => [
                       if (fx.catchList || fx.catchSubmit)
@@ -358,8 +361,14 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
               };
               final sira = [
                 ...Api.config.meraSira.where(bolumler.containsKey),
-                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k)),
-              ].where((k) => !Api.config.meraKapali.contains(k));
+                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k) && k != 'oneri'),
+              ];
+              // Panelde sırası verilmemişse "Mera öner" kartı Kural oluştur'un hemen ardına gelir
+              if (!sira.contains('oneri')) {
+                final i = sira.indexOf('kurallar');
+                sira.insert(i < 0 ? sira.length : i + 1, 'oneri');
+              }
+              sira.removeWhere((k) => Api.config.meraKapali.contains(k));
               return ListView(
                 padding: const EdgeInsets.only(bottom: 32, top: 4),
                 children: [
