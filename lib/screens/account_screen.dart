@@ -121,7 +121,6 @@ class AccountScreen extends StatelessWidget {
           const SizedBox(height: 16),
           // 1.14.0: Kıyıdabiri (görünürlük ve sesli karşılama)
           const KiyidabiriAyarKarti(),
-          const SizedBox(height: 16),
           _group([
             _tile(Icons.notifications_none, 'Bildirimler ve kampanyalar',
                 () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NoticesScreen()))),

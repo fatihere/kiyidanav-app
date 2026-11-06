@@ -49,7 +49,9 @@ class KiyidabiriAyar {
     try {
       final p = await SharedPreferences.getInstance();
       sesli.value = p.getBool(_ses) ?? true;
+      // Robotun görünürlüğü yalnız yönetim panelinden değişir; açılışta son bilinen panel ayarı kullanılır
       gorunur.value = p.getBool(_gorunur) ?? true;
+      unawaited(panelAyariniYukle());
       final k = p.getStringList(_konum);
       if (k != null && k.length == 2) konum = Offset(double.tryParse(k[0]) ?? 0, double.tryParse(k[1]) ?? 1);
       cihaz = p.getString(_cihaz) ?? '';
@@ -71,11 +73,20 @@ class KiyidabiriAyar {
     } catch (_) {}
   }
 
-  static Future<void> gorunurAyarla(bool v) async {
-    gorunur.value = v;
+  /// Yönetim paneli › Kıyıdabiri › "Uygulamada göster" ayarı (kiyidanav.com/mobil-kiyidabiri.php?a=ayar)
+  static Future<void> panelAyariniYukle() async {
     try {
-      (await SharedPreferences.getInstance()).setBool(_gorunur, v);
-    } catch (_) {}
+      final r = await http
+          .get(Uri.parse('${AppConfig.siteUrl}mobil-kiyidabiri.php?a=ayar'), headers: const {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 8));
+      final j = jsonDecode(utf8.decode(r.bodyBytes));
+      if (j is! Map || j['ok'] != true) return;
+      final acik = j['acik'] != false;
+      gorunur.value = acik;
+      (await SharedPreferences.getInstance()).setBool(_gorunur, acik);
+    } catch (_) {
+      // Ağ yoksa son bilinen ayar geçerli
+    }
   }
 
   static Future<void> konumKaydet(Offset o) async {
@@ -110,7 +121,9 @@ class KiyidabiriSes {
     try {
       await t.setLanguage('tr-TR');
       await t.setSpeechRate(Platform.isIOS ? 0.48 : 0.5);
-      await t.setPitch(1.15); // biraz daha "robot", sevimli
+      // Erkek ses: telefonda Türkçe erkek ses varsa o seçilir; yoksa ses tonu kalınlaştırılır
+      final erkek = await _erkekSesSec(t);
+      await t.setPitch(erkek ? 0.95 : 0.78);
       await t.setVolume(1.0);
       if (Platform.isIOS) {
         // Sessiz moddaysa iPhone konuşmaz (kullanıcının tercihine saygı)
@@ -118,6 +131,36 @@ class KiyidabiriSes {
       }
     } catch (_) {}
     return t;
+  }
+
+  static bool? _erkekSecildi;
+
+  /// Telefonun Türkçe sesleri arasında erkek ses arar (iOS: gender; Android: ad/özellik bilgisi)
+  static Future<bool> _erkekSesSec(FlutterTts t) async {
+    if (_erkekSecildi != null) return _erkekSecildi!;
+    var bulundu = false;
+    try {
+      final l = await t.getVoices;
+      if (l is List) {
+        final tr = l.whereType<Map>().where((v) => '${v['locale'] ?? ''}'.toLowerCase().startsWith('tr')).toList();
+        bool erkekMi(Map v) {
+          final g = '${v['gender'] ?? ''}'.toLowerCase();
+          final ad = '${v['name'] ?? ''} ${v['features'] ?? ''}'.toLowerCase();
+          return g == 'male' || ad.contains('#male') || ad.contains('male') && !ad.contains('female') ||
+              // Türkçe erkek ses adları (iOS/Samsung)
+              ad.contains('cem') || ad.contains('emre') || ad.contains('kerem');
+        }
+
+        final secilen = tr.where(erkekMi).toList();
+        if (secilen.isNotEmpty) {
+          final v = secilen.first;
+          await t.setVoice({'name': '${v['name']}', 'locale': '${v['locale']}'});
+          bulundu = true;
+        }
+      }
+    } catch (_) {}
+    _erkekSecildi = bulundu;
+    return bulundu;
   }
 
   static Future<void> konus(String metin, {bool tekrarDene = false}) async {
@@ -758,14 +801,7 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.white),
             onSelected: (v) async {
-              if (v == 'gizle') {
-                await KiyidabiriAyar.gorunurAyarla(false);
-                if (context.mounted) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Kıyıdabiri gizlendi. Hesabım › Kıyıdabiri ayarlarından yeniden açabilirsin.')));
-                }
-              } else if (v == 'yeni') {
+              if (v == 'yeni') {
                 setState(() {
                   _gecmis
                     ..clear()
@@ -777,7 +813,6 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'yeni', child: Text('Yeni sohbet')),
-              PopupMenuItem(value: 'gizle', child: Text('Robotu ekrandan gizle')),
             ],
           ),
         ]),
@@ -906,47 +941,31 @@ class KiyidabiriAyarKarti extends StatelessWidget {
   const KiyidabiriAyarKarti({super.key});
 
   @override
-  Widget build(BuildContext context) => Card(
-        margin: EdgeInsets.zero,
-        color: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        child: Column(children: [
-          ListTile(
-            leading: const SizedBox(width: 36, height: 36, child: KiyidabiriRobot(boy: 36)),
-            title: const Text('Kıyıdabiri', style: TextStyle(fontWeight: FontWeight.w800)),
-            subtitle: const Text('Mera asistanı robot'),
-            trailing: TextButton(onPressed: () => kiyidabiriAc(context), child: const Text('Sohbet aç')),
-          ),
-          ValueListenableBuilder<bool>(
-            valueListenable: KiyidabiriAyar.gorunur,
-            builder: (_, v, __) => SwitchListTile(
-              title: const Text('Robot ekranda görünsün'),
-              value: v,
-              onChanged: KiyidabiriAyar.gorunurAyarla,
-            ),
-          ),
-          ValueListenableBuilder<bool>(
-            valueListenable: KiyidabiriAyar.sesli,
-            builder: (_, v, __) => SwitchListTile(
-              title: const Text('Açılışta sesli karşılama'),
-              subtitle: const Text('"Merhaba ben Kıyıdabiri…" (telefonun Türkçe sesiyle)'),
-              value: v,
-              onChanged: KiyidabiriAyar.sesAyarla,
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.record_voice_over_outlined, color: Tide.turuncu),
-            title: const Text('Sesi dene'),
-            subtitle: const Text('Ses gelmiyorsa telefonun Ayarlar › Metin okuma bölümünden Türkçe sesi indir.'),
-            onTap: () async {
-              final tr = await KiyidabiriSes.turkceVar();
-              await KiyidabiriSes.konus(KiyidabiriSes.karsilamaSozu, tekrarDene: true);
-              if (!tr && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Telefonunda Türkçe metin okuma sesi bulunamadı. Ayarlar › Erişilebilirlik › Metin okuma çıkışı › Türkçe ses verisini yükle.')));
-              }
-            },
-          ),
-        ]),
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: KiyidabiriAyar.gorunur,
+        builder: (context, gorunur, _) => !gorunur
+            ? const SizedBox.shrink()
+            : Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                color: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                child: Column(children: [
+                  ListTile(
+                    leading: const SizedBox(width: 36, height: 36, child: KiyidabiriRobot(boy: 36)),
+                    title: const Text('Kıyıdabiri', style: TextStyle(fontWeight: FontWeight.w800)),
+                    subtitle: const Text('Mera asistanı robot'),
+                    trailing: TextButton(onPressed: () => kiyidabiriAc(context), child: const Text('Sohbet aç')),
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: KiyidabiriAyar.sesli,
+                    builder: (_, v, __) => SwitchListTile(
+                      title: const Text('Kıyıdabiri sesi'),
+                      subtitle: const Text('Açılışta sesli karşılama ve yanıtların sesli okunması'),
+                      value: v,
+                      onChanged: KiyidabiriAyar.sesAyarla,
+                    ),
+                  ),
+                ]),
+              ),
       );
 }
