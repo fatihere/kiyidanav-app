@@ -27,6 +27,7 @@ import 'sea.dart';
 import 'solunar.dart';
 import 'theme.dart';
 import 'updates.dart';
+import 'web_page_screen.dart';
 
 /// Tüm uygulamadan sayfa açabilmek için (bildirime dokununca)
 final navKey = GlobalKey<NavigatorState>();
@@ -454,6 +455,13 @@ class Notices {
         break;
       case 'takip': // 1.13.1: yeni takipçi → Beni takip edenler
         nav?.push(MaterialPageRoute(builder: (_) => const TakipEkrani(sekme: 1)));
+        break;
+      case 'siparis': // 1.14.1: sipariş durumu değişti → sipariş detayı uygulamanın içinde
+        final no = Uri.tryParse(n.target)?.queryParameters['order_id'];
+        nav?.push(MaterialPageRoute(
+            builder: (_) => WebPageScreen(
+                title: no == null ? 'Siparişlerim' : 'Sipariş #$no',
+                route: no == null ? 'account/order' : 'account/order/info&order_id=$no')));
         break;
       case 'urun':
         final id = int.tryParse(n.target);
