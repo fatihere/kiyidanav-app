@@ -121,8 +121,8 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
   }
 
   void _ensure(Spot s) {
-    if (_forSpot != s.name) {
-      _forSpot = s.name;
+    if (_forSpot != spotToKey(s)) {
+      _forSpot = spotToKey(s);
       _future = _load(s);
     }
   }
@@ -487,8 +487,16 @@ class _ReportCard extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('${f.spot.name} · ${f.spot.side.label}',
-                  style: const TextStyle(color: Color(0xFFBFD6D1), fontSize: 12.5, fontWeight: FontWeight.w700)),
+              Row(children: [
+                Flexible(
+                  child: Text('${f.spot.name} · ${f.spot.side.label}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Color(0xFFBFD6D1), fontSize: 12.5, fontWeight: FontWeight.w700)),
+                ),
+                // 1.14.0: kullanıcının kendi işaretlediği nokta
+                if (f.spot.nokta) ...[const SizedBox(width: 6), const NoktaRozeti()],
+              ]),
               Text('${_tarih(now)} · ${_gunler[now.weekday - 1]}',
                   style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
             ]),

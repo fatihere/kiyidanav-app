@@ -52,7 +52,16 @@ class Spot {
 
   /// Haritadan öğrenilmiş, adı olan mera (Meralarım)
   bool get ogrenilmis => custom && !name.endsWith(' yakını');
+
+  /// 1.14.0: Kullanıcının haritada işaretlediği "nokta meran" (hazır listedeki meralardan biri değil)
+  bool get nokta => custom;
+
+  /// Aynı nokta mı? (ad + koordinat; hazır meralarda ad)
+  bool ayni(Spot o) => spotToKey(this) == spotToKey(o);
 }
+
+/// "📌 Nokta meran" rozeti (ana sayfa deniz kartı, konum şeridi, Mera Bilgisi)
+const noktaMeraEtiketi = 'Nokta meran';
 
 /// Anadolu yakası: Riva'dan Darıca'ya (kırmızı hat)
 /// Avrupa yakası: Rumelifeneri'nden Semizkum'a (sarı hat)
@@ -402,8 +411,12 @@ class SeaService {
   }
 
   /// Bir yakadaki tüm noktaları tek istekte getirir (şimdiki durum).
-  static Future<List<SpotForecast>> fetchSide(Side side) async {
-    final list = spotsOf(side);
+  static Future<List<SpotForecast>> fetchSide(Side side) => fetchSpots(spotsOf(side));
+
+  /// 1.14.0: verilen noktaların (hazır meralar + nokta meralar) şimdiki durumu tek istekte.
+  /// Nokta meralarda hava ve deniz verisi iğnenin kendi koordinatından alınır.
+  static Future<List<SpotForecast>> fetchSpots(List<Spot> list) async {
+    if (list.isEmpty) return const [];
     final lat = list.map((e) => e.lat).join(',');
     final lon = list.map((e) => e.lon).join(',');
     final wx = Uri.https('api.open-meteo.com', '/v1/forecast', {

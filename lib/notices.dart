@@ -16,6 +16,7 @@ import 'badi.dart';
 import 'bait_card.dart';
 import 'config.dart';
 import 'main.dart';
+import 'kiyidabiri.dart' show KampanyaHatirlatici;
 import 'kurallar.dart';
 import 'mera_widget.dart';
 import 'models.dart';
@@ -592,6 +593,7 @@ void noticeDispatcher() {
     }
     await MeraWidget.refreshIfStale(); // ana ekran kartı (saatte bir)
     await Kurallar.arkaPlanKontrol(); // kullanıcının kendi kuralları (1.12.0)
+    await KampanyaHatirlatici.kontrol(); // 1.14.0: Kıyıdabiri kampanya hatırlatıcıları
     return true;
   });
 }

@@ -142,6 +142,12 @@ def patch_manifest():
                 '        <service android:name="com.baseflow.geolocator.GeolocatorLocationService" tools:node="remove"/>\n'
                 '    </application>')
         s = s.replace('    </application>', meta, 1) if '    </application>' in s else s.replace('</application>', meta, 1)
+    # 1.14.0: Kıyıdabiri sesli karşılama — Android 11+ metin okuma motoruna erişim (paket görünürlüğü)
+    tts = '<action android:name="android.intent.action.TTS_SERVICE"/>'
+    if tts not in s:
+        q = ('    <queries>\n        <intent>\n            ' + tts +
+             '\n        </intent>\n    </queries>\n</manifest>')
+        s = s.replace('</manifest>', q, 1)
     s, n = re.subn(r'android:label="[^"]*"',
                    'android:label="KıyıdanAv" android:allowBackup="false" android:usesCleartextTraffic="false"',
                    s, count=1)

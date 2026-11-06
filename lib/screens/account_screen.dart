@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../kiyidabiri.dart';
 import '../api.dart';
 import '../araclar.dart';
 import '../badi.dart';
@@ -117,6 +118,9 @@ class AccountScreen extends StatelessWidget {
             }),
             _tile(Icons.share_outlined, 'Uygulamayı paylaş', Sharer.app),
           ]),
+          const SizedBox(height: 16),
+          // 1.14.0: Kıyıdabiri (görünürlük ve sesli karşılama)
+          const KiyidabiriAyarKarti(),
           const SizedBox(height: 16),
           _group([
             _tile(Icons.notifications_none, 'Bildirimler ve kampanyalar',

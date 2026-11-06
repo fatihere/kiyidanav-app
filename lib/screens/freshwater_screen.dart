@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../mera_oner.dart';
 import '../bait_card.dart' show SearchResultsScreen;
 import '../config.dart';
 import '../freshwater.dart';
@@ -119,7 +120,15 @@ class _FreshwaterScreenState extends State<FreshwaterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Tatlı Su Meraları')),
+      appBar: AppBar(title: const Text('Tatlı Su Meraları'), actions: [
+        // 1.14.0: topluluk önerileri ve mera öner (tatlı su sekmesiyle açılır)
+        IconButton(
+          tooltip: 'Topluluk meraları / Mera öner',
+          icon: const Icon(Icons.add_location_alt_outlined),
+          onPressed: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => const MeraOnerileriEkrani(tur: MeraTuru.tatli))),
+        ),
+      ]),
       body: MemberGate(
         title: 'Tatlı su meraları üyelere özel',
         message: 'Ücretsiz üye ol; Türkiye\'nin göl ve barajlarını haritada gör, çıkan balıkları, '

@@ -9,6 +9,7 @@ import 'app_state.dart';
 import 'harita_secici.dart';
 import 'mera.dart';
 import 'meralarim.dart';
+import 'mera_oner.dart';
 import 'overlays.dart';
 import 'sea.dart';
 import 'sea_card.dart';
@@ -223,11 +224,31 @@ Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) asyn
           ),
           const Divider(),
           ],
+          // 1.14.0: topluluk meraları ve mera öner
+          ListTile(
+            leading: const CircleAvatar(backgroundColor: Tide.somon, child: Icon(Icons.groups_2_outlined, color: Tide.zeytinKoyu)),
+            title: const Text('Topluluk meraları', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const Text('Üyelerin önerdiği, onaylı tuzlu ve tatlı su meraları'),
+            onTap: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MeraOnerileriEkrani()));
+            },
+          ),
+          ListTile(
+            leading: const CircleAvatar(backgroundColor: Tide.somon, child: Icon(Icons.add_location_alt_outlined, color: Tide.turuncu)),
+            title: const Text('Mera öner', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const Text('Bildiğin bir tuzlu ya da tatlı su merasını paylaş'),
+            onTap: () {
+              Navigator.of(ctx).pop();
+              meraOner(context, MeraTuru.tuzlu);
+            },
+          ),
+          const Divider(),
           // 1.13.2: haritadan öğrenilen meralar
           if (Meralarim.liste.value.isNotEmpty) ...[
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 12, 20, 4),
-              child: Text('Meralarım (haritadan eklediklerin)',
+              child: Text('📌 Nokta meralarım (haritada işaretlediklerin)',
                   style: TextStyle(fontWeight: FontWeight.w800, color: Tide.zeytinKoyu, fontSize: 14)),
             ),
             Padding(
@@ -322,8 +343,12 @@ class LocationBar extends StatelessWidget {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     ValueListenableBuilder<bool>(
                       valueListenable: Locate.auto,
-                      builder: (_, a, __) => Text(a ? 'Konum (bulunduğun yere göre)' : 'Konum',
-                          style: const TextStyle(fontSize: 11.5, color: Tide.misina)),
+                      builder: (_, a, __) => Row(children: [
+                        Text(a ? 'Konum (bulunduğun yere göre)' : 'Konum',
+                            style: const TextStyle(fontSize: 11.5, color: Tide.misina)),
+                        // 1.14.0: kullanıcının kendi işaretlediği nokta
+                        if (spot.nokta) ...[const SizedBox(width: 6), const NoktaRozeti(acik: true)],
+                      ]),
                     ),
                     Text('${spot.name} · ${spot.side.label}',
                         maxLines: 1,

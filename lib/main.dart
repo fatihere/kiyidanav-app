@@ -14,7 +14,9 @@ import 'hata.dart';
 import 'kurallar.dart';
 import 'profil.dart';
 import 'locate.dart';
+import 'kiyidabiri.dart';
 import 'meralarim.dart';
+import 'mera_oner.dart';
 import 'mera_widget.dart';
 import 'notices.dart';
 import 'overlays.dart';
@@ -36,6 +38,8 @@ Future<void> main() async {
   await appState.load();
   await loadSelectedSpot();
   await Meralarim.yukle(); // 1.13.2: haritadan öğrenilen meralar
+  unawaited(MeraOnerApi.yukle()); // 1.14.0: onaylı topluluk meraları
+  await KiyidabiriAyar.yukle(); // 1.14.0: Kıyıdabiri robotu (görünürlük, ses, yer)
   await Locate.loadPref();
   await CampaignTicker.load();
   await AppUpdate.loadVersion();
@@ -200,7 +204,8 @@ class Shell extends StatelessWidget {
     return Scaffold(
       // Yeni kampanya: üstte kayan bant (X ile kapatılır)
       body: TickerHost(
-        child: IndexedStack(
+        // 1.14.0: Kıyıdabiri mini robotu (alt menünün üstünde, sürüklenebilir)
+        child: KiyidabiriKatmani(child: IndexedStack(
           index: index,
           children: [
             const HomeScreen(),
@@ -209,7 +214,7 @@ class Shell extends StatelessWidget {
             const CartScreen(),
             const AccountScreen(),
           ],
-        ),
+        )),
       ),
       bottomNavigationBar: ListenableBuilder(
         listenable: appState,

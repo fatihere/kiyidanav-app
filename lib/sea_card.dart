@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'app_state.dart';
 import 'locate.dart';
+import 'meralarim.dart';
 import 'sea.dart';
 import 'theme.dart';
 
@@ -53,6 +54,37 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
     if (!_side.public && !appState.isMember) _side = Side.anadolu;
     _load(_side);
     memberNotifier.addListener(_onMember);
+    selectedSpot.addListener(_onSpot);
+    Meralarim.liste.addListener(_onMeralarim);
+  }
+
+  /// 1.14.0: nokta meran seçilince onun kendi verisi yüklenir (en yakın hazır meranınki değil)
+  void _onSpot() {
+    final s = selectedSpot.value;
+    if (!s.nokta) return;
+    if (s.side != _side && (s.side.public || appState.isMember)) {
+      setState(() => _side = s.side);
+      _load(s.side);
+      return;
+    }
+    final l = _data[_side];
+    if (l == null || !l.any((f) => f.spot.ayni(s))) _load(_side);
+  }
+
+  void _onMeralarim() {
+    _data.clear();
+    _load(_side);
+  }
+
+  /// Yakadaki nokta meralar (seçili olan dahil) başta, ardından hazır meralar
+  List<Spot> _noktalar(Side side) {
+    final out = <Spot>[];
+    final sel = selectedSpot.value;
+    if (sel.nokta && sel.side == side) out.add(sel);
+    for (final s in Meralarim.liste.value) {
+      if (s.side == side && !out.any((e) => e.ayni(s))) out.add(s);
+    }
+    return out;
   }
 
   void _onMember() {
@@ -65,7 +97,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
       _failed = false;
     });
     try {
-      final r = await SeaService.fetchSide(side);
+      final r = await SeaService.fetchSpots([..._noktalar(side), ...spotsOf(side)]);
       if (!mounted) return;
       setState(() {
         _data[side] = r;
@@ -102,6 +134,8 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
   @override
   void dispose() {
     memberNotifier.removeListener(_onMember);
+    selectedSpot.removeListener(_onSpot);
+    Meralarim.liste.removeListener(_onMeralarim);
     _wave.dispose();
     _blink.dispose();
     super.dispose();
@@ -109,7 +143,9 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
 
   SpotForecast? _current(List<SpotForecast>? list) {
     if (list == null || list.isEmpty) return null;
-    final m = list.where((e) => e.spot.name == selectedSpot.value.key);
+    final ayni = list.where((e) => e.spot.ayni(selectedSpot.value));
+    if (ayni.isNotEmpty) return ayni.first;
+    final m = list.where((e) => !e.spot.nokta && e.spot.name == selectedSpot.value.key);
     return m.isNotEmpty ? m.first : list.first;
   }
 
@@ -221,8 +257,13 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                               Row(children: [
                                 const Icon(Icons.place, color: Color(0xFFBFD6D1), size: 17),
                                 const SizedBox(width: 4),
-                                Text(cur!.spot.name,
-                                    style: const TextStyle(color: Color(0xFFBFD6D1), fontWeight: FontWeight.w700)),
+                                Flexible(
+                                  child: Text(cur!.spot.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(color: Color(0xFFBFD6D1), fontWeight: FontWeight.w700)),
+                                ),
+                                if (cur.spot.nokta) ...[const SizedBox(width: 6), const NoktaRozeti()],
                                 if (high) ...[
                                   const SizedBox(width: 8),
                                   _BlinkDot(controller: _blink),
@@ -259,7 +300,7 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                   separatorBuilder: (_, __) => const SizedBox(width: 8),
                   itemBuilder: (_, i) {
                     final f = list[i];
-                    final sel = f.spot.name == spot.name;
+                    final sel = f.spot.ayni(spot);
                     final hi = !f.now.strait && f.now.effectiveWave >= _threshold;
                     return InkWell(
                       borderRadius: BorderRadius.circular(10),
@@ -274,6 +315,10 @@ class _SeaCardState extends State<SeaCard> with TickerProviderStateMixin {
                         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                           Row(mainAxisSize: MainAxisSize.min, children: [
                             if (hi) ...[_BlinkDot(controller: _blink, size: 7), const SizedBox(width: 4)],
+                            if (f.spot.nokta) ...[
+                              const Icon(Icons.push_pin, size: 12, color: Tide.turuncu),
+                              const SizedBox(width: 3),
+                            ],
                             Text(f.spot.name,
                                 style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                           ]),
@@ -441,4 +486,28 @@ class _WavePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WavePainter old) => true;
+}
+
+
+/// 1.14.0: "📌 Nokta meran" rozeti — kullanıcının haritada işaretleyip kaydettiği mera
+class NoktaRozeti extends StatelessWidget {
+  final bool acik;
+  const NoktaRozeti({super.key, this.acik = false});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: acik ? Tide.somon : const Color(0x33F46C22),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Tide.turuncu.withValues(alpha: 0.8)),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.push_pin, size: 11, color: Tide.turuncu),
+          const SizedBox(width: 3),
+          Text(noktaMeraEtiketi,
+              style: TextStyle(
+                  color: acik ? Tide.zeytinKoyu : Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800)),
+        ]),
+      );
 }
