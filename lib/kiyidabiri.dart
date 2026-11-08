@@ -25,6 +25,7 @@ import 'models.dart';
 import 'notices.dart';
 import 'locate.dart';
 import 'screens/knots_screen.dart';
+import 'screens/product_screen.dart';
 import 'sea.dart';
 import 'sea_card.dart';
 import 'takim_cizimi.dart';
@@ -350,6 +351,21 @@ class _UygulamaVerisi implements KbVeri {
 
   @override
   Future<List<ProductCard>> urunAra(String q) async => (await Api.search(q)).items;
+
+  @override
+  Future<List<ProductCard>> indirimliler() async {
+    final h = await Api.home();
+    final hepsi = <int, ProductCard>{};
+    for (final u in [for (final s in h.sections) ...s.items, ...h.newArrivals]) {
+      if (u.special != null && u.special! < u.price && u.inStock) hepsi.putIfAbsent(u.id, () => u);
+    }
+    final l = hepsi.values.toList()..sort((a, b) => (b.price - b.special!) / b.price > (a.price - a.special!) / a.price ? 1 : -1);
+    return l;
+  }
+
+  @override
+  Future<List<String>> kampanyaDuyurulari() async =>
+      (await Notices.fetch()).where((n) => n.type == 'kampanya' || n.type == 'urun' || n.type == 'kategori').map((n) => n.title).take(3).toList();
 
   static List<KbBlogYazi>? _blog;
 
@@ -755,6 +771,9 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
               ok ? 'Bildirimler açık. Kampanya gelince haber vereceğim 🔔' : 'Bildirim izni verilmedi; telefon ayarlarından açabilirsin.')));
           _asagi();
         }
+      case KbEylem.urunAc:
+        final id = int.tryParse(s.gonder ?? '');
+        if (id != null) await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductScreen(id: id)));
       case KbEylem.blogAc:
         final u = Uri.tryParse(s.gonder ?? '');
         if (u != null) await launchUrl(u, mode: LaunchMode.inAppBrowserView);

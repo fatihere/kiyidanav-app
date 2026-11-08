@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kiyidanav/av_gunu.dart';
 import 'package:kiyidanav/kiyidabiri.dart';
 import 'package:kiyidanav/locate.dart';
 import 'package:kiyidanav/mera_oner.dart';
@@ -194,6 +195,40 @@ void main() {
     await t.pumpWidget(_uygulama(const Scaffold(body: SafeArea(child: Column(children: [MeraOnerGirisKarti()])))));
     await t.pump();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/13_mera_oner_karti.png'));
+  }, skip: !_acik);
+
+  testWidgets('14 Kıyıdabiri ekipman ve kampanya', (t) async {
+    await _boyut(t);
+    await t.pumpWidget(_uygulama(Scaffold(
+      body: SafeArea(child: Material(color: const Color(0xFFF7F5EE), child: KiyidabiriSohbet(veri: SahteVeri()))),
+    )));
+    await t.pump(const Duration(milliseconds: 300));
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/14_kiyidabiri_karsilama_yeni.png'));
+    Future<void> yaz(String m) async {
+      await t.enterText(find.byType(TextField), m);
+      await t.tap(find.byIcon(Icons.send));
+      for (var i = 0; i < 6; i++) {
+        await t.pump(const Duration(milliseconds: 200));
+      }
+    }
+
+    await yaz('levrek için hangi makine alayım');
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/15_kiyidabiri_ekipman.png'));
+    await yaz('kampanyalar');
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/16_kiyidabiri_kampanyalar.png'));
+  }, skip: !_acik);
+
+  testWidgets('17 Av günüm kartı', (t) async {
+    await _boyut(t);
+    final kartal = spots.firstWhere((s) => s.name == 'Kartal');
+    await AvGunleri.ekle(AvGunu.gunden(kartal, GunHava(DateTime(2026, 11, 4), ruzgar: 14, hamle: 18, yon: 30, dalga: 0.5, su: 17),
+        not: '3 levrek, akşamüstü kaşık'));
+    final f = SpotForecast(spot: kartal, now: const SeaReport(windKmh: 12, gustKmh: 18, windDir: 40, waveM: 0.4, seaC: 17), days: [
+      DayForecast(date: DateTime(2026, 11, 8), windMax: 12, gustMax: 18, waveMax: 0.4, windDir: 40),
+    ]);
+    await t.pumpWidget(_uygulama(Scaffold(body: SafeArea(child: ListView(children: [AvGunuKarti(f: f)])))));
+    await t.pump(const Duration(milliseconds: 300));
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/17_av_gunum.png'));
   }, skip: !_acik);
 
   test('Locate yüklü', () => expect(Locate.nearest(41, 29).$1, isNotNull));

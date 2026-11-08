@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../ambience.dart';
+import '../av_gunu.dart';
 import '../badi.dart';
 import '../bolge_baliklari.dart';
 import '../fishkrok.dart';
@@ -331,6 +332,8 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
                     ],
                 'paylas': () => [_paylasSatiri(f, score, mood, data.sat)],
                 'kurallar': () => [if (fx.kurallar) KuralKarti(f: f, bugunSkor: score)],
+                // 1.15.0: Av günüm (Kural oluştur'un hemen altı)
+                'avgunu': () => [AvGunuKarti(f: f)],
                 // 1.14.0: Mera öner + Topluluk meraları (Kural oluştur ile "Bugün balık kaç metrede" arasında)
                 'oneri': () => [const MeraOnerGirisKarti()],
                 'moduller': () => [ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value)],
@@ -361,12 +364,14 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
               };
               final sira = [
                 ...Api.config.meraSira.where(bolumler.containsKey),
-                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k) && k != 'oneri'),
+                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k) && k != 'oneri' && k != 'avgunu'),
               ];
-              // Panelde sırası verilmemişse "Mera öner" kartı Kural oluştur'un hemen ardına gelir
-              if (!sira.contains('oneri')) {
-                final i = sira.indexOf('kurallar');
-                sira.insert(i < 0 ? sira.length : i + 1, 'oneri');
+              // Panelde sırası verilmemişse: Kural oluştur → Av günüm → Mera öner
+              for (final yeni in ['avgunu', 'oneri']) {
+                if (sira.contains(yeni)) continue;
+                final onceki = yeni == 'avgunu' ? 'kurallar' : 'avgunu';
+                final i = sira.indexOf(onceki);
+                sira.insert(i < 0 ? sira.length : i + 1, yeni);
               }
               sira.removeWhere((k) => Api.config.meraKapali.contains(k));
               return ListView(

@@ -28,7 +28,7 @@ String kbNorm(String s) {
 
 enum KbAdim { mera, stil, kampanya, serbest, temsilci, tekneSor, tekneKisi, tekneAd, tekneTel }
 
-enum KbEylem { whatsapp, haritadanSec, meraBilgisiAc, meraOner, toplulukMeralari, dugumler, bildirimIzni, urunAra, blogAc }
+enum KbEylem { whatsapp, haritadanSec, meraBilgisiAc, meraOner, toplulukMeralari, dugumler, bildirimIzni, urunAra, blogAc, urunAc }
 
 /// Sohbet balonunda gösterilecek çizim
 enum KbGorsel { mantarliTakim }
@@ -172,23 +172,93 @@ abstract class KbVeri {
   Future<List<KbBlogYazi>> blog();
   /// Tekne avı talebini sunucuya gönderir (ad, telefon, kişi sayısı)
   Future<bool> tekneTalep(Map<String, String> talep);
+  /// kiyidanav.com'da şu an indirimde olan ürünler (vitrinden; en yüksek indirim başta)
+  Future<List<ProductCard>> indirimliler();
+  /// Panelden gönderilen güncel kampanya duyuruları (başlıklar)
+  Future<List<String>> kampanyaDuyurulari();
 }
+
+/// Stile göre ekipman bilgisi ve mağazada aranacak kelimeler
+class KbEkipman {
+  final String kamis, makine, misina, yem, aksesuar;
+  final List<String> ara;
+  const KbEkipman({required this.kamis, required this.makine, required this.misina, required this.yem, this.aksesuar = '',
+      required this.ara});
+}
+
+const kbEkipmanlar = <String, KbEkipman>{
+  'LRF': KbEkipman(
+      kamis: '1,80–2,30 m, 0,5–8 g atma ağırlığı, hassas (solid) uçlu LRF kamışı',
+      makine: '1000–2000 boy, hafif ve ince fren ayarlı',
+      misina: 'PE 0,3–0,6 ip misina + 0,14–0,18 mm florokarbon lider',
+      yem: '1–5 g jig head + 1,5–2,5 inç silikon, mini rapala ve kaşık',
+      aksesuar: 'jig head kutusu, kafa lambası',
+      ara: ['lrf kamış', 'lrf makine', 'jig head']),
+  'Spin': KbEkipman(
+      kamis: '2,70–3,00 m, 10–40 g spin kamışı',
+      makine: '3000–4000 boy, su sıçramasına dayanıklı',
+      misina: 'PE 0,8–1,2 ip misina + 0,28–0,35 mm florokarbon lider (lüferde çelik tel)',
+      yem: '9–14 cm rapala (minnow), 20–30 g kaşık, silikon shad',
+      aksesuar: 'sahte kutusu, karabina–fırdöndü',
+      ara: ['spin kamış', 'olta makinesi', 'rapala']),
+  'Surf': KbEkipman(
+      kamis: '4,20–4,50 m, 100–250 g surf kamışı',
+      makine: '6000–8000 boy, uzun makaralı surf makinesi',
+      misina: '0,30–0,35 mm misina + 0,50–0,60 mm şok lider',
+      yem: '100–150 g piramit kurşun; boru kurdu, mamun, karides',
+      aksesuar: 'tripod, uç ışığı / zil',
+      ara: ['surf kamış', 'surf makine', 'surf kurşun']),
+  'Çapari': KbEkipman(
+      kamis: '3,00–4,20 m, 50–150 g kamış',
+      makine: '4000–5000 boy',
+      misina: '0,30–0,35 mm misina',
+      yem: 'hazır çapari (6–10 iğne), 40–80 g kurşun',
+      ara: ['çapari', 'olta kamışı']),
+  'Kurşun arkası': KbEkipman(
+      kamis: '2,40–3,00 m, 30–80 g kamış (teknede kısa tekne kamışı)',
+      makine: '3000–4000 boy',
+      misina: '0,30 mm misina, 1–2 m 0,28–0,30 mm florokarbon köstek (lüfere çelik tel)',
+      yem: '40–100 g kurşun, fileto hamsi / istavrit',
+      aksesuar: 'fırdöndü, boncuk',
+      ara: ['kurşun', 'florokarbon', 'fırdöndü']),
+  'Şamandıra': KbEkipman(
+      kamis: '3,60–4,20 m bolognese / şamandıra kamışı, 5–20 g',
+      makine: '2500–3000 boy',
+      misina: '0,20–0,25 mm misina',
+      yem: '2–8 g şamandıra, 8–12 numara iğne; hamur, ekmek, karides',
+      ara: ['şamandıra', 'olta kamışı']),
+  'Shore jigging': KbEkipman(
+      kamis: '2,70–3,00 m, 30–80 g jig kamışı',
+      makine: '4000–5000 boy, yüksek dişli oranı',
+      misina: 'PE 1,0–1,5 ip misina + 0,40–0,50 mm florokarbon lider',
+      yem: '20–60 g metal jig, asist iğne',
+      ara: ['metal jig', 'jig kamış', 'ip misina']),
+};
+
+/// Balık → en uygun stil (ekipman önerisi için)
+const _balikStil = {
+  'levrek': 'Spin', 'lufer': 'Spin', 'cinekop': 'Kurşun arkası', 'palamut': 'Spin', 'istavrit': 'Çapari', 'kolyoz': 'Çapari',
+  'cupra': 'Surf', 'cipura': 'Surf', 'mirmir': 'Surf', 'minekop': 'Surf', 'kalkan': 'Surf', 'sargoz': 'LRF', 'karagoz': 'LRF',
+  'isparoz': 'LRF', 'eskina': 'LRF', 'lidaki': 'LRF', 'kefal': 'Şamandıra', 'zargana': 'Şamandıra', 'akya': 'Shore jigging',
+};
 
 class KiyidabiriBeyin {
   final KbVeri veri;
-  KbAdim adim = KbAdim.mera;
+  KbAdim adim = KbAdim.serbest;
   Spot? sonMera;
   KbStil? sonStil;
   final Map<String, String> _tekne = {};
   KiyidabiriBeyin(this.veri);
 
-  static const karsilama = 'Merhaba, ben Kıyıdabiri! Sana yardımcı olmak için buradayım. Bugün hangi meradasın?';
+  static const karsilama = 'Merhaba, ben Kıyıdabiri! Mera, hava, ekipman, ürün ve kampanyalar hakkında sorunu yaz; kısa ve net yanıtlayayım.';
   static const temsilciSorusu = 'Müşteri temsilcisine bağlanmak ister misiniz?';
 
   List<KbSecenek> get acilisSecenekleri => [
-        KbSecenek('📍 ${veri.secili.name}', gonder: veri.secili.name),
-        const KbSecenek('Haritadan seç', eylem: KbEylem.haritadanSec),
-        const KbSecenek('Başka bir sorum var', gonder: 'başka bir sorum var'),
+        KbSecenek('📍 ${veri.secili.name} bugün', gonder: veri.secili.name),
+        const KbSecenek('Ekipman öner', gonder: 'ekipman öner'),
+        const KbSecenek('Kampanyalar', gonder: 'kampanyalar'),
+        const KbSecenek('Stilime göre mera', gonder: 'hangi stil'),
+        const KbSecenek('Tekne avı', gonder: 'tekne avı'),
       ];
 
   static const _stilSecenekleri = [
@@ -223,7 +293,11 @@ class KiyidabiriBeyin {
     if (_icerir(n, ['temsilci', 'canli destek', 'insan', 'yetkili', 'musteri hizmet', 'whatsapp'])) {
       return _temsilciyeYonlendir('Seni hemen müşteri temsilcimize bağlayabilirim.', niyet: 'temsilci');
     }
-    if (_icerir(n, ['kampanya', 'indirim', 'haber ver', 'hatirlat']) && adim != KbAdim.kampanya) {
+    // Kampanyalar: güncel indirimler (hatırlatıcı yalnızca "haber ver" denince)
+    if (adim != KbAdim.kampanya && _icerir(n, ['kampanya', 'indirim', 'firsat', 'ucuz']) && !_icerir(n, ['haber ver', 'hatirlat', 'bildir'])) {
+      return kampanyaListesi();
+    }
+    if (_icerir(n, ['haber ver', 'hatirlat']) && adim != KbAdim.kampanya) {
       adim = KbAdim.kampanya;
       return const KbYanit('Hangi üründe kampanya istersin? Ürün ya da kategori adını yaz; indirim olunca sana bildirim gelsin.',
           niyet: 'kampanya_sor', secenekler: _kampanyaSecenekleri);
@@ -251,10 +325,12 @@ class KiyidabiriBeyin {
               ]);
         }
         final ozet = await meraOzeti(m);
-        adim = KbAdim.stil;
-        return KbYanit('$ozet\n\nHangi stilde avlanıyorsun?',
-            niyet: 'mera', spot: m.spot ?? sonMera, secenekler: [..._stilSecenekleri,
-              if (m.spot != null) const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc)]);
+        adim = KbAdim.serbest;
+        return KbYanit(ozet, niyet: 'mera', spot: m.spot ?? sonMera, secenekler: [
+          if (m.spot != null) const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
+          const KbSecenek('Stilime göre mera', gonder: 'hangi stil'),
+          const KbSecenek('Ekipman öner', gonder: 'ekipman öner'),
+        ]);
       case KbAdim.stil:
         final s = kbStilBul(n);
         if (s == null) {
@@ -265,9 +341,11 @@ class KiyidabiriBeyin {
         }
         sonStil = s;
         final oneri = await stilOnerisi(s);
-        adim = KbAdim.kampanya;
-        return KbYanit('$oneri\n\nHangi üründe kampanya istersin?',
-            niyet: 'stil_${kbNorm(s.ad).replaceAll(' ', '_')}', spot: sonMera, secenekler: _kampanyaSecenekleri);
+        adim = KbAdim.serbest;
+        return KbYanit(oneri, niyet: 'stil_${kbNorm(s.ad).replaceAll(' ', '_')}', spot: sonMera, secenekler: [
+          KbSecenek('${s.ad} ekipmanı', gonder: '${s.ad} ekipmanı'),
+          const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
+        ]);
       case KbAdim.kampanya:
         adim = KbAdim.serbest;
         if (_hayir(n) || _icerir(n, ['istemem', 'gerek yok', 'atla'])) {
@@ -377,6 +455,113 @@ class KiyidabiriBeyin {
       default:
         return null;
     }
+  }
+
+  // ------------------------------------------------------------------ ekipman ve ürünler
+  static bool ekipmanSorusu(String n) => _icerir(n, [
+        'ekipman', 'takim', 'kamis', 'makine', 'makina', 'misina', 'sahte', 'rapala', 'silikon', 'jig', 'kasik', 'igne',
+        'kursun', 'olta seti', 'ne almaliyim', 'ne alayim', 'firdondu', 'lider', 'florokarbon', 'zoka'
+      ]) && !_icerir(n, ['siparis', 'kargo', 'iade', 'mantarli takim']);
+
+  KbStil? _stilAdi(String ad) => kbStiller.where((x) => x.ad == ad).firstOrNull;
+
+  /// Stil ya da balığa göre ekipman önerisi + kiyidanav.com'daki uygun ürünler
+  Future<KbYanit> ekipmanYaniti(String n) async {
+    var stil = kbStilBul(n);
+    if (stil == null) {
+      for (final e in _balikStil.entries) {
+        if (n.contains(e.key)) {
+          stil = _stilAdi(e.value);
+          break;
+        }
+      }
+    }
+    stil ??= sonStil;
+    if (stil == null) {
+      return const KbYanit('Hangi stil ya da balık için ekipman arıyorsun?', niyet: 'ekipman_sor', secenekler: [
+        KbSecenek('LRF', gonder: 'LRF ekipmanı'), KbSecenek('Spin', gonder: 'Spin ekipmanı'), KbSecenek('Surf', gonder: 'Surf ekipmanı'),
+        KbSecenek('Çapari', gonder: 'Çapari ekipmanı'), KbSecenek('Levrek', gonder: 'levrek ekipmanı'),
+        KbSecenek('Çinekop', gonder: 'çinekop ekipmanı'), KbSecenek('Şamandıra', gonder: 'Şamandıra ekipmanı'),
+      ]);
+    }
+    sonStil = stil;
+    final e = kbEkipmanlar[stil.ad]!;
+    // Kullanıcı belirli bir parça sorduysa mağazada önce onu ara
+    final parca = _icerir(n, ['makine', 'makina'])
+        ? '${stil.ad} makine'
+        : _icerir(n, ['kamis'])
+            ? '${stil.ad} kamış'
+            : _icerir(n, ['misina', 'ip misina', 'lider', 'florokarbon'])
+                ? (_icerir(n, ['ip']) ? 'ip misina' : 'misina')
+                : _icerir(n, ['sahte', 'rapala', 'silikon', 'kasik', 'jig'])
+                    ? e.ara.last
+                    : null;
+    final b = StringBuffer('🎣 ${stil.ad} için ekipman\n'
+        '• Kamış: ${e.kamis}\n• Makine: ${e.makine}\n• Misina: ${e.misina}\n• Yem / sahte: ${e.yem}'
+        '${e.aksesuar.isNotEmpty ? '\n• Yardımcılar: ${e.aksesuar}' : ''}');
+    final urunler = await _urunBul([if (parca != null) parca, ...e.ara.take(2)]);
+    if (urunler.isNotEmpty) {
+      b.write('\n\nkiyidanav.com\'da uygun ürünler:');
+      for (final u in urunler) {
+        b.write('\n• ${u.name}: ${_fiyat(u)}');
+      }
+    }
+    return KbYanit(b.toString(), niyet: 'ekipman_${kbNorm(stil.ad).replaceAll(' ', '_')}', secenekler: [
+      for (final u in urunler) KbSecenek('🛒 ${_kisa(u.name)}', gonder: '${u.id}', eylem: KbEylem.urunAc),
+      KbSecenek('Mağazada ara', gonder: e.ara.first, eylem: KbEylem.urunAra),
+      const KbSecenek('Kampanyalar', gonder: 'kampanyalar'),
+    ]);
+  }
+
+  /// En fazla 3 ürün: önce indirimdekiler
+  Future<List<ProductCard>> _urunBul(List<String> sorgular) async {
+    final hepsi = <int, ProductCard>{};
+    for (final q in sorgular.toSet()) {
+      try {
+        for (final u in await veri.urunAra(q)) {
+          if (u.inStock) hepsi.putIfAbsent(u.id, () => u);
+        }
+      } catch (_) {}
+      if (hepsi.length >= 6) break;
+    }
+    final l = hepsi.values.toList()
+      ..sort((a, c) => _indirim(c).compareTo(_indirim(a)));
+    return l.take(3).toList();
+  }
+
+  static double _indirim(ProductCard u) => u.special != null && u.special! < u.price ? 1 - u.special! / u.price : 0;
+  static String _fiyat(ProductCard u) =>
+      _indirim(u) > 0 ? '${_tl(u.special!)} (indirimde, ${_tl(u.price)} yerine)' : _tl(u.price);
+  static String _kisa(String ad) => ad.length > 26 ? '${ad.substring(0, 25)}…' : ad;
+
+  /// Güncel kampanyalar: panel duyuruları + vitrindeki indirimli ürünler
+  Future<KbYanit> kampanyaListesi() async {
+    var duyurular = const <String>[];
+    var urunler = const <ProductCard>[];
+    try {
+      duyurular = await veri.kampanyaDuyurulari();
+    } catch (_) {}
+    try {
+      urunler = (await veri.indirimliler()).take(5).toList();
+    } catch (_) {}
+    if (duyurular.isEmpty && urunler.isEmpty) {
+      return const KbYanit('Şu an listelenen bir kampanya bulamadım. İstersen bir ürün için indirim gelince haber vereyim.',
+          niyet: 'kampanya_yok_liste', secenekler: [KbSecenek('Haber ver', gonder: 'haber ver')]);
+    }
+    final b = StringBuffer('🏷️ kiyidanav.com güncel kampanyalar');
+    for (final d in duyurular.take(3)) {
+      b.write('\n• $d');
+    }
+    if (urunler.isNotEmpty) {
+      b.write('\n\nİndirimdeki ürünler:');
+      for (final u in urunler) {
+        b.write('\n• ${u.name}: ${_fiyat(u)} (%${(_indirim(u) * 100).round()})');
+      }
+    }
+    return KbYanit(b.toString(), niyet: 'kampanya_liste', secenekler: [
+      for (final u in urunler.take(3)) KbSecenek('🛒 ${_kisa(u.name)}', gonder: '${u.id}', eylem: KbEylem.urunAc),
+      const KbSecenek('Ürün için haber ver', gonder: 'haber ver'),
+    ]);
   }
 
   // ------------------------------------------------------------------ blog
@@ -650,10 +835,14 @@ class KiyidabiriBeyin {
       adim = KbAdim.stil;
       return const KbYanit('Hangi stilde avlanıyorsun?', niyet: 'stil_sor', secenekler: _stilSecenekleri);
     }
+    if (ekipmanSorusu(n)) return ekipmanYaniti(n);
     final stil = kbStilBul(n);
     if (stil != null) {
       sonStil = stil;
-      return KbYanit(await stilOnerisi(stil), niyet: 'stil_${kbNorm(stil.ad).replaceAll(' ', '_')}', spot: sonMera);
+      return KbYanit(await stilOnerisi(stil), niyet: 'stil_${kbNorm(stil.ad).replaceAll(' ', '_')}', spot: sonMera, secenekler: [
+        KbSecenek('${stil.ad} ekipmanı', gonder: '${stil.ad} ekipmanı'),
+        const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
+      ]);
     }
     // Hava / deniz durumu (seçili meraya göre)
     if (_icerir(n, ['ruzgar', 'dalga', 'hava', 'deniz', 'su sicak', 'basinc', 'yagmur', 'firtina', 'bugun nasil', 'verim'])) {

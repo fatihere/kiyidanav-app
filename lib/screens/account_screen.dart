@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../av_gunu.dart';
 import '../kiyidabiri.dart';
 import '../api.dart';
 import '../araclar.dart';
@@ -117,6 +118,11 @@ class AccountScreen extends StatelessWidget {
               launchUrl(Uri.parse('tel:${Api.config.phone.replaceAll(' ', '')}'));
             }),
             _tile(Icons.share_outlined, 'Uygulamayı paylaş', Sharer.app),
+          ]),
+          const SizedBox(height: 16),
+          // 1.15.0: son 7 günün hava ve mera raporu (üyelere)
+          _group([
+            _tile(Icons.history, 'Son 7 gün · hava ve mera raporu', () => gecmisRaporAc(context)),
           ]),
           const SizedBox(height: 16),
           // 1.14.0: Kıyıdabiri (görünürlük ve sesli karşılama)

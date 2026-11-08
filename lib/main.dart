@@ -14,6 +14,7 @@ import 'hata.dart';
 import 'kurallar.dart';
 import 'profil.dart';
 import 'locate.dart';
+import 'av_gunu.dart' show AvGunleri;
 import 'kiyidabiri.dart';
 import 'meralarim.dart';
 import 'mera_oner.dart';
@@ -38,6 +39,7 @@ Future<void> main() async {
   await appState.load();
   await loadSelectedSpot();
   await Meralarim.yukle(); // 1.13.2: haritadan öğrenilen meralar
+  unawaited(AvGunleri.yukle()); // 1.15.0: av günüm
   unawaited(MeraOnerApi.yukle()); // 1.14.0: onaylı topluluk meraları
   await KiyidabiriAyar.yukle(); // 1.14.0: Kıyıdabiri robotu (görünürlük, ses, yer)
   await Locate.loadPref();

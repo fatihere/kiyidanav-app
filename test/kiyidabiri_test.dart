@@ -53,6 +53,11 @@ class SahteVeri implements KbVeri {
       ];
 
   @override
+  Future<List<ProductCard>> indirimliler() async => const [ProductCard(id: 9, name: 'Daiwa Ninja LT 3000', price: 2000, special: 1500)];
+  @override
+  Future<List<String>> kampanyaDuyurulari() async => const ['Kasım indirimi: makinelerde %20'];
+
+  @override
   Future<List<ProductCard>> urunAra(String q) async => const [
         ProductCard(id: 7, name: 'Shimano Sienna 2500', price: 1500, special: 1200),
         ProductCard(id: 8, name: 'Daiwa RX', price: 900),
@@ -72,26 +77,40 @@ void main() {
     expect(kbStilBul('bilmiyorum'), isNull);
   });
 
-  test('akış: mera → stil → kampanya', () async {
+  test('soru-cevap: mera → stil → ekipman → kampanya', () async {
     final b = KiyidabiriBeyin(SahteVeri());
+    expect(b.adim, KbAdim.serbest);
     final y1 = await b.yanitla('Bugün kartaldayım');
     expect(y1.niyet, 'mera');
     expect(y1.metin, contains('Kartal'));
-    expect(y1.metin, contains('av verimliliği'));
     expect(y1.metin, contains('Dip yapısı: Kaya → kum'));
-    expect(y1.metin, contains('Hangi stilde avlanıyorsun?'));
-    expect(b.adim, KbAdim.stil);
+    expect(y1.metin, isNot(contains('Hangi stilde')));
 
     final y2 = await b.yanitla('surf');
-    expect(y2.metin, contains('Surf için'));
-    // Dalgası surf'e en uygun olan Riva önerilmeli (Boğaz içi değil)
     expect(y2.metin, contains('en uygun mera: Riva'));
-    expect(y2.metin, contains('Hangi üründe kampanya istersin?'));
+    expect(y2.secenekler.first.gonder, 'Surf ekipmanı');
 
-    final y3 = await b.yanitla('Olta makinesi');
-    expect(y3.kampanya, 'Olta makinesi');
+    final y3 = await b.yanitla('Surf ekipmanı');
+    expect(y3.metin, contains('4,20–4,50 m'));
     expect(y3.metin, contains('Shimano Sienna 2500'));
-    expect(b.adim, KbAdim.serbest);
+    expect(y3.secenekler.first.eylem, KbEylem.urunAc);
+
+    final y4 = await b.yanitla('kampanyalar');
+    expect(y4.niyet, 'kampanya_liste');
+    expect(y4.metin, contains('Daiwa Ninja LT 3000'));
+    expect(y4.metin, contains('Kasım indirimi'));
+
+    final y5 = await b.yanitla('makine için indirim olunca haber ver');
+    expect(y5.niyet, 'kampanya_sor');
+    final y6 = await b.yanitla('Olta makinesi');
+    expect(y6.kampanya, 'Olta makinesi');
+  });
+
+  test('balığa göre ekipman', () async {
+    final b = KiyidabiriBeyin(SahteVeri());
+    final y = await b.yanitla('levrek için hangi makine alayım');
+    expect(y.metin, contains('Spin için ekipman'));
+    expect(y.metin, contains('3000–4000'));
   });
 
   test('nokta meran tanınır', () async {

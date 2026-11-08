@@ -12,6 +12,7 @@ import 'package:workmanager/workmanager.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import 'av_gunu.dart' show AvGunleri;
 import 'badi.dart';
 import 'bait_card.dart';
 import 'config.dart';
@@ -602,6 +603,7 @@ void noticeDispatcher() {
     await MeraWidget.refreshIfStale(); // ana ekran kartı (saatte bir)
     await Kurallar.arkaPlanKontrol(); // kullanıcının kendi kuralları (1.12.0)
     await KampanyaHatirlatici.kontrol(); // 1.14.0: Kıyıdabiri kampanya hatırlatıcıları
+    await AvGunleri.arkaPlanKontrol(); // 1.15.0: av günüm koşulları yeniden oluşuyor mu
     return true;
   });
 }
