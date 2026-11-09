@@ -525,7 +525,11 @@ List<Sahne> sahneler(List<MeraGunu> uc, DateTime now, Tema tm, Kaynaklar kn) {
           left: 0, right: 0, bottom: 300 + math.sin(sec * 7) * 10,
           child: Opacity(
               opacity: ease((sec - 0.9) / 0.3),
-              child: Text('Günün en iyi 3 merası 👇', textAlign: TextAlign.center, style: ts(fBasB, 64, Colors.white)))),
+              child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('Günün en iyi 3 merası', style: ts(fBasB, 64, Colors.white)),
+                const SizedBox(width: 10),
+                Icon(Icons.keyboard_double_arrow_down, color: tm.vurgu, size: 70),
+              ]))),
     ]);
   }));
 
