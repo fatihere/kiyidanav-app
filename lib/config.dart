@@ -14,5 +14,5 @@ class AppConfig {
 
   // Kargo kuralı (bilgilendirme amaçlı; kesin tutarı site hesaplar)
   static const freeShippingLimit = 2500.0;
-  static const shippingFee = 250.0;
+  static const shippingFee = 199.0; // 1.16.0: kargonun yarısı bizden (sitede xShippingPro 199 TL)
 }

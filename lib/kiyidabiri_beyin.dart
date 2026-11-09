@@ -176,6 +176,8 @@ abstract class KbVeri {
   Future<List<ProductCard>> indirimliler();
   /// Panelden gönderilen güncel kampanya duyuruları (başlıklar)
   Future<List<String>> kampanyaDuyurulari();
+  /// 1.16.0: listede olmayan yer adını haritada bulur (kıyıya yakınsa en yakın meranın bilgileriyle nokta)
+  Future<Spot?> yerBul(String ad);
 }
 
 /// Stile göre ekipman bilgisi ve mağazada aranacak kelimeler
@@ -311,7 +313,12 @@ class KiyidabiriBeyin {
               'Mera bilgilerimizden yanıtlamaya çalışırım.', niyet: 'serbest_bas');
         }
         if (cinekopSorusu(n)) return cinekopYaniti();
-        final m = _meraBul(n);
+        var m = _meraBul(n);
+        // 1.16.0: listede yoksa yer adı olarak haritada ara ("diliskelesi", "dilovası")
+        if (m == null && n.split(' ').length <= 4 && !n.contains('?')) {
+          final yer = await veri.yerBul(n);
+          if (yer != null) m = KbMera(yer.name, spot: yer);
+        }
         if (m == null) {
           final y = await _serbest(n);
           if (y != null) return y;
@@ -460,8 +467,14 @@ class KiyidabiriBeyin {
   // ------------------------------------------------------------------ ekipman ve ürünler
   static bool ekipmanSorusu(String n) => _icerir(n, [
         'ekipman', 'takim', 'kamis', 'makine', 'makina', 'misina', 'sahte', 'rapala', 'silikon', 'jig', 'kasik', 'igne',
-        'kursun', 'olta seti', 'ne almaliyim', 'ne alayim', 'firdondu', 'lider', 'florokarbon', 'zoka'
+        'kursun', 'olta seti', 'ne almaliyim', 'ne alayim', 'firdondu', 'lider', 'florokarbon', 'zoka',
+        // 1.16.0: "hangi olta ile daha güzel av olur" gibi sorular ürün araması değil, ekipman önerisi
+        'hangi olta', 'olta ile', 'hangi yem', 'ne ile avlan', 'neyle avlan', 'hangi teknik', 'nasil avlan'
       ]) && !_icerir(n, ['siparis', 'kargo', 'iade', 'mantarli takim']);
+
+  /// "19.00'dan sonra", "akşam", "gece" gibi zaman ifadeleri
+  static bool aksamSorusu(String n) =>
+      _icerir(n, ['aksam', 'gece', 'karanlik', 'gun batimi', 'gunbatimi']) || RegExp(r'\b(1[7-9]|2[0-3])([.:]\d\d)?\b').hasMatch(n);
 
   KbStil? _stilAdi(String ad) => kbStiller.where((x) => x.ad == ad).firstOrNull;
 
@@ -499,6 +512,11 @@ class KiyidabiriBeyin {
     final b = StringBuffer('🎣 ${stil.ad} için ekipman\n'
         '• Kamış: ${e.kamis}\n• Makine: ${e.makine}\n• Misina: ${e.misina}\n• Yem / sahte: ${e.yem}'
         '${e.aksesuar.isNotEmpty ? '\n• Yardımcılar: ${e.aksesuar}' : ''}');
+    if (aksamSorusu(n)) {
+      b.write('\n\n🌙 Akşam ve gece: gün batımından sonra büyük balık kıyıya yaklaşır; ilk 10–30 metreyi ve ışıklı iskele, '
+          'kaya diplerini tara. Toplamayı yavaşlat, fosforlu ya da UV silikon dene; kafa lambasını suya tutma. '
+          '${sonMera != null ? '${sonMera!.name} için saatlik rüzgâr ve dalgayı Mera Bilgisi\'nde görebilirsin.' : ''}');
+    }
     final urunler = await _urunBul([if (parca != null) parca, ...e.ara.take(2)]);
     if (urunler.isNotEmpty) {
       b.write('\n\nkiyidanav.com\'da uygun ürünler:');
@@ -893,8 +911,8 @@ class KiyidabiriBeyin {
           niyet: 'tatli');
     }
     if (_icerir(n, ['kargo', 'ucretsiz kargo', 'gonderim'])) {
-      return KbYanit('${AppConfig.freeShippingLimit.round()} TL ve üzeri siparişlerde kargo ücretsiz; altında kargo ücreti '
-          '${AppConfig.shippingFee.round()} TL (kesin tutarı ödeme sayfası gösterir). Sipariş durumunu Hesabım › Siparişlerim\'den görebilirsin.',
+      return KbYanit('${AppConfig.freeShippingLimit.round()} TL ve üzeri siparişlerde kargo ücretsiz; altındaki siparişlerde kargo ücretinin '
+          'yarısı bizden, yalnızca ${AppConfig.shippingFee.round()} TL (kesin tutarı ödeme sayfası gösterir). Sipariş durumunu Hesabım › Siparişlerim\'den görebilirsin.',
           niyet: 'kargo');
     }
     if (_icerir(n, ['siparis', 'iade', 'degisim', 'fatura', 'odeme', 'kart', 'garanti', 'bozuk', 'eksik'])) {

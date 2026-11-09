@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiyidanav/freshwater.dart';
 import 'package:kiyidanav/kiyidabiri_beyin.dart';
+import 'package:kiyidanav/locate.dart';
 import 'package:kiyidanav/mera.dart';
 import 'package:kiyidanav/mera_oner.dart';
 import 'package:kiyidanav/models.dart';
@@ -9,6 +10,12 @@ import 'package:kiyidanav/sea.dart';
 /// Ağsız sahte veri: Kartal sakin, Riva dalgalı (surf için ideal), Beykoz Boğaz içi
 class SahteVeri implements KbVeri {
   final pin = Spot.pin(40.9, 29.2, spots.firstWhere((s) => s.name == 'Kartal'), ad: 'Gizli koy');
+  @override
+  Future<Spot?> yerBul(String ad) async {
+    if (!ad.contains('diliskele')) return null;
+    final (yakin, _) = Locate.nearest(40.7757, 29.5268);
+    return Spot.pin(40.7757, 29.5268, yakin, ad: 'Diliskelesi, Dilovası');
+  }
   @override
   Spot get secili => spots.firstWhere((s) => s.name == 'Kartal');
   @override
@@ -111,6 +118,35 @@ void main() {
     final y = await b.yanitla('levrek için hangi makine alayım');
     expect(y.metin, contains('Spin için ekipman'));
     expect(y.metin, contains('3000–4000'));
+  });
+
+  test('1.16.0: listede olmayan yer adı haritada bulunur, körfezde doğru kıyı', () async {
+    final b = KiyidabiriBeyin(SahteVeri())..adim = KbAdim.mera;
+    final y = await b.yanitla('diliskelesi');
+    expect(y.niyet, 'mera');
+    expect(y.metin, contains('Diliskelesi, Dilovası'));
+    expect(y.metin, contains('İzmit Körfezi'));
+    expect(y.metin, isNot(contains('Çanakkale')));
+    // Dilovası kuzey kıyıda: en yakın mera karşı kıyıdaki Altınova değil
+    final (yakin, _) = Locate.nearest(40.7757, 29.5268);
+    expect(yakin.side, Side.izmit);
+    expect(Locate.korfezKiyisi(40.7757, 29.5268), 'kuzey');
+    expect(Locate.korfezKiyisi(40.705, 29.505), 'guney');
+    expect(Locate.korfezKiyisi(41.0, 29.0), isNull);
+  });
+
+  test('1.16.0: "hangi olta ile … 19.00 dan sonra" ekipman önerisi + akşam ipucu', () async {
+    final b = KiyidabiriBeyin(SahteVeri());
+    await b.yanitla('LRF');
+    final y = await b.yanitla('bu mera da sence hangi olta ile daha güzel av olur 19.00 dan sonra');
+    expect(y.niyet, startsWith('ekipman'));
+    expect(y.metin, contains('Akşam ve gece'));
+  });
+
+  test('1.16.0: kargo 199 TL, yarısı bizden', () async {
+    final y = await KiyidabiriBeyin(SahteVeri()).yanitla('kargo ücreti ne kadar');
+    expect(y.metin, contains('199 TL'));
+    expect(y.metin, contains('yarısı bizden'));
   });
 
   test('nokta meran tanınır', () async {

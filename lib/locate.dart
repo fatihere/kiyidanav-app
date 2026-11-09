@@ -38,8 +38,12 @@ class Locate {
   static (Spot, double) nearest(double lat, double lon, {bool onlyPublic = false}) {
     Spot best = spots.first;
     var dist = double.infinity;
+    // 1.16.0: İzmit Körfezi'nde düz çizgide en yakın mera karşı kıyıda kalabilir (Dilovası → Altınova).
+    // Körfez içindeki nokta yalnız kendi kıyısındaki meralarla eşleşir.
+    final korfez = korfezKiyisi(lat, lon);
     for (final s in spots) {
       if (onlyPublic && !s.side.public) continue;
+      if (korfez != null && korfezKiyisi(s.lat, s.lon) != korfez) continue;
       final d = _km(lat, lon, s.lat, s.lon);
       if (d < dist) {
         dist = d;
@@ -47,6 +51,14 @@ class Locate {
       }
     }
     return (best, dist);
+  }
+
+  /// İzmit Körfezi içindeyse kıyı ('kuzey' | 'guney'), değilse null
+  static String? korfezKiyisi(double lat, double lon) {
+    if (lon < 29.38 || lon > 30.0 || lat < 40.66 || lat > 40.83) return null;
+    // körfezin orta hattı: batıda ~40.735, doğuda (İzmit) ~40.745
+    final orta = 40.735 + (lon - 29.38) / (30.0 - 29.38) * 0.01;
+    return lat >= orta ? 'kuzey' : 'guney';
   }
 
   static Future<void> loadPref() async {
