@@ -1,0 +1,62 @@
+name: Günlük Reels (Bugün balık kaç metrede?)
+
+# Her sabah 05:30'da (TSİ) uygulamanın KENDİ hesabıyla İstanbul'un 20 merasını o anki gerçek veriyle hesaplar,
+# 1080x1920 Reels videosunu üretir (test/gunluk_reels_test.dart + tool/gunluk_reels.sh) ve
+# kiyidanav.com/instagram/gunluk_reels_al.php'ye gönderir. Gizli anahtar yok: sunucu GitHub'ın imzalı
+# OIDC jetonunu (yalnız bu deponun main dalı) GitHub'ın açık anahtarlarıyla doğrular.
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: gunluk-reels
+  cancel-in-progress: false
+
+jobs:
+  reels:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TZ: Europe/Istanbul
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Hazırlık (ffmpeg, uygulama yazı tipleri)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg > /dev/null
+          mkdir -p assets/fonts assets/sounds assets/brand
+          curl -fsSL -o assets/fonts/Armata-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/armata/Armata-Regular.ttf"
+          curl -fsSL -o assets/fonts/Lobster-Regular.ttf "https://raw.githubusercontent.com/google/fonts/main/ofl/lobster/Lobster-Regular.ttf"
+          flutter pub get
+
+      - name: Video üret
+        run: bash tool/gunluk_reels.sh build/gunluk_reels
+
+      - name: kiyidanav.com'a gönder
+        run: |
+          JETON=$(curl -fsSL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=kiyidanav-gunluk-reels" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
+          curl -fsS --max-time 290 \
+            -H "Authorization: Bearer $JETON" -F "jeton=$JETON" \
+            -F "video=@build/gunluk_reels/gunluk_reels.mp4;type=video/mp4" \
+            -F "aciklama=@build/gunluk_reels/aciklama.txt;type=text/plain" \
+            -F "secilen=@build/gunluk_reels/secilen.json;type=application/json" \
+            https://kiyidanav.com/instagram/gunluk_reels_al.php
+          echo
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gunluk-reels
+          path: build/gunluk_reels
+          retention-days: 7

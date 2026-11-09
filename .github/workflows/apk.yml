@@ -3,6 +3,12 @@ name: APK ve AAB derle
 on:
   push:
     branches: [main]
+    # Günlük Reels üreticisi uygulamayı değiştirmez: yalnız onun dosyaları değişince derleme yapılmaz
+    paths-ignore:
+      - 'test/gunluk_reels/**'
+      - 'test/gunluk_reels_test.dart'
+      - 'tool/gunluk_reels.sh'
+      - '.github/workflows/gunluk-reels.yml'
   workflow_dispatch:
 
 permissions:
