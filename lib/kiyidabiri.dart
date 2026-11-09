@@ -116,6 +116,8 @@ class KiyidabiriSes {
   static FlutterTts? _tts;
   static bool _karsiladi = false;
   static const karsilamaSozu = 'Merhaba ben Kıyıdabiri, sana yardımcı olmak için buradayım.';
+  /// 1.16.0: üye olmayan kullanıcıya
+  static const misafirSozu = 'Merhaba ben Kıyıdabiri. Benimle sohbet etmek üyelere özel; ücretsiz üye olursan meranı birlikte konuşalım.';
 
   static Future<FlutterTts> _al() async {
     final t = _tts ??= FlutterTts();
@@ -202,7 +204,7 @@ class KiyidabiriSes {
   static Future<void> karsila() async {
     if (_karsiladi || !KiyidabiriAyar.sesli.value || !KiyidabiriAyar.gorunur.value) return;
     _karsiladi = true;
-    await konus(karsilamaSozu, tekrarDene: true);
+    await konus(appState.isMember ? karsilamaSozu : misafirSozu, tekrarDene: true);
   }
 }
 
@@ -679,6 +681,11 @@ class KiyidabiriSohbet extends StatefulWidget {
 }
 
 class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
+  bool get uye => appState.isMember;
+  void _uyeDegisti() {
+    if (mounted) setState(() {});
+  }
+
   final _yazi = TextEditingController();
   final _kaydir = ScrollController();
   bool _dusunuyor = false;
@@ -694,6 +701,7 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
       _b = _beyin ??= KiyidabiriBeyin(_UygulamaVerisi());
     }
     unawaited(_b.hazirla());
+    memberNotifier.addListener(_uyeDegisti); // giriş/üyelik sonrası sohbet açılır
     if (_gecmis.isEmpty) {
       _gecmis.add(_Mesaj(true, KiyidabiriBeyin.karsilama, secenekler: _b.acilisSecenekleri));
       KbKayit.ekle('robot', KiyidabiriBeyin.karsilama, niyet: 'karsilama');
@@ -708,6 +716,7 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
 
   @override
   void dispose() {
+    memberNotifier.removeListener(_uyeDegisti);
     _yazi.dispose();
     _kaydir.dispose();
     KiyidabiriSes.dur();
@@ -877,6 +886,10 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
                 onPressed: () => setState(() => KiyidabiriAyar.gizlilikOnay()), child: const Text('Tamam')),
           ]),
         ),
+      // 1.16.0: Kıyıdabiri yalnızca üyelere özel; misafire üye ol / giriş yap (testte sahte veriyle atlanır)
+      if (widget.veri == null && !uye)
+        const Expanded(child: _UyeKapisi())
+      else ...[
       Expanded(
         child: ListView.builder(
           controller: _kaydir,
@@ -958,6 +971,47 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
             ),
           ]),
         ),
+      ),
+      ],
+    ]);
+  }
+}
+
+/// 1.16.0: Kıyıdabiri yalnızca üyelere özel — misafire üye ol / giriş yap
+class _UyeKapisi extends StatelessWidget {
+  const _UyeKapisi();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(padding: const EdgeInsets.fromLTRB(24, 28, 24, 24), children: [
+      const Center(child: KiyidabiriRobot(boy: 96)),
+      const SizedBox(height: 16),
+      const Text('Kıyıdabiri yalnızca üyelere özel',
+          textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Tide.zeytinKoyu)),
+      const SizedBox(height: 10),
+      const Text(
+          'Ücretsiz üye ol; Kıyıdabiri meranın bugünkü durumunu, balığın kaç metrede olduğunu ve hangi takımla atacağını '
+          'sana söylesin. Bilmediği soruları da araştırıp cevabını bildirimle göndersin.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 15, height: 1.4)),
+      const SizedBox(height: 22),
+      FilledButton.icon(
+        style: FilledButton.styleFrom(backgroundColor: Tide.turuncu, padding: const EdgeInsets.symmetric(vertical: 14)),
+        onPressed: () {
+          KbKayit.ekle('robot', 'Misafir: üye ol', niyet: 'misafir_uye_ol');
+          openLogin(context, register: true);
+        },
+        icon: const Icon(Icons.person_add_alt_1),
+        label: const Text('Ücretsiz üye ol', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+      ),
+      const SizedBox(height: 10),
+      OutlinedButton(
+        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 14)),
+        onPressed: () {
+          KbKayit.ekle('robot', 'Misafir: giriş yap', niyet: 'misafir_giris');
+          openLogin(context);
+        },
+        child: const Text('Üyeyim, giriş yap', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
       ),
     ]);
   }
