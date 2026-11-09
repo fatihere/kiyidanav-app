@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'catches.dart';
 import 'cevrimdisi.dart';
 import 'config.dart';
 import 'demo_data.dart';
@@ -32,16 +33,18 @@ class Api {
   /// Örnek verilerle mi çalışıyoruz?
   static bool demo = false;
 
-  static Future<Map<String, dynamic>> _get(Map<String, String> q) async {
+  static Future<Map<String, dynamic>> _get(Map<String, String> q, {String? uyeAnahtari}) async {
     final uri = Uri.parse(AppConfig.apiUrl).replace(queryParameters: q);
     if (uri.scheme != 'https') throw const ApiUnavailable(); // şifresiz bağlantı yok
     http.Response res;
     try {
       // Çevrimdışı mod: ayarlar her zaman, diğerleri modül açıksa son kayıttan
       res = await Cevrimdisi.get(uri,
-          headers: const {
+          headers: {
             'Accept': 'application/json',
             'User-Agent': 'KiyidanAv-Android/1.0',
+            // 1.16.0: üyeye özel ayarlar (ör. panelden üyeye göre ekran görüntüsü engeli)
+            if (uyeAnahtari != null) 'X-Av-Anahtar': uyeAnahtari,
           },
           herZaman: q['a'] == 'config',
           // Mağaza listeleri (ana sayfa, ürünler) saklanmaz; yalnız mera raporuyla ilgili olanlar
@@ -87,7 +90,8 @@ class Api {
   static Future<RemoteConfig> loadConfig() async {
     try {
       // Kurulu sürüm sunucuya bildirilir: yeni sürüm telefonlara ulaşınca herkese otomatik bildirim gider
-      final j = await _get({
+      final uye = await CatchService.token();
+      final j = await _get(uyeAnahtari: uye, {
         'a': 'config',
         if (AppUpdate.build.isNotEmpty) 'v': AppUpdate.build,
         if (AppUpdate.name.isNotEmpty) 'n': AppUpdate.name,

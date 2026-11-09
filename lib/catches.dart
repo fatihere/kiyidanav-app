@@ -5,6 +5,8 @@ import 'dart:io' show PathNotFoundException, SocketException;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'api.dart';
+import 'ekran_koruma.dart';
 import 'cevrimdisi.dart';
 import 'config.dart';
 import 'moduller.dart';
@@ -203,6 +205,8 @@ class CatchService {
         await p.setString(_tokenKey, t);
       }
     } catch (_) {}
+    // 1.16.0: giriş / çıkış sonrası üyeye özel ayarları (ekran görüntüsü engeli) yenile
+    unawaited(Api.loadConfig().then((_) => EkranKoruma.uygula()));
   }
 
   /// Av bildirimi gönderir. Hata mesajını döndürür (başarıda null).
