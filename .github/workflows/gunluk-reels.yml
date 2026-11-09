@@ -46,13 +46,14 @@ jobs:
         run: |
           JETON=$(curl -fsSL -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=kiyidanav-gunluk-reels" | python3 -c 'import sys,json;print(json.load(sys.stdin)["value"])')
-          curl -fsS --max-time 290 \
+          KOD=$(curl -sS -o yanit.txt -w '%{http_code}' --max-time 290 \
             -H "Authorization: Bearer $JETON" -F "jeton=$JETON" \
             -F "video=@build/gunluk_reels/gunluk_reels.mp4;type=video/mp4" \
             -F "aciklama=@build/gunluk_reels/aciklama.txt;type=text/plain" \
             -F "secilen=@build/gunluk_reels/secilen.json;type=application/json" \
-            https://kiyidanav.com/instagram/gunluk_reels_al.php
-          echo
+            https://kiyidanav.com/instagram/gunluk_reels_al.php)
+          echo "HTTP $KOD"; head -c 2000 yanit.txt; echo
+          [ "$KOD" = "200" ]
 
       - uses: actions/upload-artifact@v4
         if: always()
