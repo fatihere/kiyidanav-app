@@ -67,16 +67,26 @@ const noktaMeraEtiketi = 'Nokta meran';
 /// Avrupa yakası: Rumelifeneri'nden Semizkum'a (sarı hat)
 const spots = [
   Spot('Riva', 41.225, 29.225, Side.anadolu),
+  Spot('Anadolu Kavağı', 41.172, 29.088, Side.anadolu, strait: true), // 1.16.0
+  Spot('Kanlıca', 41.100, 29.067, Side.anadolu, strait: true), // 1.16.0
   Spot('Beykoz', 41.132, 29.100, Side.anadolu, strait: true),
   Spot('Üsküdar', 41.025, 29.012, Side.anadolu),
+  Spot('Çengelköy', 41.051, 29.055, Side.anadolu, strait: true), // 1.16.0
   Spot('Moda', 40.980, 29.025, Side.anadolu),
+  Spot('Caddebostan', 40.967, 29.066, Side.anadolu), // 1.16.0
+  Spot('Bostancı', 40.953, 29.095, Side.anadolu), // 1.16.0
   Spot('Maltepe', 40.920, 29.130, Side.anadolu),
+  Spot('Kınalıada', 40.909, 29.049, Side.anadolu), // 1.16.0
+  Spot('Heybeliada', 40.876, 29.089, Side.anadolu), // 1.16.0
+  Spot('Büyükada', 40.859, 29.121, Side.anadolu), // 1.16.0
   Spot('Kartal', 40.885, 29.185, Side.anadolu),
   Spot('Pendik', 40.870, 29.235, Side.anadolu),
   Spot('Tuzla', 40.815, 29.300, Side.anadolu),
   Spot('Darıca', 40.760, 29.380, Side.anadolu),
   Spot('Rumelifeneri', 41.235, 29.110, Side.avrupa),
   Spot('Garipçe', 41.214, 29.108, Side.avrupa),
+  Spot('Rumelikavağı', 41.182, 29.072, Side.avrupa, strait: true), // 1.16.0
+  Spot('Tarabya', 41.134, 29.046, Side.avrupa, strait: true), // 1.16.0
   Spot('Sarıyer', 41.168, 29.057, Side.avrupa, strait: true),
   Spot('Bebek', 41.077, 29.044, Side.avrupa, strait: true),
   Spot('Karaköy', 41.021, 28.975, Side.avrupa),
@@ -85,6 +95,8 @@ const spots = [
   Spot('Florya', 40.968, 28.795, Side.avrupa),
   Spot('Avcılar', 40.975, 28.715, Side.avrupa),
   Spot('Büyükçekmece', 41.010, 28.585, Side.avrupa),
+  Spot('Kumburgaz', 41.030, 28.454, Side.avrupa), // 1.16.0
+  Spot('Selimpaşa', 41.055, 28.368, Side.avrupa), // 1.16.0
   Spot('Semizkum', 41.043, 28.470, Side.avrupa),
 
   // Karadeniz: İğneada (Kırklareli) - Kemalpaşa (Artvin)
@@ -94,29 +106,60 @@ const spots = [
   Spot('Karaburun', 41.360, 28.690, Side.karadeniz),
   Spot('Kilyos', 41.258, 29.025, Side.karadeniz),
   Spot('Şile', 41.185, 29.610, Side.karadeniz),
+  Spot('Ağva', 41.138, 29.857, Side.karadeniz), // 1.16.0
+  Spot('Kerpe', 41.159, 30.195, Side.karadeniz), // 1.16.0
   Spot('Kefken', 41.182, 30.240, Side.karadeniz),
   Spot('Karasu', 41.120, 30.690, Side.karadeniz),
   Spot('Akçakoca', 41.095, 31.120, Side.karadeniz),
+  Spot('Ereğli', 41.283, 31.418, Side.karadeniz), // 1.16.0
+  Spot('Alaplı', 41.181, 31.385, Side.karadeniz), // 1.16.0
   Spot('Zonguldak', 41.465, 31.785, Side.karadeniz),
+  Spot('Filyos', 41.554, 32.024, Side.karadeniz), // 1.16.0
   Spot('Amasra', 41.755, 32.385, Side.karadeniz),
+  Spot('Kurucaşile', 41.838, 32.716, Side.karadeniz), // 1.16.0
   Spot('Cide', 41.905, 33.005, Side.karadeniz),
+  Spot('Abana', 41.979, 34.011, Side.karadeniz), // 1.16.0
+  Spot('Türkeli', 41.948, 34.339, Side.karadeniz), // 1.16.0
+  Spot('Ayancık', 41.945, 34.586, Side.karadeniz), // 1.16.0
+  Spot('Doğanyurt', 42.005, 33.460, Side.karadeniz), // 1.16.0
   Spot('İnebolu', 41.985, 33.765, Side.karadeniz),
   Spot('Sinop', 42.025, 35.160, Side.karadeniz),
+  Spot('Yakakent', 41.633, 35.529, Side.karadeniz), // 1.16.0
+  Spot('Gerze', 41.804, 35.201, Side.karadeniz), // 1.16.0
   Spot('Samsun', 41.300, 36.350, Side.karadeniz),
+  Spot('Atakum', 41.330, 36.270, Side.karadeniz), // 1.16.0
   Spot('Ünye', 41.140, 37.290, Side.karadeniz),
+  Spot('Fatsa', 41.029, 37.500, Side.karadeniz), // 1.16.0
+  Spot('Perşembe', 41.066, 37.771, Side.karadeniz), // 1.16.0
   Spot('Ordu', 41.000, 37.890, Side.karadeniz),
+  Spot('Bulancak', 40.938, 38.231, Side.karadeniz), // 1.16.0
   Spot('Giresun', 40.925, 38.400, Side.karadeniz),
   Spot('Trabzon', 41.010, 39.730, Side.karadeniz),
+  Spot('Yomra', 40.953, 39.855, Side.karadeniz), // 1.16.0
+  Spot('Görele', 41.031, 39.003, Side.karadeniz), // 1.16.0
+  Spot('Tirebolu', 41.007, 38.814, Side.karadeniz), // 1.16.0
+  Spot('Akçaabat', 41.021, 39.571, Side.karadeniz), // 1.16.0
+  Spot('Of', 40.941, 40.259, Side.karadeniz), // 1.16.0
+  Spot('Sürmene', 40.906, 40.128, Side.karadeniz), // 1.16.0
   Spot('Rize', 41.035, 40.520, Side.karadeniz),
+  Spot('Ardeşen', 41.191, 40.979, Side.karadeniz), // 1.16.0
+  Spot('Pazar', 41.180, 40.887, Side.karadeniz), // 1.16.0
+  Spot('Fındıklı', 41.269, 41.140, Side.karadeniz), // 1.16.0
   Spot('Hopa', 41.410, 41.415, Side.karadeniz),
+  Spot('Arhavi', 41.351, 41.305, Side.karadeniz), // 1.16.0
   Spot('Kemalpaşa', 41.495, 41.525, Side.karadeniz),
 
   // İzmit Körfezi: Darıca - Dereköy (Karamürsel)
   Spot('Eskihisar', 40.765, 29.425, Side.izmit, strait: true, shelter: 'Körfez'),
+  Spot('Dilovası', 40.789, 29.542, Side.izmit, strait: true, shelter: 'Körfez'), // 1.16.0
+  Spot('Tavşancıl', 40.771, 29.572, Side.izmit, strait: true, shelter: 'Körfez'), // 1.16.0
   Spot('Hereke', 40.787, 29.625, Side.izmit, strait: true, shelter: 'Körfez'),
   Spot('İzmit', 40.755, 29.935, Side.izmit, strait: true, shelter: 'Körfez'),
+  Spot('Değirmendere', 40.720, 29.781, Side.izmit, strait: true, shelter: 'Körfez'), // 1.16.0
+  Spot('Halıdere', 40.716, 29.752, Side.izmit, strait: true, shelter: 'Körfez'), // 1.16.0
   Spot('Gölcük', 40.722, 29.822, Side.izmit, strait: true, shelter: 'Körfez'),
   Spot('Karamürsel', 40.697, 29.612, Side.izmit, strait: true, shelter: 'Körfez'),
+  Spot('Hersek', 40.724, 29.504, Side.izmit, strait: true, shelter: 'Körfez'), // 1.16.0
   Spot('Dereköy', 40.700, 29.525, Side.izmit, strait: true, shelter: 'Körfez'),
 
   // Trakya: Gümüşyaka (Silivri) - Gaziömerbey (Enez)
@@ -124,9 +167,11 @@ const spots = [
   Spot('Gümüşyaka', 41.055, 28.030, Side.trakya),
   Spot('Marmaraereğlisi', 40.962, 27.955, Side.trakya),
   Spot('Tekirdağ', 40.968, 27.515, Side.trakya),
+  Spot('Barbaros', 40.906, 27.467, Side.trakya), // 1.16.0
   Spot('Kumbağ', 40.862, 27.455, Side.trakya),
   Spot('Mürefte', 40.662, 27.240, Side.trakya),
   Spot('Şarköy', 40.607, 27.115, Side.trakya),
+  Spot('Bolayır', 40.515, 26.757, Side.trakya), // 1.16.0
   Spot('Gelibolu', 40.405, 26.672, Side.trakya, strait: true),
   Spot('Eceabat', 40.185, 26.352, Side.trakya, strait: true),
   Spot('Saros', 40.662, 26.580, Side.trakya),
@@ -135,58 +180,124 @@ const spots = [
   // Güney Marmara ve Çanakkale: Altınova (Yalova) - Küçükkuyu (Ayvacık)
   Spot('Altınova', 40.705, 29.505, Side.guneyMarmara, strait: true, shelter: 'Körfez'),
   Spot('Yalova', 40.668, 29.280, Side.guneyMarmara),
+  Spot('Çınarcık', 40.645, 29.125, Side.guneyMarmara), // 1.16.0
   Spot('Armutlu', 40.530, 28.825, Side.guneyMarmara),
+  Spot('Esenköy', 40.617, 28.957, Side.guneyMarmara), // 1.16.0
   Spot('Gemlik', 40.440, 29.130, Side.guneyMarmara, strait: true, shelter: 'Körfez'),
+  Spot('Kumyaka', 40.384, 28.825, Side.guneyMarmara, strait: true, shelter: 'Körfez'), // 1.16.0
+  Spot('Zeytinbağı', 40.391, 28.796, Side.guneyMarmara, strait: true, shelter: 'Körfez'), // 1.16.0
   Spot('Mudanya', 40.385, 28.880, Side.guneyMarmara),
   Spot('Bandırma', 40.365, 27.975, Side.guneyMarmara),
   Spot('Erdek', 40.400, 27.790, Side.guneyMarmara),
+  Spot('Marmara Adası', 40.586, 27.555, Side.guneyMarmara), // 1.16.0
+  Spot('Avşa', 40.501, 27.495, Side.guneyMarmara), // 1.16.0
   Spot('Karabiga', 40.415, 27.300, Side.guneyMarmara),
   Spot('Lapseki', 40.350, 26.690, Side.guneyMarmara, strait: true),
+  Spot('Şevketiye', 40.396, 26.872, Side.guneyMarmara, strait: true), // 1.16.0
+  Spot('Çardak', 40.385, 26.715, Side.guneyMarmara, strait: true), // 1.16.0
   Spot('Çanakkale', 40.150, 26.400, Side.guneyMarmara, strait: true),
+  Spot('Kilitbahir', 40.149, 26.381, Side.guneyMarmara, strait: true), // 1.16.0
+  Spot('Kepez', 40.103, 26.399, Side.guneyMarmara, strait: true), // 1.16.0
+  Spot('Kabatepe', 40.201, 26.271, Side.guneyMarmara), // 1.16.0
+  Spot('Kumkale', 39.981, 26.237, Side.guneyMarmara), // 1.16.0
+  Spot('Güzelyalı', 40.042, 26.343, Side.guneyMarmara, strait: true), // 1.16.0
+  Spot('Gökçeada', 40.201, 25.909, Side.guneyMarmara), // 1.16.0
+  Spot('Bozcaada', 39.835, 26.070, Side.guneyMarmara), // 1.16.0
+  Spot('Geyikli', 39.805, 26.207, Side.guneyMarmara), // 1.16.0
   Spot('Babakale', 39.480, 26.060, Side.guneyMarmara),
+  Spot('Gülpınar', 39.533, 26.121, Side.guneyMarmara), // 1.16.0
   Spot('Assos', 39.485, 26.335, Side.guneyMarmara),
   Spot('Küçükkuyu', 39.540, 26.605, Side.guneyMarmara),
 
   // Ege: Küçükkuyu - Selçuk (İzmir)
+  Spot('Ören', 39.490, 26.950, Side.ege), // 1.16.0
   Spot('Akçay', 39.580, 26.910, Side.ege),
+  Spot('Altınoluk', 39.579, 26.737, Side.ege), // 1.16.0
+  Spot('Cunda', 39.332, 26.660, Side.ege), // 1.16.0
+  Spot('Sarımsaklı', 39.271, 26.652, Side.ege), // 1.16.0
   Spot('Ayvalık', 39.315, 26.680, Side.ege),
   Spot('Dikili', 39.070, 26.880, Side.ege),
   Spot('Çandarlı', 38.930, 26.940, Side.ege),
+  Spot('Aliağa', 38.800, 26.972, Side.ege), // 1.16.0
+  Spot('Yenifoça', 38.733, 26.833, Side.ege), // 1.16.0
   Spot('Foça', 38.670, 26.745, Side.ege),
   Spot('Karşıyaka', 38.445, 27.085, Side.ege, strait: true, shelter: 'Körfez'),
+  Spot('İnciraltı', 38.404, 27.031, Side.ege, strait: true, shelter: 'Körfez'), // 1.16.0
+  Spot('Güzelbahçe', 38.360, 26.887, Side.ege, strait: true, shelter: 'Körfez'), // 1.16.0
   Spot('Urla', 38.370, 26.765, Side.ege),
+  Spot('Gülbahçe', 38.332, 26.645, Side.ege), // 1.16.0
+  Spot('Mordoğan', 38.516, 26.625, Side.ege), // 1.16.0
+  Spot('Ildırı', 38.385, 26.480, Side.ege), // 1.16.0
+  Spot('Alaçatı', 38.282, 26.375, Side.ege), // 1.16.0
   Spot('Çeşme', 38.325, 26.295, Side.ege),
   Spot('Sığacık', 38.195, 26.780, Side.ege),
+  Spot('Gümüldür', 38.076, 27.020, Side.ege), // 1.16.0
+  Spot('Ürkmez', 38.079, 26.958, Side.ege), // 1.16.0
+  Spot('Özdere', 38.016, 27.128, Side.ege), // 1.16.0
   Spot('Pamucak', 37.945, 27.270, Side.ege),
 
   // Güney Ege: Kuşadası - Marmaris (1.12.0)
   Spot('Kuşadası', 37.862, 27.248, Side.guneyEge),
+  Spot('Güzelçamlı', 37.713, 27.228, Side.guneyEge), // 1.16.0
+  Spot('Davutlar', 37.734, 27.293, Side.guneyEge), // 1.16.0
   Spot('Didim', 37.368, 27.262, Side.guneyEge),
+  Spot('Akbük', 37.391, 27.434, Side.guneyEge), // 1.16.0
   Spot('Güllük', 37.238, 27.598, Side.guneyEge, strait: true, shelter: 'Körfez'),
   Spot('Turgutreis', 37.002, 27.252, Side.guneyEge),
+  Spot('Gümüşlük', 37.054, 27.240, Side.guneyEge), // 1.16.0
+  Spot('Akyarlar', 36.968, 27.291, Side.guneyEge), // 1.16.0
+  Spot('Bitez', 37.033, 27.378, Side.guneyEge), // 1.16.0
+  Spot('Yalıkavak', 37.105, 27.297, Side.guneyEge), // 1.16.0
+  Spot('Türkbükü', 37.133, 27.374, Side.guneyEge), // 1.16.0
+  Spot('Torba', 37.079, 27.458, Side.guneyEge), // 1.16.0
   Spot('Bodrum', 37.028, 27.428, Side.guneyEge),
   Spot('Akyaka', 37.048, 28.318, Side.guneyEge, strait: true, shelter: 'Körfez'),
   Spot('Datça', 36.718, 27.688, Side.guneyEge),
+  Spot('Palamutbükü', 36.659, 27.510, Side.guneyEge), // 1.16.0
+  Spot('Bozburun', 36.695, 28.043, Side.guneyEge), // 1.16.0
+  Spot('Turunç', 36.774, 28.248, Side.guneyEge), // 1.16.0
+  Spot('İçmeler', 36.799, 28.226, Side.guneyEge), // 1.16.0
   Spot('Marmaris', 36.842, 28.268, Side.guneyEge, strait: true, shelter: 'Koy'),
 
   // Akdeniz: Sarıgerme - Samandağ (1.12.0)
+  Spot('İztuzu', 36.795, 28.622, Side.akdeniz), // 1.16.0
   Spot('Sarıgerme', 36.705, 28.692, Side.akdeniz),
+  Spot('Göcek', 36.753, 28.946, Side.akdeniz, strait: true, shelter: 'Körfez'), // 1.16.0
+  Spot('Ölüdeniz', 36.567, 29.145, Side.akdeniz), // 1.16.0
   Spot('Fethiye', 36.628, 29.098, Side.akdeniz, strait: true, shelter: 'Körfez'),
   Spot('Kalkan', 36.258, 29.412, Side.akdeniz),
   Spot('Kaş', 36.195, 29.638, Side.akdeniz),
+  Spot('Demre', 36.244, 29.985, Side.akdeniz), // 1.16.0
   Spot('Finike', 36.288, 30.152, Side.akdeniz),
+  Spot('Adrasan', 36.305, 30.478, Side.akdeniz), // 1.16.0
   Spot('Kemer', 36.598, 30.568, Side.akdeniz),
+  Spot('Çıralı', 36.417, 30.480, Side.akdeniz), // 1.16.0
+  Spot('Tekirova', 36.502, 30.527, Side.akdeniz), // 1.16.0
+  Spot('Göynük', 36.660, 30.550, Side.akdeniz), // 1.16.0
+  Spot('Beldibi', 36.719, 30.564, Side.akdeniz), // 1.16.0
   Spot('Konyaaltı', 36.858, 30.628, Side.akdeniz),
   Spot('Lara', 36.848, 30.838, Side.akdeniz),
+  Spot('Belek', 36.863, 31.065, Side.akdeniz), // 1.16.0
   Spot('Side', 36.762, 31.392, Side.akdeniz),
+  Spot('Kızılot', 36.715, 31.566, Side.akdeniz), // 1.16.0
+  Spot('Avsallar', 36.624, 31.769, Side.akdeniz), // 1.16.0
+  Spot('Konaklı', 36.593, 31.895, Side.akdeniz), // 1.16.0
   Spot('Alanya', 36.535, 31.998, Side.akdeniz),
+  Spot('Mahmutlar', 36.495, 32.091, Side.akdeniz), // 1.16.0
+  Spot('Demirtaş', 36.426, 32.193, Side.akdeniz), // 1.16.0
   Spot('Gazipaşa', 36.262, 32.302, Side.akdeniz),
   Spot('Anamur', 36.012, 32.835, Side.akdeniz),
+  Spot('Bozyazı', 36.108, 32.961, Side.akdeniz), // 1.16.0
+  Spot('Aydıncık', 36.144, 33.320, Side.akdeniz), // 1.16.0
   Spot('Taşucu', 36.305, 33.885, Side.akdeniz),
+  Spot('Kızkalesi', 36.462, 34.142, Side.akdeniz), // 1.16.0
   Spot('Erdemli', 36.598, 34.318, Side.akdeniz),
+  Spot('Kazanlı', 36.816, 34.758, Side.akdeniz), // 1.16.0
+  Spot('Mezitli', 36.745, 34.523, Side.akdeniz), // 1.16.0
   Spot('Mersin', 36.775, 34.635, Side.akdeniz),
   Spot('Karataş', 36.555, 35.385, Side.akdeniz),
   Spot('Yumurtalık', 36.765, 35.792, Side.akdeniz, strait: true, shelter: 'Körfez'),
+  Spot('Dörtyol', 36.839, 36.230, Side.akdeniz, strait: true, shelter: 'Körfez'), // 1.16.0
   Spot('İskenderun', 36.598, 36.175, Side.akdeniz, strait: true, shelter: 'Körfez'),
   Spot('Arsuz', 36.405, 35.882, Side.akdeniz),
   Spot('Samandağ', 36.085, 35.945, Side.akdeniz),

@@ -94,7 +94,8 @@ const bolgeAgirlik = <String, Map<String, int>>{
     'akya': 2, 'iskorpit': 2, 'istavrit': 2, 'levrek': 1, 'sarikuyruk': 1, 'barbunya': 1, 'kolyoz': 1},
 };
 
-const _kuzeyEge = {'Enez', 'Saros', 'Gelibolu', 'Eceabat', 'Lapseki', 'Çanakkale', 'Babakale', 'Assos', 'Küçükkuyu'};
+const _kuzeyEge = {'Enez', 'Saros', 'Gelibolu', 'Eceabat', 'Lapseki', 'Çanakkale', 'Babakale', 'Assos', 'Küçükkuyu',
+  'Bolayır', 'Bozcaada', 'Geyikli', 'Gökçeada', 'Gülpınar', 'Güzelyalı', 'Kabatepe', 'Kepez', 'Kilitbahir', 'Kumkale', 'Çardak', 'Şevketiye'};
 
 /// Meranın balık bölgesi
 String balikBolgesi(Spot s) {
@@ -172,4 +173,6 @@ const varsayilanKiyiYonu = <String, int>{
   'Sarıgerme': 180, 'Fethiye': 330, 'Kalkan': 200, 'Kaş': 180, 'Finike': 160, 'Kemer': 90, 'Konyaaltı': 150, 'Lara': 180,
   'Side': 200, 'Alanya': 180, 'Gazipaşa': 210, 'Anamur': 180, 'Taşucu': 180, 'Erdemli': 150, 'Mersin': 160, 'Karataş': 180,
   'Yumurtalık': 180, 'İskenderun': 300, 'Arsuz': 270, 'Samandağ': 250,
+  // 1.16.0 yeni meralar
+  'Anadolu Kavağı': 270, 'Bostancı': 225, 'Büyükada': 89, 'Caddebostan': 202, 'Heybeliada': 262, 'Kanlıca': 270, 'Kınalıada': 322, 'Çengelköy': 270, 'Kumburgaz': 210, 'Rumelikavağı': 90, 'Selimpaşa': 195, 'Tarabya': 90, 'Abana': 0, 'Akçaabat': 30, 'Alaplı': 300, 'Ardeşen': 345, 'Arhavi': 338, 'Atakum': 0, 'Ayancık': 15, 'Ağva': 15, 'Bulancak': 352, 'Doğanyurt': 8, 'Ereğli': 225, 'Fatsa': 38, 'Filyos': 321, 'Fındıklı': 315, 'Gerze': 82, 'Görele': 8, 'Kerpe': 338, 'Kurucaşile': 352, 'Of': 315, 'Pazar': 345, 'Perşembe': 90, 'Sürmene': 345, 'Tirebolu': 330, 'Türkeli': 345, 'Yakakent': 0, 'Yomra': 38, 'Değirmendere': 352, 'Dilovası': 172, 'Halıdere': 345, 'Hersek': 311, 'Tavşancıl': 172, 'Barbaros': 120, 'Bolayır': 308, 'Avşa': 308, 'Bozcaada': 52, 'Esenköy': 315, 'Geyikli': 270, 'Gökçeada': 352, 'Gülpınar': 285, 'Güzelyalı': 292, 'Kabatepe': 292, 'Kepez': 300, 'Kilitbahir': 90, 'Kumkale': 8, 'Kumyaka': 15, 'Marmara Adası': 195, 'Zeytinbağı': 352, 'Çardak': 315, 'Çınarcık': 0, 'Şevketiye': 0, 'Alaçatı': 82, 'Aliağa': 338, 'Altınoluk': 172, 'Cunda': 172, 'Gülbahçe': 68, 'Gümüldür': 210, 'Güzelbahçe': 338, 'Ildırı': 0, 'Mordoğan': 75, 'Sarımsaklı': 188, 'Yenifoça': 15, 'Ören': 260, 'Özdere': 210, 'Ürkmez': 165, 'İnciraltı': 22, 'Akbük': 255, 'Akyarlar': 180, 'Bitez': 180, 'Bozburun': 195, 'Davutlar': 292, 'Gümüşlük': 232, 'Güzelçamlı': 338, 'Palamutbükü': 135, 'Torba': 30, 'Turunç': 82, 'Türkbükü': 90, 'Yalıkavak': 292, 'İçmeler': 52, 'Adrasan': 90, 'Avsallar': 240, 'Aydıncık': 158, 'Beldibi': 90, 'Belek': 188, 'Bozyazı': 188, 'Demirtaş': 240, 'Demre': 165, 'Dörtyol': 240, 'Göcek': 202, 'Göynük': 112, 'Kazanlı': 188, 'Konaklı': 195, 'Kızkalesi': 158, 'Kızılot': 210, 'Mahmutlar': 232, 'Mezitli': 135, 'Tekirova': 112, 'Çıralı': 112, 'Ölüdeniz': 232, 'İztuzu': 180,
 };
