@@ -57,10 +57,10 @@ String aciklama(List<MeraGunu> uc, DateTime now) {
         'küçük balık ${m.k.kucuk} · ${m.k.takim} · rüzgâr ${m.r.effectiveWind.round()} km/s ${kucukHarf(m.r.windFrom)}'
         '${m.spot.strait ? "" : ", dalga ${ondalik(m.r.effectiveWave)} m"}');
   }
-  b.writeln('\nKendi meran için Kıyıdabiri\'ye sor: KıyıdanAv uygulaması, link profilde 👆');
-  b.writeln('Veriler: Open-Meteo deniz/hava tahmini + KıyıdanAv mera kesitleri, '
-      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} itibarıyla.');
-  b.write('\n#balıkavı #istanbul #kıyıdanav #levrek #lüfer #spin #lrf #surfcasting #balıkçılık #olta');
+  b.writeln('\n📲 Senin meranda balık bugün kaç metrede? Rüzgâr, dalga, mesafe ve takım önerisi KıyıdanAv uygulamasında, '
+      'Türkiye kıyıları için canlı. Ücretsiz indir: link profilde 👆');
+  b.writeln('✅ Balık kaç metrede  ✅ Canlı mera raporu  ✅ Kıyıdabiri asistanı  (Google Play · App Store)');
+  b.write('\n#balıkavı #istanbul #kıyıdanav #levrek #lüfer #spin #lrf #surfcasting #balıkçılık #olta #balıkçılıkuygulaması');
   return b.toString();
 }
 

@@ -650,36 +650,73 @@ List<Sahne> sahneler(List<MeraGunu> uc, DateTime now, Tema tm, Kaynaklar kn) {
     ]);
   }));
 
-  // 4) ÇAĞRI: Kıyıdabiri robotu
-  S.add(Sahne(2.4, (sec) {
+  // 4) ÇAĞRI: uygulamayı ücretsiz indir (Kıyıdabiri robotu, özellikler, mağazalar)
+  S.add(Sahne(3.2, (sec) {
     final g = geri(sec / 0.45);
+    final nabiz = 1 + 0.05 * math.sin(sec * 7);
+    Widget ozellik(String m, double gecikme) => Opacity(
+        opacity: ease((sec - gecikme) / 0.3),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 14),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.check_circle, color: Colors.white, size: 52),
+            const SizedBox(width: 16),
+            Text(m, style: ts(fGov, 48, Colors.white)),
+          ]),
+        ));
+    Widget magaza(IconData ic, String ad) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 16),
+          decoration: BoxDecoration(color: const Color(0xFF14161F), borderRadius: BorderRadius.circular(22)),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Icon(ic, color: Colors.white, size: 54),
+            const SizedBox(width: 12),
+            Text(ad, style: ts(fBasB, 50, Colors.white, golge: false)),
+          ]),
+        );
     return Stack(children: [
       Positioned.fill(
           child: DecoratedBox(
               decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: tm.cta)))),
-      Positioned.fill(child: Opacity(opacity: 0.35, child: zemin(en, sec + 20, ufuk: 0.78))),
+      Positioned.fill(child: Opacity(opacity: 0.3, child: zemin(en, sec + 20, ufuk: 0.8))),
       if (kn.robot != null)
         Positioned(
-          left: 0, right: 0, top: 180 + math.sin(sec * 4) * 14,
-          child: Center(child: Transform.scale(scale: g, child: SizedBox(width: 400, height: 400, child: RawImage(image: kn.robot, fit: BoxFit.contain)))),
+          left: 0, right: 0, top: 150 + math.sin(sec * 4) * 12,
+          child: Center(child: Transform.scale(scale: g, child: SizedBox(width: 300, height: 300, child: RawImage(image: kn.robot, fit: BoxFit.contain)))),
         ),
       Positioned(
-        left: 60, right: 60, top: 640,
+        left: 60, right: 60, top: 480,
         child: Transform.scale(
           scale: 0.85 + 0.15 * g,
           child: Column(children: [
-            sigdir('KENDİ MERANI SOR', ts(fBas, 170, Colors.white, h: 1), orta: true),
-            const SizedBox(height: 26),
-            Text('Kıyıdabiri, meran için kaç metrede\nve hangi takımla atacağını söyler', textAlign: TextAlign.center,
-                style: ts(fGov, 50, Colors.white, h: 1.25)),
-            const SizedBox(height: 56),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 46, vertical: 24),
-              decoration: BoxDecoration(color: const Color(0xFF14161F), borderRadius: BorderRadius.circular(60)),
-              child: Text('KIYIDANAV · LİNK PROFİLDE', style: ts(fBasB, 64, Colors.white, ls: 1, golge: false)),
+            sigdir('SENİN MERAN', ts(fBas, 150, Colors.white, h: 1), orta: true),
+            sigdir('BUGÜN NE DURUMDA?', ts(fBas, 120, const Color(0xFF14161F), h: 1, golge: false), orta: true),
+            const SizedBox(height: 36),
+            ozellik('Balık bugün kaç metrede', 0.35),
+            ozellik('Canlı rüzgâr, dalga ve takım', 0.5),
+            ozellik('Kıyıdabiri asistanına sor', 0.65),
+            const SizedBox(height: 30),
+            Transform.scale(
+              scale: nabiz,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 54, vertical: 26),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(70), boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 30, offset: const Offset(0, 10)),
+                ]),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('ÜCRETSİZ İNDİR', style: ts(fBas, 84, const Color(0xFF14161F), golge: false)),
+                  const SizedBox(width: 14),
+                  const Icon(Icons.download_rounded, color: Color(0xFF14161F), size: 80),
+                ]),
+              ),
             ),
-            const SizedBox(height: 24),
-            Text('Google Play · App Store', style: ts(fGov, 46, Colors.white)),
+            const SizedBox(height: 22),
+            Text('Link profilde · KıyıdanAv', style: ts(fBasB, 56, Colors.white)),
+            const SizedBox(height: 26),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              magaza(Icons.android, 'Google Play'),
+              const SizedBox(width: 18),
+              magaza(Icons.apple, 'App Store'),
+            ]),
           ]),
         ),
       ),
@@ -705,6 +742,17 @@ Widget kare(List<Sahne> S, double t) {
             Positioned.fill(child: s.ciz(sec)),
             if (gecis > 0) Positioned.fill(child: ColoredBox(color: Colors.white.withValues(alpha: gecis * 0.7))),
             Positioned(right: 50, top: 70, child: Text('KıyıdanAv', style: ts('Armata', 40, Colors.white.withValues(alpha: 0.9)))),
+            if (i < S.length - 1)
+              Positioned(
+                left: 50, top: 62,
+                child: cam(
+                    Row(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.phone_iphone, color: Colors.white, size: 34),
+                      const SizedBox(width: 8),
+                      Text('Ücretsiz uygulama · link profilde', style: ts(fGov, 30, Colors.white)),
+                    ]),
+                    p: const EdgeInsets.symmetric(horizontal: 18, vertical: 8), r: 30, koyu: 0.35),
+              ),
           ]),
         ),
       );
