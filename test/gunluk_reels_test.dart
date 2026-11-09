@@ -13,6 +13,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kiyidanav/api.dart';
+import 'package:kiyidanav/kiyilama.dart';
 import 'package:kiyidanav/sea.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -95,7 +96,7 @@ void main() {
     final (liste, kn) = hazir!;
     expect(liste.length, greaterThanOrEqualTo(3), reason: 'yeterli mera verisi gelmedi');
     final now = DateTime.now();
-    final secilen = secim(liste);
+    final secilen = secim(liste, now);
     final tm = Tema.sec(secilen, now, Platform.environment['GUNLUK_REELS_TEMA']);
     File('${cikti.path}/aciklama.txt').writeAsStringSync(aciklama(secilen, now));
     File('${cikti.path}/secilen.json').writeAsStringSync(jsonEncode({'tema': tm.ad, 'meralar': secilen.map((e) => e.json()).toList()}));
@@ -121,6 +122,26 @@ void main() {
     }
     File('${cikti.path}/sure.txt').writeAsStringSync(toplam.toStringAsFixed(2));
   }, skip: !_acik, timeout: const Timeout(Duration(minutes: 20)));
+
+  test('mera seçimi her gün farklı, aynı gün aynı', () {
+    final l = [
+      for (final (i, sp) in [...spotsOf(Side.anadolu), ...spotsOf(Side.avrupa)].indexed)
+        MeraGunu(sp, SpotForecast(spot: sp, now: SeaReport(windKmh: 8 + (i % 5) * 2.0, waveM: 0.3, windDir: 45)), 60 + (i * 7) % 35,
+            kiyilamaHesapla(profil: const []), '', null, const ['Levrek']),
+    ];
+    String ad(List<MeraGunu> s) => s.map((m) => m.spot.name).join(',');
+    final gunler = [for (var g = 0; g < 7; g++) ad(secim(l, DateTime(2026, 11, 9 + g)))];
+    expect(ad(secim(l, DateTime(2026, 11, 9))), gunler.first); // aynı gün → aynı seçim
+    expect(gunler.toSet().length, greaterThanOrEqualTo(5)); // bir haftada en az 5 farklı üçlü
+    for (var g = 0; g < 7; g++) {
+      final s = secim(l, DateTime(2026, 11, 9 + g));
+      expect(s.length, 3);
+      expect(s.where((m) => m.spot.side == Side.anadolu).length, lessThanOrEqualTo(2));
+      expect(s.where((m) => m.spot.side == Side.avrupa).length, lessThanOrEqualTo(2));
+    }
+    // ignore: avoid_print
+    print(gunler.join(' | '));
+  });
 
   // Tür örnek sayfası (tasarım kontrolü): GUNLUK_REELS_TURLER=1
   testWidgets('balık türleri sayfası', (t) async {

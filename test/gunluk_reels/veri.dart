@@ -1,4 +1,6 @@
 // Günlük Reels — veri: uygulamanın rapor ekranıyla AYNI hesap (report_screen._load + FishingScore + bugunkuKiyilama)
+import 'dart:math' as math;
+
 import 'package:kiyidanav/api.dart';
 import 'package:kiyidanav/balik_rehberi.dart' show baliklar, bolgeTurleri;
 import 'package:kiyidanav/catches.dart';
@@ -74,22 +76,38 @@ Future<MeraGunu?> meraGunu(Spot s, DateTime now) async {
   }
 }
 
-/// Günün 3 merası: önce kıyıdan avlanılabilir olanlar, sonra puan; her yakadan en çok 2
-List<MeraGunu> secim(List<MeraGunu> l) {
+/// Günün 3 merası — her gün farklı: kıyıdan avlanılabilir (en iyi hava sınıfındaki) meralar arasından,
+/// tarihe bağlı tohumla, puana göre ağırlıklı RASTGELE seçilir; her yakadan en çok 2. Aynı gün yeniden üretilirse
+/// aynı meralar çıkar (tohum = tarih). Seçilenler puana göre sıralanır (1. mera = en yüksek puan).
+List<MeraGunu> secim(List<MeraGunu> l, DateTime gun) {
+  if (l.length <= 3) return [...l]..sort((a, b) => b.puan.compareTo(a.puan));
   int sinif(MeraGunu m) => m.firtina ? 2 : (m.sert ? 1 : 0);
-  final s = [...l]..sort((a, b) {
-      final c = sinif(a).compareTo(sinif(b));
-      if (c != 0) return c;
-      final p = b.puan.compareTo(a.puan);
-      return p != 0 ? p : a.r.effectiveWind.compareTo(b.r.effectiveWind);
-    });
+  final gunNo = gun.difference(DateTime(gun.year)).inDays;
+  final rnd = math.Random(gun.year * 1000 + gunNo);
+  // aday havuzu: en iyi hava sınıfı; 3'ten azsa bir sonraki sınıf da eklenir
+  final siniflar = l.map(sinif).toSet().toList()..sort();
+  final aday = <MeraGunu>[];
+  for (final s in siniflar) {
+    aday.addAll(l.where((m) => sinif(m) == s));
+    if (aday.length >= 6) break;
+  }
+  final enDusuk = aday.map((m) => m.puan).reduce(math.min);
   final out = <MeraGunu>[];
   final yaka = <Side, int>{};
-  for (final m in s) {
-    if ((yaka[m.spot.side] ?? 0) >= 2) continue;
+  while (out.length < 3 && aday.isNotEmpty) {
+    final uygun = aday.where((m) => (yaka[m.spot.side] ?? 0) < 2).toList();
+    final havuz = uygun.isEmpty ? aday : uygun;
+    final agirlik = havuz.map((m) => (m.puan - enDusuk + 15).toDouble()).toList();
+    var r = rnd.nextDouble() * agirlik.reduce((a, b) => a + b);
+    var i = 0;
+    while (i < havuz.length - 1 && r > agirlik[i]) {
+      r -= agirlik[i];
+      i++;
+    }
+    final m = havuz[i];
     out.add(m);
+    aday.remove(m);
     yaka[m.spot.side] = (yaka[m.spot.side] ?? 0) + 1;
-    if (out.length == 3) break;
   }
-  return out;
+  return out..sort((a, b) => b.puan.compareTo(a.puan));
 }
