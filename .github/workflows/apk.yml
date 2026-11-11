@@ -8,6 +8,7 @@ on:
       - 'test/gunluk_reels/**'
       - 'test/gunluk_reels_test.dart'
       - 'tool/gunluk_reels.sh'
+      - 'tool/muzik/**'
       - '.github/workflows/gunluk-reels.yml'
   workflow_dispatch:
 

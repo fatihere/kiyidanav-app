@@ -54,6 +54,7 @@ jobs:
             -F "video=@build/gunluk_reels/gunluk_reels.mp4;type=video/mp4" \
             -F "aciklama=@build/gunluk_reels/aciklama.txt;type=text/plain" \
             -F "secilen=@build/gunluk_reels/secilen.json;type=application/json" \
+            -F "muzik=$(cat build/gunluk_reels/muzik.txt 2>/dev/null)" \
             https://www.kiyidanav.com/instagram/gunluk_reels_al.php)
           echo "HTTP $KOD"; head -c 2000 yanit.txt; echo
           [ "$KOD" = "200" ]
