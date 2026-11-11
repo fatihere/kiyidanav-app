@@ -37,6 +37,15 @@ Future<Spot?> haritadanSec(BuildContext context, {String baslik = 'Haritadan mer
 
 const _listeIstegi = '__liste__';
 
+/// 1.17.0: iğne kayıtlı meraya bu kadar yakınsa (km) o mera seçilir; daha uzaktaysa noktanın kendisi (kendi kesiti ve tahmini)
+const haritaYapisma = 0.4;
+
+/// Kesit önizleme metni: "50 m'de ~4 m · 100 m'de ~9 m · 200 m'de ~14 m"
+String kesitOzeti(MeraInfo i) {
+  final p = i.profile.where((e) => const [50, 100, 200, 300].contains(e.key)).take(3);
+  return p.map((e) => '${e.key} m\'de ~${e.value.toStringAsFixed(e.value < 10 ? 1 : 0).replaceAll('.0', '')} m').join(' · ');
+}
+
 class HaritaSecici extends StatefulWidget {
   final String baslik;
   final LatLng? baslangic;
@@ -67,15 +76,53 @@ class _HaritaSeciciState extends State<HaritaSecici> {
 
   bool get _ogren => widget.liste;
 
+  // 1.17.0: iğnenin altındaki noktanın kendi kesiti (seçmeden önce önizleme)
+  MeraInfo? _kesit;
+  LatLng? _kesitNokta;
+  bool _kesitAraniyor = false;
+  Timer? _kesitZaman;
+
+  bool get _kesitGuncel =>
+      _kesitNokta != null && Locate.km(_kesitNokta!.latitude, _kesitNokta!.longitude, _merkez.latitude, _merkez.longitude) < 0.15;
+
+  void _kesitZamanla() {
+    _kesitZaman?.cancel();
+    final d = _yakin.$2;
+    if (!_ogren || d < haritaYapisma || d > 40) return;
+    _kesitZaman = Timer(const Duration(milliseconds: 1100), _kesitBul);
+  }
+
+  Future<void> _kesitBul() async {
+    if (_kesitGuncel || !mounted) return;
+    final nokta = _merkez;
+    final (n, _) = _yakin;
+    setState(() => _kesitAraniyor = true);
+    MeraInfo? i;
+    try {
+      i = await MeraService.of(Spot.pin(nokta.latitude, nokta.longitude, n));
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _kesitAraniyor = false;
+      _kesitNokta = nokta;
+      // yalnız noktanın kendi kesiti (sunucudan) gösterilir; en yakın meraya düşülen sonuç önizlemede gösterilmez
+      _kesit = (i != null && i.source.contains('nokta')) ? i : null;
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _adBulZamanla());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _adBulZamanla();
+      _kesitZamanla();
+    });
   }
 
   @override
   void dispose() {
     _adZaman?.cancel();
+    _kesitZaman?.cancel();
     super.dispose();
   }
 
@@ -83,7 +130,7 @@ class _HaritaSeciciState extends State<HaritaSecici> {
 
   void _adBulZamanla() {
     _adZaman?.cancel();
-    if (!_ogren || _yakin.$2 < 2 || _yakin.$2 > 40) return;
+    if (!_ogren || _yakin.$2 < haritaYapisma || _yakin.$2 > 40) return;
     _adZaman = Timer(const Duration(milliseconds: 800), _adBul);
   }
 
@@ -103,7 +150,7 @@ class _HaritaSeciciState extends State<HaritaSecici> {
 
   Spot get _secim {
     final (n, d) = _yakin;
-    if (d < 2) return n;
+    if (d < haritaYapisma) return n;
     if (!_ogren) return Spot.pin(_merkez.latitude, _merkez.longitude, n);
     final eski = Meralarim.yakinda(_merkez.latitude, _merkez.longitude);
     if (eski != null) return eski;
@@ -138,7 +185,7 @@ class _HaritaSeciciState extends State<HaritaSecici> {
   }
 
   Future<void> _sec() async {
-    if (_ogren && _yakin.$2 >= 2 && !_adGuncel) await _adBul();
+    if (_ogren && _yakin.$2 >= haritaYapisma && !_adGuncel) await _adBul();
     if (!mounted) return;
     var s = _secim;
     if (!s.side.public && !appState.isMember) {
@@ -189,6 +236,7 @@ class _HaritaSeciciState extends State<HaritaSecici> {
             onPositionChanged: (camera, _) {
               setState(() => _merkez = camera.center);
               _adBulZamanla();
+              _kesitZamanla();
             },
             onTap: (_, p) => _ctrl.move(p, _ctrl.camera.zoom),
           ),
@@ -283,12 +331,12 @@ class _HaritaSeciciState extends State<HaritaSecici> {
                   Row(children: [
                     Expanded(
                       child: Text(
-                          d < 2 || !_ogren
-                              ? (d < 2 ? n.name : '${n.name} yakını')
+                          d < haritaYapisma || !_ogren
+                              ? (d < haritaYapisma ? n.name : '${n.name} yakını')
                               : (_adAraniyor && !_adGuncel ? 'Yer adı bulunuyor…' : sec.name),
                           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
                     ),
-                    if (_ogren && d >= 2 && !uzak)
+                    if (_ogren && d >= haritaYapisma && !uzak)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(color: const Color(0xFFE6F2E7), borderRadius: BorderRadius.circular(20)),
@@ -300,11 +348,41 @@ class _HaritaSeciciState extends State<HaritaSecici> {
                   Text(
                     uzak
                         ? 'İğne kıyıdan uzakta: en yakın mera ${n.name} (~${d.round()} km). Kıyıya yaklaştır.'
-                        : d >= 2 && _ogren
-                            ? '${sec.side.label} · tahminler bu noktaya göre · en yakın kayıtlı mera ${n.name} (~${d.toStringAsFixed(d < 10 ? 1 : 0)} km)'
-                            : '${n.side.label} · en yakın mera ${n.name}${d >= 2 ? ' (~${d.toStringAsFixed(d < 10 ? 1 : 0)} km)' : ''}',
+                        : d >= haritaYapisma && _ogren
+                            ? '${sec.side.label} · tahmin ve kesit bu noktaya göre'
+                            : '${n.side.label} · kayıtlı mera',
                     style: TextStyle(fontSize: 13, color: uzak ? Tide.mercan : const Color(0xFF6B6A60)),
                   ),
+                  // 1.17.0: noktanın kendi kesiti (önizleme)
+                  if (_ogren && d >= haritaYapisma && !uzak) ...[
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      const Icon(Icons.water, size: 18, color: Tide.derinAcik),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          _kesitAraniyor && !_kesitGuncel
+                              ? 'Bu noktanın kesiti çıkarılıyor…'
+                              : (_kesitGuncel && _kesit != null)
+                                  ? 'Kıyıdan ${kesitOzeti(_kesit!)}${_kesit!.note.contains('kaba') ? ' (kaba veri)' : ''}'
+                                  : _kesitGuncel
+                                      ? 'Bu noktada kesit çıkarılamadı; iğneyi su kenarına yaklaştır.'
+                                      : 'İğne durunca bu noktanın kesiti gösterilir.',
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Tide.derin),
+                        ),
+                      ),
+                    ]),
+                    if (d < 5)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                          onPressed: () => _ctrl.move(LatLng(n.lat, n.lon), _ctrl.camera.zoom),
+                          icon: const Icon(Icons.place, size: 18),
+                          label: Text('Kayıtlı mera ${n.name} (~${d.toStringAsFixed(1)} km) seç'),
+                        ),
+                      ),
+                  ],
                   const SizedBox(height: 10),
                   Row(children: [
                     if (widget.liste) ...[
@@ -322,7 +400,7 @@ class _HaritaSeciciState extends State<HaritaSecici> {
                         style: FilledButton.styleFrom(backgroundColor: Tide.turuncu),
                         onPressed: uzak ? null : _sec,
                         icon: const Icon(Icons.check),
-                        label: Text(_ogren && d >= 2 ? 'Mera olarak ekle ve seç' : widget.secYazisi),
+                        label: Text(_ogren && d >= haritaYapisma ? 'Bu noktayı seç' : widget.secYazisi),
                       ),
                     ),
                   ]),
