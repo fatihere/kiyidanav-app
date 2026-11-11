@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'balik_rehberi.dart';
+import 'saatlik_skor.dart';
 import 'config.dart';
 import 'freshwater.dart';
 import 'mera.dart';
@@ -767,6 +768,7 @@ class KiyidabiriBeyin {
             '${_saat(bugun.sunrise!.add(const Duration(hours: 1)))}, akşam ${_saat(bugun.sunset!.subtract(const Duration(hours: 1)))}–'
             '${_saat(bugun.sunset!.add(const Duration(hours: 1)))}.\n');
       }
+      b.write(_saatlikOzet(f, 0));
     } catch (_) {
       b.write('📍 ${s.name} (${s.side.label})\nDeniz ve hava verisine şu an ulaşamadım.\n');
     }
@@ -814,10 +816,33 @@ class KiyidabiriBeyin {
             '${_saat(d.sunrise!.add(const Duration(hours: 1)))}, akşam ${_saat(d.sunset!.subtract(const Duration(hours: 1)))}–'
             '${_saat(d.sunset!.add(const Duration(hours: 1)))}.\n');
       }
-      b.write('İleri gün tahmini günün en sert saatine göredir; o sabah yeniden sorarsan saatlik veriyle bakarım.');
+      final saatlik = _saatlikOzet(f, gun);
+      if (saatlik.isNotEmpty) {
+        b.write(saatlik);
+      } else {
+        b.write('İleri gün tahmini günün en sert saatine göredir; o sabah yeniden sorarsan saatlik veriyle bakarım.');
+      }
       return b.toString().trim();
     } catch (_) {
       return null;
+    }
+  }
+
+  /// 1.17.0: Mera Bilgisi'ndeki saatlik skorla aynı hesap: en iyi 2 pencere + en olası 3 tür
+  String _saatlikOzet(SpotForecast f, int gun) {
+    try {
+      final saatler = SaatlikSkor.gun(SaatlikSkor.hepsi(f), gun);
+      if (saatler.length < 3) return '';
+      final p = SaatlikSkor.enIyiPencereler(saatler);
+      final t = turSkorlari(f.spot, saatler);
+      final b = StringBuffer();
+      if (p.isNotEmpty) b.write('Saatlik skora göre en iyi saatler: ${p.map((x) => '${x.metin} (%${x.skor})').join(', ')}.\n');
+      if (t.isNotEmpty) {
+        b.write('En olası türler: ${t.map((x) => '${x.ad} %${x.skor}${x.pencere == null ? '' : ' (${x.pencere!.metin})'}').join(', ')}.\n');
+      }
+      return b.toString();
+    } catch (_) {
+      return '';
     }
   }
 

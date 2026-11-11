@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'saatlik_skor.dart' show SkorAyar;
+
 /// Ay evresi ve av verimliliği tahmini.
 /// Ay evresi astronomik olarak hesaplanır (ağ gerektirmez); verimlilik ise
 /// ay evresi + rüzgâr + dalga + basınç eğiliminden türetilen bir tahmindir.
@@ -113,6 +115,8 @@ class FishingScore {
     if (sc != null && sc <= -0.8 && day.month >= 9 && day.month <= 12) s += 3;
     final ch = chlChangePct;
     if (ch != null && ch >= 15) s += 3;
+    // 1.17.0: av kayıtlarından öğrenilen düzeltme (sunucu, aylık; veri azken 0)
+    s += SkorAyar.hava(windKmh: w, waveM: h, pressureTrend: p);
     return s.round().clamp(10, 98);
   }
 

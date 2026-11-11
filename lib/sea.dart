@@ -489,14 +489,57 @@ class ModelConsensus {
   }
 }
 
+/// 1.17.0: bir saatin tahmini (saatlik av skoru şeridi için; şimdiki saatten itibaren 72 saat)
+class HourForecast {
+  final DateTime time;
+  final double? windKmh;
+  final double? gustKmh;
+  final int? windDir;
+  final double? rainMm;
+  final double? waveM;
+  final double? pressure;
+  /// Önümüzdeki 6 saatteki basınç değişimi (hPa)
+  final double? pressureTrend;
+  final double? seaC;
+  final double? currentKmh;
+  final double? airC;
+  const HourForecast(
+      {required this.time,
+      this.windKmh,
+      this.gustKmh,
+      this.windDir,
+      this.rainMm,
+      this.waveM,
+      this.pressure,
+      this.pressureTrend,
+      this.seaC,
+      this.currentKmh,
+      this.airC});
+
+  /// Hamle dahil etkin rüzgâr (SeaReport ile aynı kural)
+  double? get effectiveWind {
+    final w = windKmh, g = gustKmh;
+    if (w == null && g == null) return null;
+    final a = w ?? 0, b = (g ?? 0) * 0.7;
+    return a > b ? a : b;
+  }
+}
+
 class SpotForecast {
   final Spot spot;
   final SeaReport now;
   final List<DayForecast> days;
   final double? pressureTrend; // önümüzdeki 6 saat (hPa)
   final ModelConsensus? consensus;
+  /// 1.17.0: şimdiki saatten itibaren saatlik tahmin (en çok 72 saat; alınamazsa boş)
+  final List<HourForecast> hours;
   const SpotForecast(
-      {required this.spot, required this.now, this.days = const [], this.pressureTrend, this.consensus});
+      {required this.spot,
+      required this.now,
+      this.days = const [],
+      this.pressureTrend,
+      this.consensus,
+      this.hours = const []});
 }
 
 class SeaService {
@@ -595,7 +638,7 @@ class SeaService {
       'longitude': '${s.lon}',
       'current':
           'temperature_2m,wind_speed_10m,wind_direction_10m,wind_gusts_10m,pressure_msl,precipitation,cloud_cover',
-      'hourly': 'pressure_msl',
+      'hourly': 'pressure_msl,wind_speed_10m,wind_gusts_10m,wind_direction_10m,precipitation,temperature_2m',
       'daily': 'wind_speed_10m_max,wind_gusts_10m_max,precipitation_sum,sunrise,sunset,temperature_2m_max,temperature_2m_min,'
           'weather_code,precipitation_probability_max,wind_direction_10m_dominant',
       'forecast_days': '7',
@@ -607,7 +650,7 @@ class SeaService {
       'latitude': '$la',
       'longitude': '$lo',
       'current': 'wave_height,sea_surface_temperature,wave_period,ocean_current_velocity',
-      'hourly': 'wave_height',
+      'hourly': 'wave_height,sea_surface_temperature,ocean_current_velocity',
       'daily': 'wave_height_max',
       'forecast_days': '7',
       'timezone': 'Europe/Istanbul',
@@ -616,7 +659,7 @@ class SeaService {
       'latitude': '${s.custom ? s.lat : (s.seaLat ?? s.lat)}',
       'longitude': '${s.custom ? s.lon : (s.seaLon ?? s.lon)}',
       'current': 'wave_height,sea_surface_temperature,wave_period,ocean_current_velocity',
-      'hourly': 'wave_height',
+      'hourly': 'wave_height,sea_surface_temperature,ocean_current_velocity',
       'daily': 'wave_height_max',
       'forecast_days': '7',
       'timezone': 'Europe/Istanbul',
@@ -695,7 +738,35 @@ class SeaService {
         windDir: _n(_at(d['wind_direction_10m_dominant'], i))?.round(),
       ));
     }
+    // 1.17.0: saatlik seri (şimdiki saatten 72 saat). Deniz serisi saat anahtarıyla eşlenir.
+    final hours = <HourForecast>[];
+    try {
+      final mh = (m['hourly'] ?? const {}) as Map;
+      final mt = (mh['time'] as List?) ?? const [];
+      final denizSaat = <String, int>{for (var i = 0; i < mt.length; i++) '${mt[i]}': i};
+      final bas = DateTime(nowKey.year, nowKey.month, nowKey.day, nowKey.hour);
+      for (var i = 0; i < times.length && hours.length < 72; i++) {
+        final t = DateTime.tryParse('${times[i]}');
+        if (t == null || t.isBefore(bas)) continue;
+        final j = denizSaat['${times[i]}'];
+        final pa = _n(_at(press, i)), pb = _n(_at(press, i + 6));
+        hours.add(HourForecast(
+          time: t,
+          windKmh: _n(_at(hourly['wind_speed_10m'], i)),
+          gustKmh: _n(_at(hourly['wind_gusts_10m'], i)),
+          windDir: _n(_at(hourly['wind_direction_10m'], i))?.round(),
+          rainMm: _n(_at(hourly['precipitation'], i)),
+          airC: _n(_at(hourly['temperature_2m'], i)),
+          pressure: pa,
+          pressureTrend: (pa != null && pb != null) ? pb - pa : null,
+          waveM: (s.strait || j == null) ? null : _n(_at(mh['wave_height'], j)),
+          seaC: j == null ? null : _n(_at(mh['sea_surface_temperature'], j)),
+          currentKmh: j == null ? null : _n(_at(mh['ocean_current_velocity'], j)),
+        ));
+      }
+    } catch (_) {}
     return SpotForecast(
+      hours: hours,
       spot: s,
       now: SeaReport(
         windKmh: _n(wc['wind_speed_10m']),

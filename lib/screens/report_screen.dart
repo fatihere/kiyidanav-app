@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../saatlik_karti.dart';
 import '../ambience.dart';
 import '../av_gunu.dart';
 import '../badi.dart';
@@ -331,6 +332,8 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
                       ),
                     ],
                 'paylas': () => [_paylasSatiri(f, score, mood, data.sat)],
+                // 1.17.0: saatlik av skoru + en olası türler (raporun hemen altı)
+                'saatlik': () => [SaatlikSkorKarti(f: f, simdi: now)],
                 'kurallar': () => [if (fx.kurallar) KuralKarti(f: f, bugunSkor: score)],
                 // 1.15.0: Av günüm (Kural oluştur'un hemen altı)
                 'avgunu': () => [AvGunuKarti(f: f)],
@@ -364,8 +367,13 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
               };
               final sira = [
                 ...Api.config.meraSira.where(bolumler.containsKey),
-                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k) && k != 'oneri' && k != 'avgunu'),
+                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k) && k != 'oneri' && k != 'avgunu' && k != 'saatlik'),
               ];
+              // Panelde sırası verilmemişse saatlik skor günlük raporun hemen altında
+              if (!sira.contains('saatlik')) {
+                final i = sira.indexOf('rapor');
+                sira.insert(i < 0 ? 0 : i + 1, 'saatlik');
+              }
               // Panelde sırası verilmemişse: Kural oluştur → Av günüm → Mera öner
               for (final yeni in ['avgunu', 'oneri']) {
                 if (sira.contains(yeni)) continue;

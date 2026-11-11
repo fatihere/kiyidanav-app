@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 
+import 'saatlik_skor.dart' show SkorAyar;
 import 'api.dart';
 import 'app_state.dart';
 import 'catches.dart';
@@ -41,6 +42,7 @@ Future<void> main() async {
   await Meralarim.yukle(); // 1.13.2: haritadan öğrenilen meralar
   unawaited(AvGunleri.yukle()); // 1.15.0: av günüm
   unawaited(MeraOnerApi.yukle()); // 1.14.0: onaylı topluluk meraları
+  unawaited(SkorAyar.yukle()); // 1.17.0: av kayıtlarından öğrenilen skor düzeltmeleri
   await KiyidabiriAyar.yukle(); // 1.14.0: Kıyıdabiri robotu (görünürlük, ses, yer)
   await Locate.loadPref();
   await CampaignTicker.load();

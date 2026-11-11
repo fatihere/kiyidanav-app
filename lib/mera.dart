@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'cevrimdisi.dart';
 import 'app_state.dart';
+import 'balik_rehberi.dart' show kiyiYonu;
 import 'config.dart';
 import 'sea.dart';
 import 'overlays.dart';
@@ -81,12 +82,51 @@ class MeraService {
   }
 
   /// Yüklendiyse hemen (beklemeden) meranın kesiti
-  static MeraInfo? hazir(Spot s) => _cache?[s.key];
+  static MeraInfo? hazir(Spot s) => s.custom ? (_nokta[spotToKey(s)] ?? _cache?[s.key]) : _cache?[s.key];
+
+  /// 1.17.0: haritadan seçilen noktanın KENDİ kesiti (sunucu: mobil-kesit.php, EMODnet). Alınamazsa en yakın meranınki.
+  static final Map<String, MeraInfo> _nokta = {};
 
   static Future<MeraInfo?> of(Spot s) async {
+    if (s.custom) {
+      final n = await _noktaKesit(s);
+      if (n != null) return n;
+    }
     final m = await load();
     final i = m[s.key];
     return (i == null || i.isEmpty) ? null : i;
+  }
+
+  static Future<MeraInfo?> _noktaKesit(Spot s) async {
+    final k = spotToKey(s);
+    final c = _nokta[k];
+    if (c != null) return c;
+    try {
+      final yon = kiyiYonu(Spot(s.key, s.lat, s.lon, s.side));
+      final uri = Uri.parse('${AppConfig.siteUrl}mobil-kesit.php').replace(queryParameters: {
+        'lat': s.lat.toStringAsFixed(4),
+        'lon': s.lon.toStringAsFixed(4),
+        if (yon != null) 'yon': '${yon.round()}',
+      });
+      final r = await Cevrimdisi.get(uri).timeout(const Duration(seconds: 25));
+      if (r.statusCode != 200) return null;
+      final j = jsonDecode(utf8.decode(r.bodyBytes));
+      if (j is! Map<String, dynamic> || j['ok'] != true) return null;
+      final i = MeraInfo.fromJson(j);
+      if (i.isEmpty) return null;
+      // Bilinen meranın dip yapısı ve notu (yakın noktada büyük ölçüde geçerli) korunur
+      final yakin = (await load())[s.key];
+      final birlesik = MeraInfo(
+        profile: i.profile,
+        dip: yakin?.dip.isNotEmpty == true ? '${yakin!.dip} (en yakın mera ${s.key})' : i.dip,
+        note: i.note,
+        source: i.source,
+      );
+      _nokta[k] = birlesik;
+      return birlesik;
+    } catch (_) {
+      return null;
+    }
   }
 }
 
