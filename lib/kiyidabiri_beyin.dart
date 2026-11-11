@@ -398,6 +398,15 @@ class KiyidabiriBeyin {
       case KbAdim.tekneTel:
         final y = await _serbest(n);
         if (y != null) return y;
+        // 1.17.0: serbest sohbette listede olmayan yer adı ("bugün diliskelesindeyim") haritada aranır
+        final yer = await _yerAdiAra(n);
+        if (yer != null) {
+          final ozet = await meraOzeti(KbMera(yer.name, spot: yer), gun: kbGun(n) ?? 0);
+          return KbYanit(ozet, niyet: 'mera', spot: yer, secenekler: const [
+            KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
+            KbSecenek('Stilime göre mera öner', gonder: 'hangi stil'),
+          ]);
+        }
         final b = await blogdaAra(n);
         if (b != null) return b;
         return _temsilciyeYonlendir('Bu soruya mera bilgilerimden ve blogumuzdan güvenilir bir yanıt bulamadım. '
@@ -1089,6 +1098,28 @@ class KiyidabiriBeyin {
             secenekler: [KbSecenek('WhatsApp\'ta yaz', eylem: KbEylem.whatsapp)]);
     }
     return KbAracSonucu('Bilinmeyen araç: $ad');
+  }
+
+  /// Kısa mesajdaki olası yer adını (bulunma ekleri atılarak) haritada arar: "diliskelesindeyim" → "diliskelesi"
+  Future<Spot?> _yerAdiAra(String n) async {
+    final kelimeler = n.split(' ').where((w) => w.length >= 4).toList();
+    if (kelimeler.isEmpty || n.split(' ').length > 6) return null;
+    var deneme = 0;
+    const bos = {'bugun', 'yarin', 'simdi', 'burada', 'nasil', 'balik', 'hava', 'deniz', 'nerede', 'hangi', 'olur', 'mera', 'merada',
+      'tutulur', 'avlanir', 'durum', 'durumu', 'acaba', 'sabah', 'aksam', 'gece'};
+    final ekler = RegExp(r'(ndayim|ndeyim|ndaydim|ndeydim|dayim|deyim|tayim|teyim|ndayiz|ndeyiz|dayiz|deyiz|nda|nde|da|de|ta|te|ya|ye|a|e)$');
+    for (final w in kelimeler) {
+      if (bos.contains(w)) continue;
+      final adaylar = <String>{w, w.replaceFirst(ekler, '')};
+      for (final a in adaylar.where((x) => x.length >= 4)) {
+        if (++deneme > 4) return null; // ağ isteği sınırı
+        try {
+          final yer = await veri.yerBul(a);
+          if (yer != null) return yer;
+        } catch (_) {}
+      }
+    }
+    return null;
   }
 
   static bool _hayir(String n) => RegExp(r'^(hayir|yok|istemem|gerek yok|sonra|h)( |$)').hasMatch(n);

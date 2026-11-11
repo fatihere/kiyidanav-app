@@ -152,6 +152,8 @@ class SaatlikSkor {
             rainMm: h.rainMm == null ? null : h.rainMm! * 6,
             currentKmh: h.currentKmh)
         .toDouble();
+    // Günlük skor iyi havada tavana (98) yaklaşır; saatler arasındaki fark görünsün diye sıkıştırılır (98 → 82)
+    s = 15 + (s - 15) * 0.8;
     s += switch (dilim) {
       Dilim.safak => 12,
       Dilim.aksam => 12,

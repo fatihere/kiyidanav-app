@@ -157,7 +157,7 @@ class _SaatlikSkorKartiState extends State<SaatlikSkorKarti> {
                   padding: const EdgeInsets.symmetric(vertical: 3),
                   child: Row(children: [
                     SizedBox(
-                        width: 112,
+                        width: 96,
                         child: Text(t.ad,
                             maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
                     Expanded(
@@ -172,7 +172,7 @@ class _SaatlikSkorKartiState extends State<SaatlikSkorKarti> {
                       ),
                     ),
                     SizedBox(
-                        width: 112,
+                        width: 136,
                         child: Text('  %${t.skor} · ${t.pencere?.metin ?? ''}',
                             maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12))),
                   ]),

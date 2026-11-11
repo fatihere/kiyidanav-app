@@ -164,6 +164,12 @@ void main() {
     expect(y4.niyet, 'yanlis_anlama');
   });
 
+  test('1.17.0: serbest sohbette ekli yer adı haritada bulunur', () async {
+    final y = await KiyidabiriBeyin(SahteVeri()).yanitla('Bugün diliskelesindeyim');
+    expect(y.niyet, 'mera');
+    expect(y.metin, contains('Diliskelesi, Dilovası'));
+  });
+
   test('1.17.0: gün tespiti', () {
     final per = DateTime(2026, 11, 12); // perşembe
     expect(kbGun('yarin', per), 1);
