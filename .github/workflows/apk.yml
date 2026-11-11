@@ -62,12 +62,13 @@ jobs:
       - name: Eklentilerin derleme-anı lint denetimini kapat (Flutter 3.50'de firebase_core lint aracı çöküyor)
         run: |
           f=android/build.gradle.kts; [ -f "$f" ] || f=android/build.gradle
-          printf '
-// CI: eklenti modüllerinde lintVital* görevleri kapalı (lint aracının kendi hatası; uygulama kodunu etkilemez)
-subprojects {
-    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }
-}
-' >> "$f"
+          {
+            echo ''
+            echo '// CI: eklenti modüllerinde lintVital görevleri kapalı (lint aracının kendi hatası; uygulama kodunu etkilemez)'
+            echo 'subprojects {'
+            echo '    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }'
+            echo '}'
+          } >> "$f"
           tail -5 "$f"
 
       - name: Paketleri indir
