@@ -38,6 +38,8 @@ class SahteVeri implements KbVeri {
   @override
   Future<SpotForecast> hafta(Spot s) async => SpotForecast(spot: s, now: _r(s), days: [
         DayForecast(date: DateTime(2026, 11, 6), sunrise: DateTime(2026, 11, 6, 7, 2), sunset: DateTime(2026, 11, 6, 17, 1)),
+        DayForecast(date: DateTime(2026, 11, 7), windMax: 28, gustMax: 41, waveMax: 1.4, tempMin: 11, tempMax: 17, windDir: 30,
+            rainProb: 60, sunrise: DateTime(2026, 11, 7, 7, 3), sunset: DateTime(2026, 11, 7, 17, 0)),
       ]);
   @override
   Future<List<SpotForecast>> simdi(List<Spot> l) async => [for (final s in l) SpotForecast(spot: s, now: _r(s))];
@@ -141,6 +143,37 @@ void main() {
     final y = await b.yanitla('bu mera da sence hangi olta ile daha güzel av olur 19.00 dan sonra');
     expect(y.niyet, startsWith('ekipman'));
     expect(y.metin, contains('Akşam ve gece'));
+  });
+
+  test('1.17.0: "sordum" Ordu merası sayılmaz; "yarın" yarının tahminini verir', () async {
+    final b = KiyidabiriBeyin(SahteVeri());
+    final y1 = await b.yanitla('bunu sordum');
+    expect(y1.metin, isNot(contains('Ordu')));
+    // kelime ortasındaki mera adı eşleşmez (eskiden "sordum" → Ordu gibi)
+    expect((await KiyidabiriBeyin(SahteVeri()).yanitla('bekartal qq')).metin, isNot(contains('📍 Kartal')));
+    final y2 = await b.yanitla('Kartal yarın nasıl');
+    expect(y2.metin, contains('Kartal'));
+    expect(y2.metin, contains('Yarın (7.11)'));
+    expect(y2.metin, contains('Rüzgâr en çok 28 km/s KD'));
+    expect(y2.metin, contains('yağış ihtimali %60'));
+    // ardından yalnız gün: son meranın o günü
+    final y3 = await b.yanitla('peki yarın?');
+    expect(y3.metin, contains('Kartal'));
+    expect(y3.metin, contains('Yarın'));
+    final y4 = await b.yanitla('bunu sormadım');
+    expect(y4.niyet, 'yanlis_anlama');
+  });
+
+  test('1.17.0: gün tespiti', () {
+    final per = DateTime(2026, 11, 12); // perşembe
+    expect(kbGun('yarin', per), 1);
+    expect(kbGun('obur gun nasil', per), 2);
+    expect(kbGun('cumartesi kartal', per), 2);
+    expect(kbGun('cuma gunu', per), 1);
+    expect(kbGun('hafta sonu', per), 2);
+    expect(kbGun('kartal nasil', per), isNull);
+    expect(kbSadeceGun('peki yarin'), isTrue);
+    expect(kbSadeceGun('kartal yarin'), isFalse);
   });
 
   test('1.16.0: kargo 199 TL, yarısı bizden', () async {

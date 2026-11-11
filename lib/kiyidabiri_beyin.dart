@@ -26,6 +26,32 @@ String kbNorm(String s) {
   return b.toString().replaceAll(RegExp(r"['’`]"), '').replaceAll(RegExp(r"[^a-z0-9 ]"), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
+/// 1.17.0: metindeki gün ("yarın", "öbür gün", "cumartesi", "hafta sonu") → bugünden kaç gün sonra; yoksa null
+int? kbGun(String n, [DateTime? simdi]) {
+  final k = ' $n ';
+  final bugun = simdi ?? DateTime.now();
+  if (k.contains(' obur gun') || k.contains(' ertesi gun') || k.contains(' yarindan sonra')) return 2;
+  if (k.contains(' yarin')) return 1;
+  if (k.contains(' hafta sonu') || k.contains(' haftasonu')) return (DateTime.saturday - bugun.weekday) % 7;
+  const gunler = {'pazartesi': 1, 'sali': 2, 'carsamba': 3, 'persembe': 4, 'cumartesi': 6, 'cuma': 5, 'pazar': 7};
+  for (final e in gunler.entries) {
+    if (RegExp(' ${e.key}(ya|ye|a|e|i|si|gunu|gun)? ').hasMatch(k)) return (e.value - bugun.weekday) % 7;
+  }
+  if (k.contains(' bugun') || k.contains(' simdi') || k.contains(' su an')) return 0;
+  return null;
+}
+
+/// Yalnızca gün sözcüklerinden oluşan kısa mesaj mı ("yarın?", "peki cumartesi nasıl")
+bool kbSadeceGun(String n) {
+  if (kbGun(n) == null) return false;
+  const bos = {'peki', 'ya', 'yarin', 'bugun', 'obur', 'ertesi', 'gun', 'gunu', 'hafta', 'sonu', 'haftasonu', 'pazartesi', 'sali',
+    'carsamba', 'persembe', 'cuma', 'cumartesi', 'pazar', 'nasil', 'ne', 'durum', 'olur', 'icin', 'da', 'de', 'mi', 'mu', 'ki',
+    'sabah', 'aksam', 'olacak', 'yarindan', 'sonra', 'simdi', 'su', 'an', 'acaba', 'ama'};
+  final kelimeler = n.split(' ').where((w) => w.isNotEmpty).toList();
+  return kelimeler.length <= 6 &&
+      kelimeler.every((w) => bos.contains(w) || RegExp(r'^(pazartesi|sali|carsamba|persembe|cuma|cumartesi|pazar|yarin)').hasMatch(w));
+}
+
 enum KbAdim { mera, stil, kampanya, serbest, temsilci, tekneSor, tekneKisi, tekneAd, tekneTel }
 
 enum KbEylem { whatsapp, haritadanSec, meraBilgisiAc, meraOner, toplulukMeralari, dugumler, bildirimIzni, urunAra, blogAc, urunAc }
@@ -314,6 +340,10 @@ class KiyidabiriBeyin {
         }
         if (cinekopSorusu(n)) return cinekopYaniti();
         var m = _meraBul(n);
+        if (m == null && kbSadeceGun(n)) {
+          final s = sonMera ?? veri.secili;
+          m = KbMera(s.name, spot: s);
+        }
         // 1.16.0: listede yoksa yer adı olarak haritada ara ("diliskelesi", "dilovası")
         if (m == null && n.split(' ').length <= 4 && !n.contains('?')) {
           final yer = await veri.yerBul(n);
@@ -331,7 +361,7 @@ class KiyidabiriBeyin {
                 KbSecenek('Başka bir sorum var', gonder: 'başka bir sorum var'),
               ]);
         }
-        final ozet = await meraOzeti(m);
+        final ozet = await meraOzeti(m, gun: kbGun(n) ?? 0);
         adim = KbAdim.serbest;
         return KbYanit(ozet, niyet: 'mera', spot: m.spot ?? sonMera, secenekler: [
           if (m.spot != null) const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
@@ -674,7 +704,8 @@ class KiyidabiriBeyin {
     for (final (ad, m) in adaylar) {
       if (ad.length < 3) continue;
       // Tam ad metinde geçiyor ("bugün kartaldayım" → kartal) ya da yazılan kelime adın başı
-      final gecer = n.contains(ad) || (n.length >= 4 && ad.startsWith(n)) || _kokEslesir(n, ad);
+      // 1.17.0: yalnız kelime başında ("sordum" içindeki "ordu" mera sayılmaz)
+      final gecer = ' $n'.contains(' $ad') || (n.length >= 4 && ad.startsWith(n)) || _kokEslesir(n, ad);
       if (gecer && ad.length > enUzun) {
         en = m;
         enUzun = ad.length;
@@ -700,12 +731,16 @@ class KiyidabiriBeyin {
     } catch (_) {}
   }
 
-  /// Seçilen meranın bugünkü özeti (yalnızca uygulama verisi)
-  Future<String> meraOzeti(KbMera m) async {
+  /// Seçilen meranın özeti (yalnızca uygulama verisi). [gun]: 0 bugün, 1 yarın… (en çok 6)
+  Future<String> meraOzeti(KbMera m, {int gun = 0}) async {
     if (m.gol != null) return _golOzeti(m.gol!, m.oneri);
     if (m.spot == null && m.oneri != null) return _oneriOzeti(m.oneri!);
     final s = m.spot!;
     sonMera = s;
+    if (gun > 0) {
+      final o = await _gunOzeti(s, gun);
+      if (o != null) return o;
+    }
     final b = StringBuffer();
     try {
       final f = await veri.hafta(s);
@@ -750,6 +785,43 @@ class KiyidabiriBeyin {
     if (m.oneri?.onerenYazisi != null) b.write('\n${m.oneri!.onerenYazisi}.');
     return b.toString().trim();
   }
+
+  static const _gunAdlari = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+
+  /// İleri bir günün özeti (günlük tahminden: en yüksek rüzgâr/dalga, sıcaklık, yağış)
+  Future<String?> _gunOzeti(Spot s, int gun) async {
+    try {
+      final f = await veri.hafta(s);
+      if (gun >= f.days.length) {
+        return '📍 ${s.name}: $gun gün sonrası için tahmin yok; en çok ${f.days.length - 1} gün ilerisine bakabiliyorum.';
+      }
+      final d = f.days[gun];
+      final tarih = DateTime(d.date.year, d.date.month, d.date.day, 12);
+      final skor = FishingScore.compute(tarih, windKmh: d.windMax, waveM: d.waveMax, rainMm: d.rainSum);
+      final ad = gun == 1 ? 'Yarın' : gun == 2 ? 'Öbür gün' : _gunAdlari[d.date.weekday];
+      final b = StringBuffer('📍 ${s.name} (${s.side.label}) — $ad (${d.date.day}.${d.date.month.toString().padLeft(2, '0')})\n');
+      b.write('Tahmini av verimliliği %$skor — ${FishingScore.label(skor)}.\n');
+      final p = <String>[
+        if (d.windMax != null) 'rüzgâr en çok ${d.windMax!.round()} km/s${d.windDir != null ? ' ${_yon(d.windDir!)}' : ''}',
+        if (d.gustMax != null) 'hamle ${d.gustMax!.round()} km/s',
+        if (d.waveMax != null && !s.strait) 'dalga en çok ${d.waveMax!.toStringAsFixed(1)} m',
+        if (d.tempMin != null && d.tempMax != null) 'hava ${d.tempMin!.round()}–${d.tempMax!.round()}°',
+        if (d.rainProb != null && d.rainProb! >= 30) 'yağış ihtimali %${d.rainProb}',
+      ];
+      if (p.isNotEmpty) b.write('${_buyukHarf(p.join(', '))}.\n');
+      if (d.sunrise != null && d.sunset != null) {
+        b.write('En verimli saatler: sabah ${_saat(d.sunrise!.subtract(const Duration(hours: 1)))}–'
+            '${_saat(d.sunrise!.add(const Duration(hours: 1)))}, akşam ${_saat(d.sunset!.subtract(const Duration(hours: 1)))}–'
+            '${_saat(d.sunset!.add(const Duration(hours: 1)))}.\n');
+      }
+      b.write('İleri gün tahmini günün en sert saatine göredir; o sabah yeniden sorarsan saatlik veriyle bakarım.');
+      return b.toString().trim();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _yon(int derece) => const ['K', 'KD', 'D', 'GD', 'G', 'GB', 'B', 'KB'][((derece % 360) / 45).round() % 8];
 
   String _golOzeti(FwPlace p, MeraOnerisi? o) {
     final fw = _golOnbellek;
@@ -823,6 +895,10 @@ class KiyidabiriBeyin {
     if (_icerir(n, ['merhaba', 'selam', 'gunaydin', 'iyi aksamlar', 'mrb', 'slm']) && n.split(' ').length <= 3) {
       return const KbYanit('Merhaba! 👋 Meralar, deniz durumu, balık türleri ve ürünler hakkında sorabilirsin.', niyet: 'selam');
     }
+    if (_icerir(n, ['sormadim', 'yanlis anladin', 'alakasiz', 'onu demedim', 'bunu demedim', 'anlamadin'])) {
+      return const KbYanit('Kusura bakma, yanlış anladım. 🙏 Sorunu biraz farklı yazar mısın? Örneğin "Kartal yarın nasıl?" '
+          'ya da "Surf için ekipman öner".', niyet: 'yanlis_anlama');
+    }
     if (_icerir(n, ['tesekkur', 'sagol', 'eyvallah', 'sag ol'])) {
       return const KbYanit('Rica ederim, rastgele! 🎣', niyet: 'tesekkur');
     }
@@ -843,7 +919,7 @@ class KiyidabiriBeyin {
     // Mera adı geçiyorsa
     final m = _meraBul(n);
     if (m != null && !_icerir(n, ['kargo', 'siparis'])) {
-      final ozet = await meraOzeti(m);
+      final ozet = await meraOzeti(m, gun: kbGun(n) ?? 0);
       return KbYanit(ozet, niyet: 'mera', spot: m.spot, secenekler: [
         if (m.spot != null) const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
         const KbSecenek('Stilime göre mera öner', gonder: 'hangi stil'),
@@ -862,10 +938,10 @@ class KiyidabiriBeyin {
         const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
       ]);
     }
-    // Hava / deniz durumu (seçili meraya göre)
-    if (_icerir(n, ['ruzgar', 'dalga', 'hava', 'deniz', 'su sicak', 'basinc', 'yagmur', 'firtina', 'bugun nasil', 'verim'])) {
+    // Hava / deniz durumu (seçili meraya göre); "yarın?" gibi yalnız gün soruları da son meraya
+    if (kbSadeceGun(n) || _icerir(n, ['ruzgar', 'dalga', 'hava', 'deniz', 'su sicak', 'basinc', 'yagmur', 'firtina', 'bugun nasil', 'verim'])) {
       final s = sonMera ?? veri.secili;
-      return KbYanit(await meraOzeti(KbMera(s.name, spot: s)), niyet: 'hava', spot: s,
+      return KbYanit(await meraOzeti(KbMera(s.name, spot: s), gun: kbGun(n) ?? 0), niyet: 'hava', spot: s,
           secenekler: const [KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc)]);
     }
     // Balık türü
@@ -928,8 +1004,166 @@ class KiyidabiriBeyin {
   // ------------------------------------------------------------------ yardımcılar
   static bool _icerir(String n, List<String> l) => l.any((k) => n.contains(kbNorm(k)));
   static bool _evet(String n) => RegExp(r'^(evet|olur|tamam|isterim|baglan|e|tabi|tabii)( |$)').hasMatch(n);
+  // ------------------------------------------------------------------ 1.17.0: yapay zekâ araçları
+  /// Yapay zekânın istediği aracı uygulama verisiyle çalıştırır. Sayılar her zaman buradan (Mera Bilgisi ile aynı hesap) gelir.
+  Future<KbAracSonucu> arac(String ad, Map<String, dynamic> g) async {
+    String yazi(String k) => '${g[k] ?? ''}'.trim();
+    switch (ad) {
+      case 'mera_durumu':
+        final ham = yazi('mera');
+        var m = ham.isEmpty ? KbMera((sonMera ?? veri.secili).name, spot: sonMera ?? veri.secili) : _meraBul(kbNorm(ham));
+        if (m == null) {
+          final yer = await veri.yerBul(ham);
+          if (yer != null) m = KbMera(yer.name, spot: yer);
+        }
+        if (m == null) {
+          return KbAracSonucu('BULUNAMADI: "$ham" adında bir mera ya da kıyı yeri bulunamadı. Kullanıcıdan haritadan seçmesini iste.',
+              secenekler: const [KbSecenek('Haritadan seç', eylem: KbEylem.haritadanSec)]);
+        }
+        final gun = ((g['gun'] as num?)?.toInt() ?? 0).clamp(0, 6);
+        return KbAracSonucu(await meraOzeti(m, gun: gun), spot: m.spot);
+      case 'stile_gore_mera':
+        final st = kbStilBul(yazi('stil'));
+        if (st == null) return const KbAracSonucu('Stil tanınmadı. Geçerli stiller: LRF, Spin, Surf, Çapari, Kurşun arkası, Şamandıra, Shore jigging.');
+        final m = yazi('mera').isEmpty ? null : _meraBul(kbNorm(yazi('mera')));
+        if (m?.spot != null) sonMera = m!.spot;
+        sonStil = st;
+        return KbAracSonucu(await stilOnerisi(st), spot: sonMera);
+      case 'ekipman_onerisi':
+        final y = await ekipmanYaniti(kbNorm(yazi('soru')));
+        return KbAracSonucu(y.metin, secenekler: y.secenekler);
+      case 'urun_ara':
+        final l = (await veri.urunAra(yazi('sorgu'))).take(6).toList();
+        if (l.isEmpty) return KbAracSonucu('"${yazi('sorgu')}" için mağazada ürün bulunamadı.');
+        final b = StringBuffer('kiyidanav.com ürünleri:');
+        for (final u in l) {
+          b.write('\n- ${u.name}: ${_tl(u.special ?? u.price)}');
+          if (u.special != null && u.special! < u.price) b.write(' (indirimli, normal fiyat ${_tl(u.price)})');
+          if (!u.inStock) b.write(' (stokta yok)');
+        }
+        return KbAracSonucu(b.toString(), secenekler: [
+          for (final u in l.take(3)) KbSecenek('🛒 ${_kisa(u.name)}', gonder: '${u.id}', eylem: KbEylem.urunAc),
+          KbSecenek('Mağazada ara', gonder: yazi('sorgu'), eylem: KbEylem.urunAra),
+        ]);
+      case 'kampanyalar':
+        final y = await kampanyaListesi();
+        return KbAracSonucu(y.metin, secenekler: y.secenekler);
+      case 'balik_bilgisi':
+      case 'site_bilgisi':
+        final n = kbNorm(yazi(ad == 'balik_bilgisi' ? 'balik' : 'soru'));
+        final y = await _serbest(n) ?? await blogdaAra(n);
+        if (y == null || y.niyet == 'bilinmiyor') {
+          return const KbAracSonucu('BİLGİ YOK: uygulamada bu konuda kayıtlı güvenilir bilgi yok. Uydurma; kullanıcıya bunu söyle '
+              've temsilciye bağlanmayı öner.', bilinmiyor: true);
+        }
+        return KbAracSonucu(y.metin, secenekler: y.secenekler);
+      case 'tekne_avi':
+        return const KbAracSonucu('', tekne: true);
+      case 'temsilciye_baglan':
+        return const KbAracSonucu('Kullanıcıya WhatsApp temsilci düğmesi gösterildi.',
+            secenekler: [KbSecenek('WhatsApp\'ta yaz', eylem: KbEylem.whatsapp)]);
+    }
+    return KbAracSonucu('Bilinmeyen araç: $ad');
+  }
+
   static bool _hayir(String n) => RegExp(r'^(hayir|yok|istemem|gerek yok|sonra|h)( |$)').hasMatch(n);
   static String _saat(DateTime t) => '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
   static String _buyukHarf(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
   static String _ayKisa(int a) => const ['', 'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'][a];
+}
+
+
+// =================================================================== 1.17.0: yapay zekâ ile sohbet
+/// Bir aracın sonucu (metin yapay zekâya gider; seçenekler/mera sohbet balonunda gösterilir)
+class KbAracSonucu {
+  final String metin;
+  final Spot? spot;
+  final List<KbSecenek> secenekler;
+  /// Tekne avı talebi: kural tabanlı adımlara (ad, telefon, kişi sayısı) geçilir
+  final bool tekne;
+  /// Uygulamada bilgi yoktu (soru araştırma listesine düşsün)
+  final bool bilinmiyor;
+  const KbAracSonucu(this.metin, {this.spot, this.secenekler = const [], this.tekne = false, this.bilinmiyor = false});
+}
+
+/// Sunucudaki yapay zekâ köprüsü (mobil-kiyidabiri.php?a=yz). Dönen: {icerik: [...], durdu: 'end_turn' | 'tool_use' | …}
+abstract class KbYz {
+  Future<Map<String, dynamic>> iste(List<Map<String, dynamic>> mesajlar);
+}
+
+/// Yapay zekâ sohbeti: model cümleyi kurar, sayıları uygulamanın araçlarından alır. Sorun olursa null döner
+/// (uygulama kural tabanlı Kıyıdabiri'ye düşer).
+class KbYzSohbet {
+  final KiyidabiriBeyin beyin;
+  final KbYz yz;
+  /// Claude mesaj geçmişi (araç çağrıları ve düşünme blokları dahil, değiştirilmeden geri gönderilir)
+  final List<Map<String, dynamic>> gecmis = [];
+  static const _gunler = ['', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
+  KbYzSohbet(this.beyin, this.yz);
+
+  String baglam(DateTime t) {
+    final mera = beyin.sonMera ?? beyin.veri.secili;
+    return '[Bağlam: bugün ${t.day}.${t.month.toString().padLeft(2, '0')}.${t.year} ${_gunler[t.weekday]}, '
+        'saat ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}; seçili mera: ${mera.name} (${mera.side.label})]';
+  }
+
+  Future<KbYanit?> yanitla(String girdi, {DateTime? simdi}) async {
+    final yeni = <Map<String, dynamic>>[
+      ...gecmis,
+      {'role': 'user', 'content': '${baglam(simdi ?? DateTime.now())}\n$girdi'},
+    ];
+    Spot? spot;
+    var bilinmiyor = false;
+    final secenekler = <KbSecenek>[];
+    for (var tur = 0; tur < 6; tur++) {
+      final c = await yz.iste(yeni);
+      final icerik = [for (final b in (c['icerik'] as List? ?? const [])) if (b is Map) Map<String, dynamic>.from(b)];
+      final durdu = '${c['durdu'] ?? ''}';
+      if (durdu == 'refusal' || icerik.isEmpty) return null;
+      yeni.add({'role': 'assistant', 'content': icerik});
+      final cagrilar = icerik.where((b) => b['type'] == 'tool_use').toList();
+      if (durdu == 'tool_use' && cagrilar.isNotEmpty) {
+        final sonuclar = <Map<String, dynamic>>[];
+        for (final b in cagrilar) {
+          KbAracSonucu r;
+          try {
+            r = await beyin.arac('${b['name']}', b['input'] is Map ? Map<String, dynamic>.from(b['input'] as Map) : const {});
+          } catch (e) {
+            sonuclar.add({'type': 'tool_result', 'tool_use_id': b['id'], 'content': 'Araç hatası: veriye ulaşılamadı.', 'is_error': true});
+            continue;
+          }
+          if (r.tekne) return beyin.yanitla('tekne avı'); // talep adımları kural tabanlı ve izinli
+          spot = r.spot ?? spot;
+          bilinmiyor = bilinmiyor || r.bilinmiyor;
+          secenekler.addAll(r.secenekler);
+          sonuclar.add({'type': 'tool_result', 'tool_use_id': b['id'], 'content': r.metin.isEmpty ? 'Tamam.' : r.metin});
+        }
+        yeni.add({'role': 'user', 'content': sonuclar});
+        continue;
+      }
+      final metin = icerik.where((b) => b['type'] == 'text').map((b) => '${b['text'] ?? ''}').join('\n').trim();
+      if (metin.isEmpty) return null;
+      gecmis
+        ..clear()
+        ..addAll(_kirp(yeni));
+      final etiketler = <String>{};
+      final sec = [
+        for (final s in secenekler)
+          if (etiketler.add(s.etiket)) s,
+        if (spot != null && etiketler.add('Mera bilgisini aç')) const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
+      ].take(5).toList();
+      return KbYanit(metin, niyet: bilinmiyor ? 'bilinmiyor' : 'yz', spot: spot, secenekler: sec);
+    }
+    return null;
+  }
+
+  /// Geçmişi son ~12 kullanıcı mesajıyla sınırlar; kesim yalnız kullanıcının düz metin mesajında yapılır
+  /// (araç çağrısı ile sonucu birbirinden ayrılmaz).
+  static List<Map<String, dynamic>> _kirp(List<Map<String, dynamic>> l) {
+    final basla = <int>[for (var i = 0; i < l.length; i++) if (l[i]['role'] == 'user' && l[i]['content'] is String) i];
+    if (basla.length <= 12) return l;
+    return l.sublist(basla[basla.length - 12]);
+  }
+
+  void sifirla() => gecmis.clear();
 }

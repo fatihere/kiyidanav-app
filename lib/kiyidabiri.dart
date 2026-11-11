@@ -41,6 +41,8 @@ class KiyidabiriAyar {
       _gizlilik = 'kb_gizlilik_v1';
   static final sesli = ValueNotifier<bool>(true);
   static final gorunur = ValueNotifier<bool>(true);
+  /// 1.17.0: panel › Kıyıdabiri › yapay zekâ açık mı (sunucu ?a=ayar › yz)
+  static bool yz = false;
   /// Robotun ekrandaki yeri (0–1 oranı; varsayılan sol alt, alt menünün hemen üstü)
   static Offset konum = const Offset(0, 1);
   static String cihaz = '';
@@ -83,6 +85,7 @@ class KiyidabiriAyar {
       final j = jsonDecode(utf8.decode(r.bodyBytes));
       if (j is! Map || j['ok'] != true) return;
       final acik = j['acik'] != false;
+      yz = j['yz'] == true;
       gorunur.value = acik;
       (await SharedPreferences.getInstance()).setBool(_gorunur, acik);
     } catch (_) {
@@ -658,6 +661,27 @@ class _Mesaj {
 /// Sohbet geçmişi uygulama açık kaldıkça korunur
 final List<_Mesaj> _gecmis = [];
 KiyidabiriBeyin? _beyin;
+KbYzSohbet? _yzSohbet;
+
+/// 1.17.0: Kıyıdabiri yapay zekâ köprüsü (kiyidanav.com/mobil-kiyidabiri.php?a=yz, üye anahtarıyla)
+class _YzIstemci implements KbYz {
+  @override
+  Future<Map<String, dynamic>> iste(List<Map<String, dynamic>> mesajlar) async {
+    final t = await CatchService.token();
+    if (t == null) throw StateError('üye değil');
+    final r = await http
+        .post(Uri.parse('${AppConfig.siteUrl}mobil-kiyidabiri.php?a=yz'),
+            headers: {'Content-Type': 'application/json', 'Accept': 'application/json', 'X-Av-Anahtar': t},
+            body: jsonEncode({'mesajlar': mesajlar}))
+        .timeout(const Duration(seconds: 60));
+    final j = jsonDecode(utf8.decode(r.bodyBytes));
+    if (r.statusCode != 200 || j is! Map || j['ok'] != true) {
+      if (j is Map && j['yz'] == false) KiyidabiriAyar.yz = false;
+      throw StateError('yz ${r.statusCode}');
+    }
+    return Map<String, dynamic>.from(j);
+  }
+}
 
 Future<void> kiyidabiriAc(BuildContext context) async {
   await showModalBottomSheet<void>(
@@ -742,7 +766,18 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
     _asagi();
     KbYanit y;
     try {
-      y = await _b.yanitla(m);
+      KbYanit? yzYanit;
+      // 1.17.0: üyelerde yapay zekâ; tekne talebi / temsilci gibi adımlı akışlar ve hata durumunda kural tabanlı Kıyıdabiri
+      final adimli = _b.adim != KbAdim.serbest && _b.adim != KbAdim.mera && _b.adim != KbAdim.stil;
+      if (KiyidabiriAyar.yz && appState.isMember && widget.veri == null && !adimli) {
+        try {
+          yzYanit = await (_yzSohbet ??= KbYzSohbet(_b, _YzIstemci())).yanitla(m);
+          if (yzYanit != null) _b.adim = KbAdim.serbest;
+        } catch (_) {
+          yzYanit = null;
+        }
+      }
+      y = yzYanit ?? await _b.yanitla(m);
     } catch (_) {
       y = const KbYanit('Bir sorun oldu, tekrar dener misin?', niyet: 'hata');
     }
