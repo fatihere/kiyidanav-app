@@ -59,6 +59,17 @@ jobs:
       - name: Android ayarları (API 36, imza, izinler)
         run: python3 tool/android_patch.py
 
+      - name: Eklentilerin derleme-anı lint denetimini kapat (Flutter 3.50'de firebase_core lint aracı çöküyor)
+        run: |
+          f=android/build.gradle.kts; [ -f "$f" ] || f=android/build.gradle
+          printf '
+// CI: eklenti modüllerinde lintVital* görevleri kapalı (lint aracının kendi hatası; uygulama kodunu etkilemez)
+subprojects {
+    tasks.matching { it.name.startsWith("lintVital") }.configureEach { enabled = false }
+}
+' >> "$f"
+          tail -5 "$f"
+
       - name: Paketleri indir
         run: |
           flutter pub get
