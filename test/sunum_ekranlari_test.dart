@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kiyidanav/badi.dart';
+import 'package:kiyidanav/fishkrok.dart';
 import 'package:kiyidanav/kiyidabiri.dart';
 import 'package:kiyidanav/saatlik_karti.dart';
 import 'package:kiyidanav/sea.dart';
@@ -55,6 +57,7 @@ Widget _sohbet() => Scaffold(
 void main() {
   setUpAll(() async {
     await _font('Armata', 'assets/fonts/Armata-Regular.ttf');
+    await _font('Lobster', 'assets/fonts/Lobster-Regular.ttf');
     await _font('Emoji', r'C:\Windows\Fonts\seguiemj.ttf');
     await _font('Roboto', r'C:\Windows\Fonts\segoeui.ttf');
     await _font('MaterialIcons', '${Platform.environment['FLUTTER_ROOT'] ?? r'C:\fl\flutter'}/bin/cache/artifacts/material_fonts/MaterialIcons-Regular.otf');
@@ -137,5 +140,20 @@ void main() {
     if (find.text('18').evaluate().isNotEmpty) await t.tap(find.text('18').first, warnIfMissed: false);
     await t.pump();
     await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/sunum/s06_saatlik.png'));
+  }, skip: !_acik);
+
+  testWidgets('KıyıdanPaylaş ve Badimi bul giriş kartları', (t) async {
+    await _boyut(t);
+    await t.pumpWidget(_uygulama(Scaffold(
+      backgroundColor: const Color(0xFFF6F4EE),
+      body: SafeArea(
+        child: ListView(children: [
+          FishkrokGirisKarti(onTap: () {}),
+          const BadiGirisKarti(),
+        ]),
+      ),
+    )));
+    await t.pump(const Duration(milliseconds: 300));
+    await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/sunum/s07_paylas_badi_kartlari.png'));
   }, skip: !_acik);
 }
