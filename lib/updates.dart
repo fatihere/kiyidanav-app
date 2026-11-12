@@ -14,6 +14,8 @@ import 'theme.dart';
 /// Google Play'de yeni sürüm varsa açılışta "Güncelle" uyarısı gösterir ve güncellemeyi Play üzerinden yaptırır.
 class AppUpdate {
   static const playUrl = 'https://play.google.com/store/apps/details?id=com.kiyidanav.kiyidanav';
+  /// 1.17.1: iPhone'da güncelleme App Store sayfasını açar (önceden yanlışlıkla Google Play açılıyordu)
+  static const appStoreUrl = 'https://apps.apple.com/tr/app/id6824196217';
   static const _askedKey = 'guncelleme_soruldu';
 
   /// Kurulu sürüm (sunucuya bildirilir; yeni sürüm bildirimini otomatik göndermek için)
@@ -85,7 +87,7 @@ class AppUpdate {
         }
       } catch (_) {}
     }
-    await launchUrl(Uri.parse(playUrl), mode: LaunchMode.externalApplication);
+    await launchUrl(Uri.parse(Platform.isIOS ? appStoreUrl : playUrl), mode: LaunchMode.externalApplication);
   }
 
   static Future<void> _immediate() async {

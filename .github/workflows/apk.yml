@@ -136,7 +136,7 @@ jobs:
         if: ${{ env.KS_FILE != '' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.surum.outputs.v }}-${{ github.ref == 'refs/heads/main' && '' || 'deneme-' }}${{ github.run_number }}
+          tag_name: v${{ steps.surum.outputs.v }}-${{ github.ref == 'refs/heads/main' && 'magaza' || 'deneme' }}-${{ github.run_number }}
           name: KıyıdanAv ${{ steps.surum.outputs.v }} (${{ github.ref == 'refs/heads/main' && 'derleme' || 'TEST derlemesi' }} ${{ github.run_number }})
           prerelease: ${{ github.ref != 'refs/heads/main' }}
           body: |
