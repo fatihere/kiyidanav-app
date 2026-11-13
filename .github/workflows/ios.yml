@@ -3,6 +3,7 @@ name: iOS derle
 # 1) İmzasız derleme: kodun iPhone için hatasız derlendiğini doğrular.
 # 2) GitHub'da ASC_KEY_ID, ASC_ISSUER_ID ve ASC_KEY_P8 gizli değişkenleri varsa: imzalı IPA üretilir
 #    ve App Store Connect'e (TestFlight) yüklenir. Sertifika ve profil tool/asc_imza.py ile API üzerinden hazırlanır.
+# Not: App Store Connect API 403 dönerse önce ASC'de bekleyen sözleşme (Agreements) kabul edilmeli.
 on:
   push:
     branches: [main]
