@@ -16,6 +16,7 @@ import 'av_gunu.dart' show AvGunleri;
 import 'badi.dart';
 import 'bait_card.dart';
 import 'config.dart';
+import 'hava_uyari.dart';
 import 'main.dart';
 import 'kiyidabiri.dart' show KampanyaHatirlatici;
 import 'kurallar.dart';
@@ -604,6 +605,7 @@ void noticeDispatcher() {
     await Kurallar.arkaPlanKontrol(); // kullanıcının kendi kuralları (1.12.0)
     await KampanyaHatirlatici.kontrol(); // 1.14.0: Kıyıdabiri kampanya hatırlatıcıları
     await AvGunleri.arkaPlanKontrol(); // 1.15.0: av günüm koşulları yeniden oluşuyor mu
+    await HavaUyari.arkaPlanKontrol(); // 1.17.1: seçili merada hava değişimi uyarısı
     return true;
   });
 }

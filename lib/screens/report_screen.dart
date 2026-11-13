@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../saatlik_karti.dart';
+import '../hava_uyari.dart';
 import '../ambience.dart';
 import '../av_gunu.dart';
 import '../badi.dart';
@@ -333,7 +334,7 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
                     ],
                 'paylas': () => [_paylasSatiri(f, score, mood, data.sat)],
                 // 1.17.0: saatlik av skoru + en olası türler (raporun hemen altı)
-                'saatlik': () => [SaatlikSkorKarti(f: f, simdi: now)],
+                'saatlik': () => [HavaUyariKarti(f: f), SaatlikSkorKarti(f: f, simdi: now)],
                 'kurallar': () => [if (fx.kurallar) KuralKarti(f: f, bugunSkor: score)],
                 // 1.15.0: Av günüm (Kural oluştur'un hemen altı)
                 'avgunu': () => [AvGunuKarti(f: f)],

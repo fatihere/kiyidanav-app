@@ -107,9 +107,16 @@ const spots = [
   Spot('Kilyos', 41.258, 29.025, Side.karadeniz),
   Spot('Şile', 41.185, 29.610, Side.karadeniz),
   Spot('Ağva', 41.138, 29.857, Side.karadeniz), // 1.16.0
+  Spot('Bağırganlı', 41.134, 30.020, Side.karadeniz), // 1.17.1 Kandıra
+  Spot('Seyrek', 41.135, 30.101, Side.karadeniz), // 1.17.1 Kandıra
+  Spot('Sarısu', 41.139, 30.149, Side.karadeniz), // 1.17.1 Kandıra
   Spot('Kerpe', 41.159, 30.195, Side.karadeniz), // 1.16.0
+  Spot('Kumcağız', 41.162, 30.225, Side.karadeniz), // 1.17.1 Kandıra
   Spot('Kefken', 41.182, 30.240, Side.karadeniz),
+  Spot('Cebeci', 41.193, 30.258, Side.karadeniz), // 1.17.1 Kandıra
+  Spot('Uzunkum', 41.203, 30.279, Side.karadeniz), // 1.17.1 Kandıra, Uzunkum Tabiat Parkı
   Spot('Karasu', 41.120, 30.690, Side.karadeniz),
+  Spot('Kocaali', 41.072, 30.930, Side.karadeniz), // 1.17.1 Sakarya
   Spot('Akçakoca', 41.095, 31.120, Side.karadeniz),
   Spot('Ereğli', 41.283, 31.418, Side.karadeniz), // 1.16.0
   Spot('Alaplı', 41.181, 31.385, Side.karadeniz), // 1.16.0

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'balik_rehberi.dart';
+import 'hava_uyari.dart';
 import 'saatlik_skor.dart';
 import 'config.dart';
 import 'freshwater.dart';
@@ -845,6 +846,7 @@ class KiyidabiriBeyin {
       final p = SaatlikSkor.enIyiPencereler(saatler);
       final t = turSkorlari(f.spot, saatler);
       final b = StringBuffer();
+      if (gun == 0) b.write(HavaUyari.ozet(f)); // 1.17.1: hava değişimi uyarısı
       if (p.isNotEmpty) b.write('Saatlik skora göre en iyi saatler: ${p.map((x) => '${x.metin} (%${x.skor})').join(', ')}.\n');
       if (t.isNotEmpty) {
         b.write('En olası türler: ${t.map((x) => '${x.ad} %${x.skor}${x.pencere == null ? '' : ' (${x.pencere!.metin})'}').join(', ')}.\n');

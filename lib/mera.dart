@@ -94,7 +94,11 @@ class MeraService {
     }
     final m = await load();
     final i = m[s.key];
-    return (i == null || i.isEmpty) ? null : i;
+    if (i == null || i.isEmpty) {
+      // 1.17.1: kesiti henüz hazırlanmamış meralar (ör. Uzunkum, Cebeci) için noktanın kendi kesiti
+      return _noktaKesit(s);
+    }
+    return i;
   }
 
   static Future<MeraInfo?> _noktaKesit(Spot s) async {

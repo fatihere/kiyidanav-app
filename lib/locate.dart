@@ -14,6 +14,7 @@ import 'overlays.dart';
 import 'sea.dart';
 import 'sea_card.dart';
 import 'theme.dart';
+import 'yer_ara.dart';
 
 /// Telefonun yaklaşık konumundan en yakın merayı bulur.
 /// Konum yalnızca telefonda kullanılır; sunucuya veya başka bir yere gönderilmez.
@@ -194,6 +195,10 @@ Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) asyn
     await haritadanSec(context);
     return;
   }
+  final aramaCtrl = TextEditingController();
+  var arama = '';
+  List<Spot>? haritaSonuc;
+  var haritaAraniyor = false;
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -202,7 +207,38 @@ Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) asyn
       expand: false,
       initialChildSize: 0.75,
       maxChildSize: 0.95,
-      builder: (ctx, scroll) => ListView(
+      builder: (ctx, scroll) => StatefulBuilder(builder: (ctx, yenile) {
+        String sade(String x) => x
+            .toLowerCase()
+            .replaceAll('ı', 'i').replaceAll('İ', 'i').replaceAll('ş', 's').replaceAll('ğ', 'g')
+            .replaceAll('ü', 'u').replaceAll('ö', 'o').replaceAll('ç', 'c').replaceAll('â', 'a').trim();
+        final q = sade(arama);
+        final eslesen = q.length < 2
+            ? const <Spot>[]
+            : [...Meralarim.liste.value, ...spots].where((s) => sade(s.name).contains(q) || sade(s.side.label).contains(q)).take(12).toList();
+        Future<void> haritadaAra() async {
+          if (arama.trim().length < 3) return;
+          yenile(() {
+            haritaAraniyor = true;
+            haritaSonuc = null;
+          });
+          final l = await YerArama.ara(arama, yakin: selectedSpot.value, onlyPublic: !appState.isMember);
+          yenile(() {
+            haritaAraniyor = false;
+            haritaSonuc = l;
+          });
+        }
+
+        void sec(Spot s) {
+          Navigator.of(ctx).pop();
+          if (!s.side.public && !appState.isMember) {
+            showMemberPrompt(context, '${s.side.label} meraları');
+            return;
+          }
+          Locate.manualPick(s);
+        }
+
+        return ListView(
         controller: scroll,
         padding: const EdgeInsets.only(bottom: 24),
         children: [
@@ -213,8 +249,81 @@ Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) asyn
               CloseX(onTap: () => Navigator.of(ctx).pop()),
             ]),
           ),
-          if (Api.config.features.harita)
+          // 1.17.1: mera ya da yer adı arama
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextField(
+              controller: aramaCtrl,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Mera ya da yer ara (ör. Uzunkum, Kandıra)',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: arama.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          aramaCtrl.clear();
+                          yenile(() {
+                            arama = '';
+                            haritaSonuc = null;
+                          });
+                        }),
+                filled: true,
+                fillColor: Colors.white,
+                isDense: true,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+              ),
+              onChanged: (v) => yenile(() {
+                arama = v;
+                haritaSonuc = null;
+              }),
+              onSubmitted: (_) => haritadaAra(),
+            ),
+          ),
+          if (arama.trim().length >= 2) ...[
+            for (final s in eslesen)
+              ListTile(
+                dense: true,
+                leading: Icon(s.nokta ? Icons.push_pin : Icons.place_outlined, color: Tide.turuncu),
+                title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(s.side.label),
+                trailing: !s.side.public && !appState.isMember ? const Icon(Icons.lock_outline, size: 18) : null,
+                onTap: () => sec(s),
+              ),
             ListTile(
+              dense: true,
+              leading: haritaAraniyor
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.travel_explore, color: Tide.derin),
+              title: Text('Haritada ara: “${arama.trim()}”', style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Listede olmayan plaj, koy, köy… (kıyıya yakın yerler)'),
+              onTap: haritaAraniyor ? null : haritadaAra,
+            ),
+            if (haritaSonuc != null && haritaSonuc!.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 0, 20, 8),
+                child: Text('Kıyıda bu adla bir yer bulunamadı. Haritadan seçebilirsin.', style: TextStyle(color: Tide.mercan)),
+              ),
+            for (final s in haritaSonuc ?? const <Spot>[])
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.push_pin, color: Tide.derin),
+                title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text('${s.side.label} · en yakın mera ${s.key}'),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  if (!s.side.public && !appState.isMember) {
+                    showMemberPrompt(context, '${s.side.label} meraları');
+                    return;
+                  }
+                  await Locate.manualPick(await Meralarim.ekle(s));
+                },
+              ),
+            const Divider(),
+          ],
+          // 1.17.1: haritadan iğne ile seçim her zaman görünür (panel ayarından bağımsız)
+          ListTile(
               leading: const CircleAvatar(backgroundColor: Tide.derin, child: Icon(Icons.map_outlined, color: Colors.white)),
               title: const Text('Haritadan seç', style: TextStyle(fontWeight: FontWeight.w700)),
               subtitle: const Text('İğneyi istediğin kıyıya taşı'),
@@ -321,9 +430,11 @@ Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) asyn
             ),
           ],
         ],
-      ),
+      );
+      }),
     ),
   );
+  aramaCtrl.dispose();
 }
 
 /// "📍 Konum: Kartal · Anadolu Yakası   Değiştir" şeridi

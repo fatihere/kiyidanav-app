@@ -31,6 +31,7 @@ import 'sea_card.dart';
 import 'takim_cizimi.dart';
 import 'theme.dart';
 import 'updates.dart';
+import 'yer_ara.dart';
 
 /// 1.14.0 — Kıyıdabiri: ekranın altında duran mini robot. Dokununca sohbet açılır; açılışta (ayardan kapatılabilir)
 /// Türkçe sesle karşılar. Sohbetler hizmeti iyileştirmek için sunucuya kaydedilir (yönetici paneli › Kıyıdabiri).
@@ -330,26 +331,9 @@ class KampanyaHatirlatici {
 class _UygulamaVerisi implements KbVeri {
   @override
   Future<Spot?> yerBul(String ad) async {
-    final q = ad.trim();
-    if (q.length < 3) return null;
-    try {
-      final r = await http
-          .get(Uri.https('geocoding-api.open-meteo.com', '/v1/search', {'name': q, 'count': '5', 'language': 'tr', 'countryCode': 'TR'}))
-          .timeout(const Duration(seconds: 6));
-      final j = jsonDecode(utf8.decode(r.bodyBytes));
-      final l = j is Map && j['results'] is List ? j['results'] as List : const [];
-      for (final x in l) {
-        if (x is! Map) continue;
-        final lat = (x['latitude'] as num?)?.toDouble(), lon = (x['longitude'] as num?)?.toDouble();
-        if (lat == null || lon == null) continue;
-        final (yakin, km) = Locate.nearest(lat, lon, onlyPublic: !uye);
-        if (km > 30) continue; // kıyıdan uzak (iç kesim) yer adı
-        final adi = '${x['name'] ?? q}';
-        final ilce = '${x['admin2'] ?? ''}'.replaceAll(' İlçesi', '');
-        return Spot.pin(lat, lon, yakin, ad: ilce.isNotEmpty && ilce != adi ? '$adi, $ilce' : adi);
-      }
-    } catch (_) {}
-    return null;
+    // 1.17.1: Open-Meteo + OpenStreetMap; aynı adlı yerlerden seçili meraya en yakını (Kandıra Uzunkum ≠ Germencik Uzunkum)
+    final l = await YerArama.ara(ad, yakin: secili, onlyPublic: !uye, adet: 1);
+    return l.isEmpty ? null : l.first;
   }
 
   @override
