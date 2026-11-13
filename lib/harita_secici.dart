@@ -12,6 +12,7 @@ import 'meralarim.dart';
 import 'sea.dart';
 import 'sea_card.dart';
 import 'theme.dart';
+import 'yer_ara.dart';
 
 /// Harita katmanları: uydu (Esri World Imagery + yer adları) ve sokak haritası (OpenStreetMap)
 enum HaritaKatman { uydu, harita }
@@ -76,6 +77,41 @@ class _HaritaSeciciState extends State<HaritaSecici> {
 
   bool get _ogren => widget.liste;
 
+  // 1.17.1: haritada yer arama (üstte arama çubuğu)
+  final _ara = TextEditingController();
+  bool _araniyor = false;
+  List<Spot> _sonuclar = const [];
+
+  Future<void> _yerAra() async {
+    final q = _ara.text.trim();
+    if (q.length < 2) return;
+    FocusScope.of(context).unfocus();
+    // önce kayıtlı meralar (hızlı), sonra harita (OpenStreetMap + Open-Meteo)
+    String sade(String x) => x.toLowerCase().replaceAll('ı', 'i').replaceAll('İ', 'i').replaceAll('ş', 's').replaceAll('ğ', 'g')
+        .replaceAll('ü', 'u').replaceAll('ö', 'o').replaceAll('ç', 'c');
+    final kayitli = [...Meralarim.liste.value, ...spots].where((s) => sade(s.name).contains(sade(q))).take(4).toList();
+    setState(() {
+      _araniyor = true;
+      _sonuclar = kayitli;
+    });
+    if (kayitli.length == 1) _git(kayitli.first);
+    final l = q.length >= 3 ? await YerArama.ara(q, yakin: selectedSpot.value) : const <Spot>[];
+    if (!mounted) return;
+    setState(() {
+      _araniyor = false;
+      _sonuclar = [...kayitli, ...l.where((x) => !kayitli.any((k) => Locate.km(k.lat, k.lon, x.lat, x.lon) < 0.5))].take(6).toList();
+    });
+    if (kayitli.isEmpty && l.isNotEmpty) _git(l.first);
+    if (_sonuclar.isEmpty) _soyle('"$q" kıyıda bulunamadı. Haritayı kaydırarak seçebilirsin.');
+  }
+
+  void _git(Spot s) {
+    _ctrl.move(LatLng(s.lat, s.lon), 15);
+    setState(() => _merkez = LatLng(s.lat, s.lon));
+    _adBulZamanla();
+    _kesitZamanla();
+  }
+
   // 1.17.0: iğnenin altındaki noktanın kendi kesiti (seçmeden önce önizleme)
   MeraInfo? _kesit;
   LatLng? _kesitNokta;
@@ -123,6 +159,7 @@ class _HaritaSeciciState extends State<HaritaSecici> {
   void dispose() {
     _adZaman?.cancel();
     _kesitZaman?.cancel();
+    _ara.dispose();
     super.dispose();
   }
 
@@ -300,6 +337,51 @@ class _HaritaSeciciState extends State<HaritaSecici> {
               child: Icon(Icons.location_on, size: 48, color: Color(0xFFD93D1A), shadows: [Shadow(blurRadius: 6, color: Colors.black54)]),
             ),
           ),
+        ),
+        Positioned(
+          left: 12,
+          right: 64,
+          top: 12,
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Material(
+              elevation: 3,
+              borderRadius: BorderRadius.circular(14),
+              color: Colors.white,
+              child: TextField(
+                controller: _ara,
+                textInputAction: TextInputAction.search,
+                onSubmitted: (_) => _yerAra(),
+                decoration: InputDecoration(
+                  hintText: 'Yer ara (ör. Uzunkum, Kandıra)',
+                  prefixIcon: _araniyor
+                      ? const Padding(
+                          padding: EdgeInsets.all(14), child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)))
+                      : const Icon(Icons.search),
+                  suffixIcon: IconButton(icon: const Icon(Icons.arrow_forward), onPressed: _yerAra),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
+            if (_sonuclar.length > 1)
+              Container(
+                margin: const EdgeInsets.only(top: 6),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14)),
+                child: Column(children: [
+                  for (final s in _sonuclar)
+                    ListTile(
+                      dense: true,
+                      leading: Icon(s.custom ? Icons.push_pin : Icons.place, color: Tide.turuncu),
+                      title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(s.side.label),
+                      onTap: () {
+                        _git(s);
+                        setState(() => _sonuclar = const []);
+                      },
+                    ),
+                ]),
+              ),
+          ]),
         ),
         Positioned(
           right: 12,
