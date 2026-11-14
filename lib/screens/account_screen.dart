@@ -11,6 +11,7 @@ import '../badi.dart';
 import '../profil.dart';
 import '../app_state.dart';
 import '../config.dart';
+import '../geri_bildirim.dart';
 import '../notices.dart';
 import '../share.dart';
 import '../theme.dart';
@@ -121,6 +122,8 @@ class AccountScreen extends StatelessWidget {
               launchUrl(Uri.parse('tel:${Api.config.phone.replaceAll(' ', '')}'));
             }),
             _tile(Icons.share_outlined, 'Uygulamayı paylaş', Sharer.app),
+            // 1.17.2: uygulama içi geri bildirim → teşekkür kuponu (mağaza yorumuna bağlı değil)
+            _tile(Icons.card_giftcard_outlined, 'Görüşünü yaz, hediye kupon kazan', () => GeriBildirimEkrani.ac(context)),
             // 1.17.2: mağazada puan ver ve yorum yap (Android → Google Play, iPhone → App Store)
             _tile(Icons.star_rate_outlined,
                 Platform.isIOS ? 'App Store\'da puan ver ve yorum yap' : 'Google Play\'de puan ver ve yorum yap', AppUpdate.degerlendir),
