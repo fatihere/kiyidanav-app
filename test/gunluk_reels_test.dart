@@ -1,11 +1,15 @@
 // "Bugün balık kaç metrede?" — günlük Instagram Reels üreticisi (9 Kasım 2026)
-// Uygulamanın KENDİ hesabıyla İstanbul'un 20 merasını o anki gerçek veriyle hesaplar (gunluk_reels/veri.dart),
+// Uygulamanın KENDİ hesabıyla günün illerindeki meraları o anki gerçek veriyle hesaplar (gunluk_reels/veri.dart),
+// 15.11.2026: il planı — test/gunluk_reels/plan.json'daki günler elle (ör. İstanbul 3 + Kocaeli 3), diğer günler
+// meraları olan kıyı illerinden tarihe bağlı rastgele 3 farklı il (her ilden 1 mera).
 // 1080x1920 kareleri veriden üretilen canlı sahnelerle çizer (gunluk_reels/cizim.dart). MP4: tool/gunluk_reels.sh
 //   GUNLUK_REELS=1 flutter test test/gunluk_reels_test.dart
 // Ortam: GUNLUK_REELS_CIKTI (çıktı klasörü), GUNLUK_REELS_FONT (yazı tipleri), GUNLUK_REELS_TEMA (safak|turkuaz|altin|gece|firtina),
 //        GUNLUK_REELS_ORNEK=1 (yalnız her 15. kare)
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
+import 'dart:math' show Random;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -34,33 +38,20 @@ Future<void> _font(String aile, String yol) async {
   await (FontLoader(aile)..addFont(Future.value(ByteData.view(f.readAsBytesSync().buffer)))).load();
 }
 
-/// İstanbul ve çevresinin il sınırları (assets/data/tr_harita.json, © OpenStreetMap)
-List<List<Offset>> _kara() {
-  final j = jsonDecode(File('assets/data/tr_harita.json').readAsStringSync()) as Map;
-  const iller = {'İstanbul', 'Kocaeli', 'Yalova', 'Tekirdağ', 'Bursa', 'Sakarya', 'Kırklareli'};
-  final out = <List<Offset>>[];
-  for (final il in (j['iller'] as List)) {
-    if (!iller.contains(il['n'])) continue;
-    for (final r in (il['r'] as List)) {
-      final l = (r as List).cast<num>();
-      out.add([for (var i = 0; i + 1 < l.length; i += 2) Offset(l[i].toDouble(), l[i + 1].toDouble())]);
-    }
-  }
-  return out;
-}
 
 String aciklama(List<MeraGunu> uc, DateTime now) {
   final b = StringBuffer('🎣 Bugün balık kaç metrede? ${kucukHarf(gunAdi(now))}\n\n');
   for (var i = 0; i < uc.length; i++) {
     final m = uc[i];
-    b.writeln('${i + 1}) ${m.spot.name}: büyük balık ${m.firtina ? "bugün yok, kıyıdan uzak dur" : m.k.buyuk}, '
+    b.writeln('${i + 1}) ${m.spot.name}${m.il.isNotEmpty ? ' (${m.il})' : ''}: büyük balık ${m.firtina ? "bugün yok, kıyıdan uzak dur" : m.k.buyuk}, '
         'küçük balık ${m.k.kucuk} · ${m.k.takim} · rüzgâr ${m.r.effectiveWind.round()} km/s ${kucukHarf(m.r.windFrom)}'
         '${m.spot.strait ? "" : ", dalga ${ondalik(m.r.effectiveWave)} m"}');
   }
   b.writeln('\n📲 Senin meranda balık bugün kaç metrede? Rüzgâr, dalga, mesafe ve takım önerisi KıyıdanAv uygulamasında, '
       'Türkiye kıyıları için canlı. Ücretsiz indir: link profilde 👆');
   b.writeln('✅ Balık kaç metrede  ✅ Canlı mera raporu  ✅ Kıyıdabiri asistanı  (Google Play · App Store)');
-  b.write('\n#balıkavı #istanbul #kıyıdanav #levrek #lüfer #spin #lrf #surfcasting #balıkçılık #olta #balıkçılıkuygulaması');
+  final etiket = {for (final m in uc) if (m.il.isNotEmpty) '#${kucukHarfTr(m.il).replaceAll(' ', '')}'};
+  b.write('\n#balıkavı ${etiket.isEmpty ? '#istanbul' : etiket.join(' ')} #kıyıdanav #levrek #lüfer #spin #lrf #surfcasting #balıkçılık #olta #balıkçılıkuygulaması');
   return b.toString();
 }
 
@@ -84,19 +75,37 @@ void main() {
       final robot = (await kod.getNextFrame()).image;
       await Api.loadConfig();
       final now = DateTime.now();
-      final l = <MeraGunu>[];
-      for (final s in [...spotsOf(Side.anadolu), ...spotsOf(Side.avrupa)]) {
-        final m = await meraGunu(s, now);
-        if (m != null) l.add(m);
+      final harita = IlHaritasi.dosyadan();
+      // her meranın ili (kullanıcıya açık meralar)
+      final ilMeralari = <String, List<Spot>>{};
+      for (final s in spots.where((s) => !s.custom)) {
+        final il = harita.meraIli(s);
+        if (il.isNotEmpty) (ilMeralari[il] ??= []).add(s);
       }
-      File('${cikti.path}/veri.json').writeAsStringSync(
-          const JsonEncoder.withIndent(' ').convert({'zaman': now.toIso8601String(), 'meralar': l.map((e) => e.json()).toList()}));
-      return (l, Kaynaklar(_kara(), robot));
+      final plan = gunPlani(now, ilMeralari.keys);
+      // ignore: avoid_print
+      print('gün planı: $plan');
+      final secilen = <MeraGunu>[];
+      final hepsi = <MeraGunu>[];
+      for (final (i, (il, adet)) in plan.indexed) {
+        final aday = [...?ilMeralari[il]]..shuffle(Random(now.year * 1000 + now.month * 50 + now.day + i));
+        final l = <MeraGunu>[];
+        for (final s in aday.take(math.max(8, adet * 3))) {
+          final m = await meraGunu(s, now, il: il);
+          if (m != null) l.add(m);
+        }
+        hepsi.addAll(l);
+        secilen.addAll(secim(l, now, adet: adet, tohum: i));
+      }
+      // tek mera/il planında en iyi puanlı başa; il grupları (İstanbul 3 + Kocaeli 3) plan sırasında kalır
+      if (plan.every((p) => p.$2 == 1)) secilen.sort((a, b) => b.puan.compareTo(a.puan));
+      File('${cikti.path}/veri.json').writeAsStringSync(const JsonEncoder.withIndent(' ')
+          .convert({'zaman': now.toIso8601String(), 'plan': [for (final p in plan) [p.$1, p.$2]], 'meralar': hepsi.map((e) => e.json()).toList()}));
+      return (secilen, Kaynaklar(harita.tumHalkalar, robot));
     });
-    final (liste, kn) = hazir!;
-    expect(liste.length, greaterThanOrEqualTo(3), reason: 'yeterli mera verisi gelmedi');
+    final (secilen, kn) = hazir!;
+    expect(secilen.length, greaterThanOrEqualTo(3), reason: 'yeterli mera verisi gelmedi');
     final now = DateTime.now();
-    final secilen = secim(liste, now);
     final tm = Tema.sec(secilen, now, Platform.environment['GUNLUK_REELS_TEMA']);
     File('${cikti.path}/aciklama.txt').writeAsStringSync(aciklama(secilen, now));
     File('${cikti.path}/secilen.json').writeAsStringSync(jsonEncode({'tema': tm.ad, 'meralar': secilen.map((e) => e.json()).toList()}));
@@ -122,6 +131,36 @@ void main() {
     }
     File('${cikti.path}/sure.txt').writeAsStringSync(toplam.toStringAsFixed(2));
   }, skip: !_acik, timeout: const Timeout(Duration(minutes: 20)));
+
+  test('il planı: meraların ili, 16 Kasım İstanbul 3 + Kocaeli 3, diğer günler 3 farklı il', () {
+    final h = IlHaritasi.dosyadan();
+    final ilMeralari = <String, List<Spot>>{};
+    for (final s in spots) {
+      final il = h.meraIli(s);
+      expect(il, isNotEmpty, reason: '${s.name} için il bulunamadı');
+      (ilMeralari[il] ??= []).add(s);
+    }
+    String ilOf(String ad) => h.meraIli(spots.firstWhere((s) => s.name == ad));
+    expect(ilOf('Uzunkum'), 'Kocaeli');
+    expect(ilOf('Kocaali'), 'Sakarya');
+    expect(ilOf('Tuzla'), 'İstanbul');
+    expect(ilOf('Hersek'), 'Yalova');
+    expect(ilOf('Gölcük'), 'Kocaeli');
+    expect(ilMeralari['İstanbul']!.length, greaterThanOrEqualTo(6));
+    expect(ilMeralari['Kocaeli']!.length, greaterThanOrEqualTo(6));
+    expect(gunPlani(DateTime(2026, 11, 16), ilMeralari.keys), [('İstanbul', 3), ('Kocaeli', 3)]);
+    final gunler = <String>{};
+    for (var g = 15; g < 30; g++) {
+      if (g == 16) continue;
+      final p = gunPlani(DateTime(2026, 11, g), ilMeralari.keys);
+      expect(p.length, 3);
+      expect(p.map((e) => e.$1).toSet().length, 3);
+      gunler.add(p.map((e) => e.$1).join(','));
+    }
+    expect(gunler.length, greaterThanOrEqualTo(12));
+    // ignore: avoid_print
+    print('iller: ${ilMeralari.map((k, v) => MapEntry(k, v.length))} · 15 Kasım: ${gunPlani(DateTime(2026, 11, 15), ilMeralari.keys)} · 17 Kasım: ${gunPlani(DateTime(2026, 11, 17), ilMeralari.keys)}');
+  });
 
   test('mera seçimi her gün farklı, aynı gün aynı', () {
     final l = [
