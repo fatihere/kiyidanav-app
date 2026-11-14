@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 
+import 'acilis.dart';
 import 'saatlik_skor.dart' show SkorAyar;
 import 'api.dart';
 import 'app_state.dart';
@@ -60,6 +61,7 @@ Future<void> main() async {
   await Yonetici.yukle(); // 1.13.0: uygulamada yönetici girişi (ekran görüntüsü izni dahil)
   unawaited(EkranKoruma.uygula()); // panel → Ekran görüntüsü engeli
   runApp(const KiyidanAvApp());
+  if (!ekranTuru) unawaited(Acilis.bildir()); // 1.17.2: panelde doğru aktif cihaz sayımı
   Premium.baslat(); // Play aboneliği + panelden verilen premium
   memberNotifier.addListener(Premium.vipYenile); // giriş / çıkışta panel hakkı yeniden sorulur
   if (!ekranTuru) Notices.start().whenComplete(Push.start);
@@ -141,6 +143,7 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      if (!ekranTuru) Acilis.bildir(); // gün değiştiyse bir kez
       Notices.refresh();
       _startPoll();
     } else if (state == AppLifecycleState.paused) {
