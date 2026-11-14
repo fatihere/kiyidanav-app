@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,6 +14,7 @@ import '../config.dart';
 import '../notices.dart';
 import '../share.dart';
 import '../theme.dart';
+import '../updates.dart';
 import '../web_page_screen.dart';
 import 'favorites_screen.dart';
 import 'knots_screen.dart';
@@ -118,6 +121,9 @@ class AccountScreen extends StatelessWidget {
               launchUrl(Uri.parse('tel:${Api.config.phone.replaceAll(' ', '')}'));
             }),
             _tile(Icons.share_outlined, 'Uygulamayı paylaş', Sharer.app),
+            // 1.17.2: mağazada puan ver ve yorum yap (Android → Google Play, iPhone → App Store)
+            _tile(Icons.star_rate_outlined,
+                Platform.isIOS ? 'App Store\'da puan ver ve yorum yap' : 'Google Play\'de puan ver ve yorum yap', AppUpdate.degerlendir),
           ]),
           const SizedBox(height: 16),
           // 1.15.0: son 7 günün hava ve mera raporu (üyelere)

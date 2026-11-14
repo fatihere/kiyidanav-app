@@ -75,6 +75,20 @@ class AppUpdate {
     if (yes == true) await _immediate();
   }
 
+  /// 1.17.2: Hesabım › "Puan ver ve yorum yap": telefonun mağazasında değerlendirme sayfasını açar
+  static Uri degerlendirmeAdresi({required bool ios}) => ios
+      ? Uri.parse('$appStoreUrl?action=write-review')
+      : Uri.parse('market://details?id=com.kiyidanav.kiyidanav&showAllReviews=true');
+
+  static Future<void> degerlendir() async {
+    final ios = Platform.isIOS;
+    try {
+      if (await launchUrl(degerlendirmeAdresi(ios: ios), mode: LaunchMode.externalApplication)) return;
+    } catch (_) {}
+    // Play Store uygulaması yoksa (ör. BlueStacks) tarayıcıda Play sayfası
+    await launchUrl(Uri.parse(ios ? appStoreUrl : playUrl), mode: LaunchMode.externalApplication);
+  }
+
   /// Bildirimden veya bantdan "güncelle"
   static Future<void> start() async {
     if (Platform.isAndroid) {
