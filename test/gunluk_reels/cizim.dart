@@ -243,14 +243,16 @@ class Atmosfer extends CustomPainter {
   bool shouldRepaint(Atmosfer o) => true;
 }
 
-// ------------------------------------------------------------------ İstanbul mini haritası
+// ------------------------------------------------------------------ mera mini haritası (merayı ortalar)
 class Harita extends CustomPainter {
   final List<List<Offset>> kara; // (boylam, enlem)
   final Offset pin;
   final double t;
   final Tema tm;
-  Harita(this.kara, this.pin, this.t, this.tm);
-  static const l0 = 28.15, l1 = 29.75, b0 = 40.66, b1 = 41.42;
+  final List<Rect>? kutular;
+  // 15.11.2026: harita merayı ortalar (her il için); genişlik/yükseklik eskisiyle aynı (1,6° x 0,76°)
+  late final double l0 = pin.dx - 0.8, l1 = pin.dx + 0.8, b0 = pin.dy - 0.38, b1 = pin.dy + 0.38;
+  Harita(this.kara, this.pin, this.t, this.tm, {this.kutular});
   Offset _p(Offset g, Size s) => Offset((g.dx - l0) / (l1 - l0) * s.width, (1 - (g.dy - b0) / (b1 - b0)) * s.height);
 
   @override
@@ -259,8 +261,11 @@ class Harita extends CustomPainter {
     c.save();
     c.clipRRect(rr);
     c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, s.height), [tm.deniz[0], tm.deniz[1]]));
-    for (final r in kara) {
+    final gorunen = Rect.fromLTRB(l0, b0, l1, b1);
+    for (var ri = 0; ri < kara.length; ri++) {
+      final r = kara[ri];
       if (r.length < 3) continue;
+      if (kutular != null && ri < kutular!.length && !kutular![ri].overlaps(gorunen)) continue;
       final p = Path()..moveTo(_p(r.first, s).dx, _p(r.first, s).dy);
       for (final g in r.skip(1)) {
         final q = _p(g, s);
@@ -468,6 +473,13 @@ class Sahne {
 class Kaynaklar {
   final List<List<Offset>> kara;
   final ui.Image? robot;
+  late final List<Rect> kutular = [
+    for (final r in kara)
+      r.isEmpty
+          ? Rect.zero
+          : Rect.fromLTRB(r.map((p) => p.dx).reduce(math.min), r.map((p) => p.dy).reduce(math.min),
+              r.map((p) => p.dx).reduce(math.max), r.map((p) => p.dy).reduce(math.max))
+  ];
   Kaynaklar(this.kara, this.robot);
 }
 
@@ -495,7 +507,7 @@ List<Sahne> sahneler(List<MeraGunu> uc, DateTime now, Tema tm, Kaynaklar kn) {
       Positioned(
         left: 0, right: 0, top: 200,
         child: Center(
-            child: cam(Text('${gunAdi(now)} · İSTANBUL', style: ts(fGov, 36, Colors.white, ls: 2)),
+            child: cam(Text('${gunAdi(now)} · ${yerBasligi(uc)}', style: ts(fGov, 36, Colors.white, ls: 2)),
                 p: const EdgeInsets.symmetric(horizontal: 30, vertical: 12), r: 40)),
       ),
       Positioned(
@@ -526,7 +538,7 @@ List<Sahne> sahneler(List<MeraGunu> uc, DateTime now, Tema tm, Kaynaklar kn) {
           child: Opacity(
               opacity: ease((sec - 0.9) / 0.3),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('Günün en iyi 3 merası', style: ts(fBasB, 64, Colors.white)),
+                Text('Günün en iyi ${uc.length} merası', style: ts(fBasB, 64, Colors.white)),
                 const SizedBox(width: 10),
                 Icon(Icons.keyboard_double_arrow_down, color: tm.vurgu, size: 70),
               ]))),
@@ -563,7 +575,7 @@ List<Sahne> sahneler(List<MeraGunu> uc, DateTime now, Tema tm, Kaynaklar kn) {
                     child: Text('${i + 1}. MERA', style: ts(fBasB, 52, const Color(0xFF14161F), golge: false)),
                   ),
                   const SizedBox(width: 20),
-                  Text(buyukHarf(m.spot.side.label), style: ts(fGov, 38, Colors.white, ls: 1.5)),
+                  Text(buyukHarf(m.il.isEmpty || m.spot.side.label.contains(m.il) ? m.spot.side.label : '${m.il} · ${m.spot.side.label}'), style: ts(fGov, 38, Colors.white, ls: 1.5)),
                 ]),
                 const SizedBox(height: 12),
                 SizedBox(width: 960, child: sigdir(buyukHarf(m.spot.name), ts(fBas, 200, Colors.white, h: 1))),
@@ -588,7 +600,7 @@ List<Sahne> sahneler(List<MeraGunu> uc, DateTime now, Tema tm, Kaynaklar kn) {
           right: 60, top: 590, width: 380, height: 290,
           child: Opacity(
             opacity: ease((sec - 0.3) / 0.35),
-            child: CustomPaint(painter: Harita(kn.kara, Offset(m.spot.lon, m.spot.lat), sec, tm)),
+            child: CustomPaint(painter: Harita(kn.kara, Offset(m.spot.lon, m.spot.lat), sec, tm, kutular: kn.kutular)),
           ),
         ),
         Positioned(

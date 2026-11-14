@@ -1,6 +1,6 @@
 name: Günlük Reels (Bugün balık kaç metrede?)
 
-# Her sabah 05:30'da (TSİ) uygulamanın KENDİ hesabıyla İstanbul'un 20 merasını o anki gerçek veriyle hesaplar,
+# Her sabah uygulamanın KENDİ hesabıyla günün illerindeki meraları (test/gunluk_reels/plan.json ya da tarihe bağlı rastgele 3 il) hesaplar,
 # 1080x1920 Reels videosunu üretir (test/gunluk_reels_test.dart + tool/gunluk_reels.sh) ve
 # kiyidanav.com/instagram/gunluk_reels_al.php'ye gönderir. Gizli anahtar yok: sunucu GitHub'ın imzalı
 # OIDC jetonunu (yalnız bu deponun main dalı) GitHub'ın açık anahtarlarıyla doğrular.
