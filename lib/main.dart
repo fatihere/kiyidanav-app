@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:home_widget/home_widget.dart';
 
+import 'fk_bildirim.dart';
 import 'acilis.dart';
 import 'saatlik_skor.dart' show SkorAyar;
 import 'api.dart';
@@ -145,6 +146,7 @@ class _KiyidanAvAppState extends State<KiyidanAvApp> with WidgetsBindingObserver
     if (state == AppLifecycleState.resumed) {
       if (!ekranTuru) Acilis.bildir(); // gün değiştiyse bir kez
       Notices.refresh();
+      if (!ekranTuru) FkBildirim.yenile(); // 1.17.3: KıyıdanPaylaş zil rozeti
       _startPoll();
     } else if (state == AppLifecycleState.paused) {
       _poll?.cancel(); // arka planda WorkManager devralır

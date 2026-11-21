@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 
 import 'app_state.dart';
 import 'catches.dart';
+import 'fk_bildirim.dart';
 import 'notices.dart';
 import 'topluluk_api.dart';
 
@@ -60,6 +61,7 @@ class Push {
       FirebaseMessaging.onMessage.listen((m) {
         final n = _notice(m);
         if (n == null) return;
+        if (n.type == 'etkilesim') FkBildirim.yenile(zorla: true); // 1.17.3: zil rozeti
         if (Platform.isIOS && m.notification != null) {
           Notices.markNotifiedIds([n.id]);
           return;

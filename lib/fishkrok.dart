@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'badi.dart';
+import 'fk_bildirim.dart';
 import 'profil.dart';
 import 'screens/catch_screens.dart';
 import 'sea_card.dart';
@@ -85,6 +86,8 @@ class FkGonderi {
   int puanim;
   int yorumSayi;
   List<FkYorum> yorumlar;
+  /// 1.17.3: paylaşım bu üyenin mi (beğenenleri görebilir)
+  final bool benim;
 
   FkGonderi.fromJson(Map j)
       : id = '${j['id'] ?? ''}',
@@ -106,7 +109,8 @@ class FkGonderi {
         puanSayi = tInt(j['puan_sayi']),
         puanim = tInt(j['puanim']),
         yorumSayi = tInt(j['yorum_sayi']),
-        yorumlar = ((j['yorumlar'] as List?) ?? const []).whereType<Map>().map(FkYorum.fromJson).toList();
+        yorumlar = ((j['yorumlar'] as List?) ?? const []).whereType<Map>().map(FkYorum.fromJson).toList(),
+        benim = j['benim'] == true;
 
   String get kim => instagram.isNotEmpty ? '@$instagram' : ad;
 }
@@ -157,6 +161,7 @@ class _FishkrokEkraniState extends State<FishkrokEkrani> {
   void initState() {
     super.initState();
     _yukle();
+    FkBildirim.yenile(zorla: true);
   }
 
   Future<void> _yukle({bool bastan = false}) async {
@@ -203,9 +208,14 @@ class _FishkrokEkraniState extends State<FishkrokEkrani> {
           Flexible(child: FishkrokYazi(boy: 22)),
         ]),
         actions: [
+          // 1.17.3: beğeni ve yorum bildirimleri
+          const FkZil(),
           IconButton(
             tooltip: 'Yenile',
-            onPressed: () => _yukle(bastan: true),
+            onPressed: () {
+              _yukle(bastan: true);
+              FkBildirim.yenile(zorla: true);
+            },
             icon: const Icon(Icons.refresh),
           ),
           // 1.13.0: mesaj kutusu (badilerle yazışma, av paylaşma)
@@ -492,7 +502,8 @@ class _FkSayfaState extends State<FkSayfa> {
         bottom: 110,
         child: Column(children: [
           _Eylem(g.begendim ? Icons.favorite : Icons.favorite_border, '${g.begeni}', _begen,
-              renk: g.begendim ? const Color(0xFFE0453A) : Colors.white),
+              renk: g.begendim ? const Color(0xFFE0453A) : Colors.white,
+              onLongPress: g.benim && g.begeni > 0 ? () => FkBildirim.begenenler(context, g) : null),
           _Eylem(Icons.mode_comment_outlined, '${g.yorumSayi}', _yorumlar),
           _Eylem(g.puanim > 0 ? Icons.star : Icons.star_border, g.puanSayi == 0 ? 'Puan' : g.puan.toStringAsFixed(1), _puanla,
               renk: g.puanim > 0 ? const Color(0xFFF2A51A) : Colors.white),
@@ -523,6 +534,25 @@ class _FkSayfaState extends State<FkSayfa> {
           if (g.meraBilgi.isNotEmpty) Text('Mera: ${g.meraBilgi}', style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
           if (g.not.isNotEmpty)
             Text(g.not, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 12.5)),
+          // 1.17.3: paylaşımın sahibi, avını kimlerin beğendiğini görür
+          if (g.benim && g.begeni > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: InkWell(
+                onTap: () => FkBildirim.begenenler(context, g),
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(color: Colors.black45, borderRadius: BorderRadius.circular(16)),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.favorite, color: Color(0xFFE0453A), size: 15),
+                    const SizedBox(width: 5),
+                    Text('${g.begeni} kişi beğendi · Kimler?',
+                        style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ),
+            ),
         ]),
       ),
     ]);
@@ -563,13 +593,15 @@ class _Eylem extends StatelessWidget {
   final String yazi;
   final VoidCallback onTap;
   final Color renk;
-  const _Eylem(this.ikon, this.yazi, this.onTap, {this.renk = Colors.white});
+  final VoidCallback? onLongPress;
+  const _Eylem(this.ikon, this.yazi, this.onTap, {this.renk = Colors.white, this.onLongPress});
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 14),
         child: InkResponse(
           onTap: onTap,
+          onLongPress: onLongPress,
           radius: 30,
           child: Column(children: [
             Icon(ikon, color: renk, size: 32, shadows: const [Shadow(blurRadius: 6, color: Colors.black54)]),

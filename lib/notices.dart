@@ -14,6 +14,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'av_gunu.dart' show AvGunleri;
 import 'badi.dart';
+import 'fk_bildirim.dart';
 import 'bait_card.dart';
 import 'config.dart';
 import 'hava_uyari.dart';
@@ -97,7 +98,7 @@ class Notices {
   /// 1.13.2: bunlar da olta makinesi kalama sesiyle çalar (kalama kanalını kullanır); eski
   /// "telefonun sesiyle" kanalı (kiyidanav_topluluk) kaldırılır.
   static const toplulukChannelId = 'kiyidanav_topluluk';
-  static bool toplulukTipi(String t) => t == 'paylas' || t == 'mesaj' || t == 'takip';
+  static bool toplulukTipi(String t) => t == 'paylas' || t == 'mesaj' || t == 'takip' || t == 'etkilesim';
 
   /// Panelde "Olta makinesi bildirim sesi" kapatılırsa telefonun standart sesiyle çalan kanal
   static const plainChannelId = 'kiyidanav_genel';
@@ -454,6 +455,9 @@ class Notices {
         } else {
           nav?.push(MaterialPageRoute(builder: (_) => const BadiKutu()));
         }
+        break;
+      case 'etkilesim': // 1.17.3: avına beğeni / yorum geldi → KıyıdanPaylaş bildirimleri
+        nav?.push(MaterialPageRoute(builder: (_) => const FkBildirimEkrani()));
         break;
       case 'takip': // 1.13.1: yeni takipçi → Beni takip edenler
         nav?.push(MaterialPageRoute(builder: (_) => const TakipEkrani(sekme: 1)));
