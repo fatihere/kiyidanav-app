@@ -13,13 +13,13 @@ import 'models.dart';
 /// Instagram, WhatsApp, Facebook vb. — telefonun paylaşım menüsüyle
 class Sharer {
   static Future<void> product(ProductCard p, {String? url}) async {
-    final link = url ?? 'https://kiyidanav.com/index.php?route=product/product&product_id=${p.id}';
+    final link = url ?? 'https://kiyidanav.com/index.php?route=product/product&product_id=${p.id}&utm_source=uygulama&utm_medium=paylas&utm_campaign=uygulama-paylas';   // 1.17.4: uygulamadan paylaşılan ürün bağlantıları Analytics'te 'uygulama' kaynağı olarak görünür
     await Share.share('${p.name}\n${tl(p.finalPrice)}\n$link\n\nKıyıdanAv uygulamasından paylaşıldı 🎣',
         subject: p.name, sharePositionOrigin: origin());
   }
 
   static Future<void> app() async {
-    await Share.share('${Api.config.shareText}\nhttps://kiyidanav.com', subject: 'KıyıdanAv', sharePositionOrigin: origin());
+    await Share.share('${Api.config.shareText}\nhttps://kiyidanav.com/uygulama/?k=uygpaylas', subject: 'KıyıdanAv', sharePositionOrigin: origin());
   }
 
   /// Ekrandaki bir alanı (RepaintBoundary) görsel olarak paylaşır — Instagram hikâyesi için ideal.
