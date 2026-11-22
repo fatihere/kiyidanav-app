@@ -67,6 +67,8 @@ class SahteVeri implements KbVeri {
   Future<List<String>> kampanyaDuyurulari() async => const ['Kasım indirimi: makinelerde %20'];
 
   @override
+  Future<String> urunAciklama(int id) async => '';
+  @override
   Future<List<ProductCard>> urunAra(String q) async => const [
         ProductCard(id: 7, name: 'Shimano Sienna 2500', price: 1500, special: 1200),
         ProductCard(id: 8, name: 'Daiwa RX', price: 900),

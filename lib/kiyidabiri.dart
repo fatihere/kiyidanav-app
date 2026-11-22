@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io' show Platform;
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
@@ -24,6 +25,7 @@ import 'meralarim.dart';
 import 'models.dart';
 import 'notices.dart';
 import 'locate.dart';
+import 'screens/category_screen.dart';
 import 'screens/knots_screen.dart';
 import 'screens/product_screen.dart';
 import 'sea.dart';
@@ -31,6 +33,7 @@ import 'sea_card.dart';
 import 'takim_cizimi.dart';
 import 'theme.dart';
 import 'updates.dart';
+import 'web_page_screen.dart';
 import 'yer_ara.dart';
 
 /// 1.14.0 — Kıyıdabiri: ekranın altında duran mini robot. Dokununca sohbet açılır; açılışta (ayardan kapatılabilir)
@@ -379,6 +382,9 @@ class _UygulamaVerisi implements KbVeri {
   @override
   Future<List<String>> kampanyaDuyurulari() async =>
       (await Notices.fetch()).where((n) => n.type == 'kampanya' || n.type == 'urun' || n.type == 'kategori').map((n) => n.title).take(3).toList();
+
+  @override
+  Future<String> urunAciklama(int id) async => (await Api.product(id)).description;
 
   static List<KbBlogYazi>? _blog;
 
@@ -785,6 +791,32 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
     return r.length < 4 ? t : '${'•' * (r.length - 2)}${r.substring(r.length - 2)}';
   }
 
+  Future<void> _kategoriAc(int id) async {
+    if (id <= 0) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => CategoryScreen(category: Category(id: id, name: id == KiyidabiriBeyin.hazirSetKategori ? 'Hazır Olta Setleri' : 'Ürünler'))));
+  }
+
+  /// 1.17.3: sohbetteki kiyidanav.com bağlantıları uygulamanın içinde açılır (ürün → ürün sayfası, set oluştur → site sayfası)
+  Future<void> _baglantiAc(String adres) async {
+    final u = Uri.tryParse(adres);
+    if (u == null || u.scheme != 'https') return;
+    if (!u.host.endsWith(AppConfig.siteHost)) {
+      await launchUrl(u, mode: LaunchMode.externalApplication);
+      return;
+    }
+    final urun = int.tryParse(u.queryParameters['product_id'] ?? '');
+    if (urun != null) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductScreen(id: urun)));
+    } else if (adres == KiyidabiriBeyin.hazirSetAdresi) {
+      await _kategoriAc(KiyidabiriBeyin.hazirSetKategori);
+    } else {
+      final yol = adres.substring(u.origin.length + 1);
+      await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => WebPageScreen(title: adres == KiyidabiriBeyin.setOlusturAdresi ? 'Set oluştur' : 'KıyıdanAv', path: yol)));
+    }
+  }
+
   Future<void> _secenek(KbSecenek s, Spot? spot) async {
     switch (s.eylem) {
       case null:
@@ -826,6 +858,10 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
       case KbEylem.urunAc:
         final id = int.tryParse(s.gonder ?? '');
         if (id != null) await Navigator.of(context).push(MaterialPageRoute(builder: (_) => ProductScreen(id: id)));
+      case KbEylem.sayfaAc:
+        await _baglantiAc('${AppConfig.siteUrl}${s.gonder ?? ''}');
+      case KbEylem.kategoriAc:
+        await _kategoriAc(int.tryParse(s.gonder ?? '') ?? 0);
       case KbEylem.blogAc:
         final u = Uri.tryParse(s.gonder ?? '');
         if (u != null) await launchUrl(u, mode: LaunchMode.inAppBrowserView);
@@ -936,7 +972,7 @@ class _KiyidabiriSohbetState extends State<KiyidabiriSohbet> {
                     border: m.robot ? Border.all(color: const Color(0xFFE6E2D6)) : null,
                   ),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-                    SelectableText(m.metin, style: const TextStyle(fontSize: 14.5, height: 1.38)),
+                    KbMetin(m.metin, onBaglanti: _baglantiAc),
                     if (m.gorsel == KbGorsel.mantarliTakim) const MantarliTakimCizimi(),
                   ]),
                 ),
@@ -1084,4 +1120,68 @@ class KiyidabiriAyarKarti extends StatelessWidget {
                 ]),
               ),
       );
+}
+
+/// 1.17.3: sohbet metni; https bağlantıları tıklanabilir
+class KbMetin extends StatefulWidget {
+  final String metin;
+  final void Function(String adres) onBaglanti;
+  const KbMetin(this.metin, {super.key, required this.onBaglanti});
+
+  @override
+  State<KbMetin> createState() => _KbMetinState();
+}
+
+class _KbMetinState extends State<KbMetin> {
+  static final _adres = RegExp(r'https://[^\s<>"]*[^\s<>".,;:!?)]');
+  final _tanima = <TapGestureRecognizer>[];
+  List<InlineSpan> _parcalar = const [];
+
+  void _birak() {
+    for (final t in _tanima) {
+      t.dispose();
+    }
+    _tanima.clear();
+  }
+
+  void _kur() {
+    _birak();
+    final l = <InlineSpan>[];
+    var son = 0;
+    for (final m in _adres.allMatches(widget.metin)) {
+      if (m.start > son) l.add(TextSpan(text: widget.metin.substring(son, m.start)));
+      final a = m.group(0)!;
+      final t = TapGestureRecognizer()..onTap = () => widget.onBaglanti(a);
+      _tanima.add(t);
+      l.add(TextSpan(
+          text: a,
+          recognizer: t,
+          style: const TextStyle(color: Color(0xFF145A71), decoration: TextDecoration.underline, fontSize: 12.5)));
+      son = m.end;
+    }
+    if (son < widget.metin.length) l.add(TextSpan(text: widget.metin.substring(son)));
+    _parcalar = l;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _kur();
+  }
+
+  @override
+  void didUpdateWidget(KbMetin eski) {
+    super.didUpdateWidget(eski);
+    if (eski.metin != widget.metin) _kur();
+  }
+
+  @override
+  void dispose() {
+    _birak();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      SelectableText.rich(TextSpan(children: _parcalar), style: const TextStyle(fontSize: 14.5, height: 1.38));
 }

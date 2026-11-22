@@ -56,7 +56,7 @@ bool kbSadeceGun(String n) {
 
 enum KbAdim { mera, stil, kampanya, serbest, temsilci, tekneSor, tekneKisi, tekneAd, tekneTel }
 
-enum KbEylem { whatsapp, haritadanSec, meraBilgisiAc, meraOner, toplulukMeralari, dugumler, bildirimIzni, urunAra, blogAc, urunAc }
+enum KbEylem { whatsapp, haritadanSec, meraBilgisiAc, meraOner, toplulukMeralari, dugumler, bildirimIzni, urunAra, blogAc, urunAc, sayfaAc, kategoriAc }
 
 /// Sohbet balonunda gösterilecek çizim
 enum KbGorsel { mantarliTakim }
@@ -204,6 +204,8 @@ abstract class KbVeri {
   Future<List<ProductCard>> indirimliler();
   /// Panelden gönderilen güncel kampanya duyuruları (başlıklar)
   Future<List<String>> kampanyaDuyurulari();
+  /// 1.17.3: ürün açıklaması (kampanya setinin gerçekten çok parçalı olup olmadığı buradan anlaşılır)
+  Future<String> urunAciklama(int id);
   /// 1.16.0: listede olmayan yer adını haritada bulur (kıyıya yakınsa en yakın meranın bilgileriyle nokta)
   Future<Spot?> yerBul(String ad);
 }
@@ -323,6 +325,11 @@ class KiyidabiriBeyin {
     if (_icerir(n, ['temsilci', 'canli destek', 'insan', 'yetkili', 'musteri hizmet', 'whatsapp'])) {
       return _temsilciyeYonlendir('Seni hemen müşteri temsilcimize bağlayabilirim.', niyet: 'temsilci');
     }
+    // 1.17.3: hazır set / takım isteği mera adından ve genel kampanya listesinden önce gelir
+    if (adim != KbAdim.kampanya && setSorusu(n)) {
+      adim = KbAdim.serbest;
+      return setYaniti(n);
+    }
     // Kampanyalar: güncel indirimler (hatırlatıcı yalnızca "haber ver" denince)
     if (adim != KbAdim.kampanya && _icerir(n, ['kampanya', 'indirim', 'firsat', 'ucuz']) && !_icerir(n, ['haber ver', 'hatirlat', 'bildir'])) {
       return kampanyaListesi();
@@ -383,6 +390,7 @@ class KiyidabiriBeyin {
         adim = KbAdim.serbest;
         return KbYanit(oneri, niyet: 'stil_${kbNorm(s.ad).replaceAll(' ', '_')}', spot: sonMera, secenekler: [
           KbSecenek('${s.ad} ekipmanı', gonder: '${s.ad} ekipmanı'),
+          KbSecenek('🎁 ${s.ad} setleri', gonder: '${s.ad} seti'),
           const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
         ]);
       case KbAdim.kampanya:
@@ -565,8 +573,14 @@ class KiyidabiriBeyin {
         b.write('\n• ${u.name}: ${_fiyat(u)}');
       }
     }
+    // 1.17.3: aynı stilin hazır setleri ve "kendin kur" sayfası
+    final setler = parca == null ? (await _setBul(stil)).take(3).toList() : const <ProductCard>[];
+    if (setler.isNotEmpty) b.write('\n\n🎁 ${stil.ad} için hazır setler:${_setSatirlari(setler)}');
+    if (parca == null) b.write('\n\n🧩 Kendi setini kur: $setOlusturAdresi');
     return KbYanit(b.toString(), niyet: 'ekipman_${kbNorm(stil.ad).replaceAll(' ', '_')}', secenekler: [
       for (final u in urunler) KbSecenek('🛒 ${_kisa(u.name)}', gonder: '${u.id}', eylem: KbEylem.urunAc),
+      if (setler.isNotEmpty) KbSecenek('🎁 ${stil.ad} setleri', gonder: '${stil.ad} seti'),
+      if (parca == null) _setOlusturSecenek,
       KbSecenek('Mağazada ara', gonder: e.ara.first, eylem: KbEylem.urunAra),
       const KbSecenek('Kampanyalar', gonder: 'kampanyalar'),
     ]);
@@ -588,6 +602,165 @@ class KiyidabiriBeyin {
     return l.take(3).toList();
   }
 
+  // ------------------------------------------------------------------ 1.17.3: hazır setler ve set oluştur
+  static const setOlusturAdresi = '${AppConfig.siteUrl}set-olustur/';
+  static const hazirSetAdresi = '${AppConfig.siteUrl}olta-kamis-hazir-setler';
+  static const hazirSetKategori = 815;
+  static const _setOlusturSecenek = KbSecenek('🧩 Set oluştur', gonder: 'set-olustur/', eylem: KbEylem.sayfaAc);
+  static const _tumSetlerSecenek = KbSecenek('Tüm hazır setler', gonder: '$hazirSetKategori', eylem: KbEylem.kategoriAc);
+
+  /// Set adında aranan kelime (mağazada hazır seti olan stiller)
+  static const _setAnahtar = {'Surf': 'surf', 'Spin': 'spin', 'LRF': 'lrf', 'Kurşun arkası': 'kursun arkasi'};
+  static final _setKelime =
+      RegExp(r'\b(set|seti|setin|setini|setler|setleri|setlerin|setlerini|sete|setten|takim|takimi|takimin|takimlar|takimlari|combo)\b');
+
+  /// "surf seti", "uygun bir takım yapalım", "hazır setler", "kamış makine seti"
+  static bool setSorusu(String n) =>
+      _setKelime.hasMatch(n) &&
+      !_icerir(n, ['mantarli takim', 'bir takim soru', 'bir takim sey', 'bot seti', 'kamp seti', 'siparis', 'kargo', 'iade', 'haber ver', 'hatirlat']) &&
+      // yalnız bilgi sorusu ("hangi takımla avlanayım") ekipman yanıtına kalır
+      !RegExp(r'\b(hangi|nasil bir) takim').hasMatch(n);
+
+  static bool _ucuzIstiyor(String n) => _icerir(n, [
+        'pahali', 'ucuz', 'ekonomik', 'hesapli', 'butce', 'daha uygun', 'uygun fiyat', 'en uygun', 'fiyati uygun', 'uygun bir',
+        'uygun set', 'uygun takim'
+      ]);
+
+  /// "5000 tl", "5 bin", "3.500 lira" (sadeleştirilmiş metinde "3 500 lira") → tutar
+  static double? butce(String n) {
+    final m = RegExp(r'(\d+(?: \d{3})*) ?(bin|tl|lira)\b').firstMatch(n);
+    if (m == null) return null;
+    final v = double.tryParse(m.group(1)!.replaceAll(' ', ''));
+    if (v == null) return null;
+    final t = m.group(2) == 'bin' ? v * 1000 : v;
+    return t >= 300 ? t : null;
+  }
+
+  /// Metinde stil geçmiyorsa anılan modelden stil çıkarır ("drakion seti" → Surf)
+  Future<KbStil?> _modeldenStil(String n) async {
+    const bos = {'daha', 'uygun', 'olta', 'balik', 'kiyidan', 'hazir', 'kampanya', 'indirimli', 'istiyorum', 'bana', 'musteri', 'icin',
+      'kamis', 'makine', 'makina', 'ucuz', 'pahali', 'ekonomik', 'guzel', 'iyi', 'tane', 'komple', 'butun', 'biraz', 'onun', 'bizim',
+      'hangi', 'avcilik', 'baslangic', 'yeni', 'deniz', 'ona', 'onlar', 'var', 'olan', 'fiyat', 'fiyati'};
+    final w = n.split(' ');
+    final adaylar = <String>{};
+    for (var i = 0; i < w.length; i++) {
+      if (!_setKelime.hasMatch(w[i])) continue;
+      for (final k in w.sublist(math.max(0, i - 4), i)) {
+        if (k.length >= 4 && !bos.contains(k) && !RegExp(r'^\d').hasMatch(k)) adaylar.add(k);
+      }
+    }
+    for (final k in adaylar.take(3)) {
+      try {
+        final sayac = <String, int>{};
+        for (final u in await veri.urunAra(k)) {
+          final ad = kbNorm(u.name);
+          if (!' $ad'.contains(' $k')) continue;
+          for (final e in _setAnahtar.entries) {
+            if (ad.contains(e.value)) sayac[e.key] = (sayac[e.key] ?? 0) + 1;
+          }
+        }
+        if (sayac.isNotEmpty) return _stilAdi((sayac.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first.key);
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Kampanya sayfasındaki "Set içeriği"nde kaç ürün var (bilinmiyorsa null)
+  static int? setParcaSayisi(String aciklama) {
+    final i = aciklama.indexOf('Set içeriği');
+    if (i < 0) return null;
+    final j = aciklama.indexOf('Set değeri', i);
+    return RegExp(r'\d,\d{2} ?TL').allMatches(aciklama.substring(i, j < 0 ? aciklama.length : j)).length;
+  }
+
+  /// Stilin stoktaki hazır setleri: kampanyalı olanlar önce, sonra fiyata göre ([ucuzdan]: yalnız fiyata göre)
+  Future<List<ProductCard>> _setBul(KbStil stil, {bool ucuzdan = false}) async {
+    final k = _setAnahtar[stil.ad];
+    if (k == null) return const [];
+    final hepsi = <int, ProductCard>{};
+    for (final q in k == 'kursun arkasi' ? ['$k seti'] : ['$k kampanya seti', '$k olta seti']) {
+      try {
+        for (final u in await veri.urunAra(q)) {
+          final ad = kbNorm(u.name);
+          if (!u.inStock || !ad.contains(k) || !RegExp(r'\b(set|seti|takim|takimi)\b').hasMatch(ad)) continue;
+          if (k != 'kursun arkasi' && u.finalPrice < 1000) continue; // raket, jig head kutusu vb.
+          hepsi.putIfAbsent(u.id, () => u);
+        }
+      } catch (_) {}
+    }
+    final l = hepsi.values.toList();
+    int oncelik(ProductCard u) => _indirim(u) > 0 ? 0 : 1;
+    l.sort((a, b) {
+      final o = ucuzdan ? 0 : oncelik(a).compareTo(oncelik(b));
+      return o != 0 ? o : a.finalPrice.compareTo(b.finalPrice);
+    });
+    // Tek ürünlük kampanyalar (yalnız makine gibi) "set" diye önerilmez
+    final uygun = await Future.wait(l.map((u) async {
+      if (!kbNorm(u.name).contains('kampanya seti')) return true;
+      int? parca;
+      try {
+        parca = setParcaSayisi(await veri.urunAciklama(u.id));
+      } catch (_) {}
+      return parca != null ? parca >= 2 : kbNorm(u.name).contains('kamis');
+    }));
+    return [for (var i = 0; i < l.length; i++) if (uygun[i]) l[i]];
+  }
+
+  static String urunAdresi(int id) => '${AppConfig.siteUrl}index.php?route=product/product&product_id=$id';
+  static String _setSatirlari(List<ProductCard> l) => l.map((u) => '\n• ${u.name}: ${_fiyat(u)}\n  ${urunAdresi(u.id)}').join();
+
+  /// Hazır set isteği: stile ve bütçeye göre setler (bağlantılarıyla) + "Set oluştur" sayfası
+  Future<KbYanit> setYaniti(String n) async {
+    final m = _meraBul(n);
+    if (m?.spot != null) sonMera = m!.spot;
+    var stil = kbStilBul(n);
+    if (stil == null) {
+      for (final e in _balikStil.entries) {
+        if (RegExp('(^| )${e.key}').hasMatch(n)) stil = _stilAdi(e.value);
+        if (stil != null) break;
+      }
+    }
+    stil ??= await _modeldenStil(n) ?? sonStil;
+    if (stil == null) {
+      return const KbYanit('Hangi av için set bakıyorsun? Stili seç, stoktaki hazır setleri bağlantılarıyla göndereyim.\n\n'
+          '🧩 Kendi setini kurmak istersen: $setOlusturAdresi\n🎁 Tüm hazır setler: $hazirSetAdresi',
+          niyet: 'set_sor', secenekler: [
+        KbSecenek('Surf seti'), KbSecenek('Spin seti'), KbSecenek('LRF seti'), KbSecenek('Kurşun arkası seti'),
+        _setOlusturSecenek, _tumSetlerSecenek,
+      ]);
+    }
+    sonStil = stil;
+    final tutar = butce(n);
+    final ucuz = tutar != null || _ucuzIstiyor(n);
+    final hepsi = await _setBul(stil, ucuzdan: ucuz);
+    final b = StringBuffer();
+    var l = hepsi;
+    if (tutar != null) {
+      l = hepsi.where((u) => u.finalPrice <= tutar).toList()..sort((x, y) => y.finalPrice.compareTo(x.finalPrice));
+    }
+    if (hepsi.isEmpty) {
+      b.write('${stil.ad} için şu an stokta hazır set bulamadım. Aşağıdaki sayfadan parçaları tek tek seçip uyumlu setini kurabilirsin.');
+    } else if (l.isEmpty) {
+      l = hepsi;
+      b.write('🎁 ${_tl(tutar!)} altında ${stil.ad} seti şu an stokta yok. En uygun fiyatlı olanlar:');
+    } else {
+      b.write(tutar != null
+          ? '🎁 ${_tl(tutar)} bütçeye uyan ${stil.ad} setleri:'
+          : ucuz
+              ? '🎁 En uygun fiyatlı ${stil.ad} setleri:'
+              : '🎁 Stoktaki ${stil.ad} setleri:');
+    }
+    final goster = l.take(4).toList();
+    b.write(_setSatirlari(goster));
+    b.write('\n\n🧩 Kendi setini kur (kamış, makine, misina, yem): $setOlusturAdresi\n🎁 Tüm hazır setler: $hazirSetAdresi');
+    return KbYanit(b.toString(), niyet: 'set_${kbNorm(stil.ad).replaceAll(' ', '_')}', spot: sonMera, secenekler: [
+      for (final u in goster) KbSecenek('🛒 ${_kisa(u.name)}', gonder: '${u.id}', eylem: KbEylem.urunAc),
+      _setOlusturSecenek,
+      _tumSetlerSecenek,
+      KbSecenek('${stil.ad} ekipmanı', gonder: '${stil.ad} ekipmanı'),
+    ]);
+  }
+
   static double _indirim(ProductCard u) => u.special != null && u.special! < u.price ? 1 - u.special! / u.price : 0;
   static String _fiyat(ProductCard u) =>
       _indirim(u) > 0 ? '${_tl(u.special!)} (indirimde, ${_tl(u.price)} yerine)' : _tl(u.price);
@@ -603,7 +776,20 @@ class KiyidabiriBeyin {
     try {
       urunler = (await veri.indirimliler()).take(5).toList();
     } catch (_) {}
-    if (duyurular.isEmpty && urunler.isEmpty) {
+    // 1.17.3: yayındaki kampanya setleri (Kampanya Stüdyosu); son konuşulan stilinkiler başta
+    var setler = <ProductCard>[];
+    try {
+      setler = (await veri.urunAra('kampanya seti'))
+          .where((u) => u.inStock && _indirim(u) > 0 && kbNorm(u.name).contains('kampanya set'))
+          .toList();
+      final k = sonStil == null ? null : _setAnahtar[sonStil!.ad];
+      if (k != null) {
+        setler = [...setler.where((u) => kbNorm(u.name).contains(k)), ...setler.where((u) => !kbNorm(u.name).contains(k))];
+      }
+      setler = setler.take(5).toList();
+      urunler = urunler.where((u) => !setler.any((x) => x.id == u.id)).toList();
+    } catch (_) {}
+    if (duyurular.isEmpty && urunler.isEmpty && setler.isEmpty) {
       return const KbYanit('Şu an listelenen bir kampanya bulamadım. İstersen bir ürün için indirim gelince haber vereyim.',
           niyet: 'kampanya_yok_liste', secenekler: [KbSecenek('Haber ver', gonder: 'haber ver')]);
     }
@@ -617,8 +803,11 @@ class KiyidabiriBeyin {
         b.write('\n• ${u.name}: ${_fiyat(u)} (%${(_indirim(u) * 100).round()})');
       }
     }
+    if (setler.isNotEmpty) b.write('\n\n🎁 Kampanya setleri:${_setSatirlari(setler)}');
+    b.write('\n\n🧩 Kendi setini kur: $setOlusturAdresi');
     return KbYanit(b.toString(), niyet: 'kampanya_liste', secenekler: [
-      for (final u in urunler.take(3)) KbSecenek('🛒 ${_kisa(u.name)}', gonder: '${u.id}', eylem: KbEylem.urunAc),
+      for (final u in [...setler, ...urunler].take(4)) KbSecenek('🛒 ${_kisa(u.name)}', gonder: '${u.id}', eylem: KbEylem.urunAc),
+      _setOlusturSecenek,
       const KbSecenek('Ürün için haber ver', gonder: 'haber ver'),
     ]);
   }
@@ -710,25 +899,50 @@ class KiyidabiriBeyin {
         adaylar.add((kbNorm(p.name), KbMera(p.name, gol: p)));
       }
     }
+    // 1.17.3: tam ad > kök eşleşmesi; "göl/baraj" yazılmadıkça deniz meraları göllerden önce gelir. "balık durumu" → Balık Gölü
+    // (Ağrı) sayılmaz: genel kelimeyle başlayan çok kelimeli adlar ancak bütünüyle yazılırsa eşleşir.
+    final golSoruluyor = RegExp(r'\b(gol|golu|golde|golunde|golet|baraj|baraji|barajinda)\b').hasMatch(n);
+    final w = n.split(' ');
+    final bitisik = [
+      for (var i = 0; i + 1 < w.length; i++)
+        if (w[i].length >= 2 && w[i + 1].length >= 3) w[i] + w[i + 1]
+    ];
     KbMera? en;
-    var enUzun = 0;
+    var enPuan = 0;
     for (final (ad, m) in adaylar) {
       if (ad.length < 3) continue;
-      // Tam ad metinde geçiyor ("bugün kartaldayım" → kartal) ya da yazılan kelime adın başı
-      // 1.17.0: yalnız kelime başında ("sordum" içindeki "ordu" mera sayılmaz)
-      final gecer = ' $n'.contains(' $ad') || (n.length >= 4 && ad.startsWith(n)) || _kokEslesir(n, ad);
-      if (gecer && ad.length > enUzun) {
+      // Gün adıyla aynı meralar (Pazar/Rize, Perşembe/Ordu) gün olarak yazıldıysa mera sayılmaz
+      if ((ad == 'pazar' || ad == 'persembe') && n != ad && !_icerir(n, ['mera', ad == 'pazar' ? 'rize' : 'ordu'])) continue;
+      var puan = 0;
+      // Tam ad metinde geçiyor ("bugün kartaldayım" → kartal); yalnız kelime başında ("sordum" içindeki "ordu" sayılmaz)
+      if (' $n'.contains(' $ad')) {
+        puan = 2000;
+      } else if (ad.length >= 6 && !ad.contains(' ') && bitisik.any((b) => b.startsWith(ad))) {
+        puan = 1800; // "yeni kapı", "rumeli feneri" gibi ayrı yazım
+      } else if (n.length >= 4 && ad.startsWith(n) && !_genelKelime.contains(n)) {
+        puan = 1000;
+      } else if (_kokEslesir(n, ad)) {
+        puan = 1000;
+      }
+      if (puan == 0) continue;
+      if (m.gol != null) puan += golSoruluyor ? 500 : -500;
+      puan += ad.length;
+      if (puan > enPuan) {
         en = m;
-        enUzun = ad.length;
+        enPuan = puan;
       }
     }
     return en;
   }
 
+  /// Çok kelimeli yer adlarının tek başına yer göstermeyen ilk kelimeleri
+  static const _genelKelime = {'balik', 'anadolu', 'marmara', 'rumeli', 'kus', 'buyuk', 'kucuk', 'deniz', 'kara', 'yeni', 'eski',
+    'guzel', 'uzun', 'gizli'};
+
   /// "kartaldayim", "rivadayim", "sariyerde" gibi ekli yazımlar
   bool _kokEslesir(String n, String ad) {
     final ilk = ad.split(' ').first;
-    if (ilk.length < 4) return false;
+    if (ilk.length < 4 || (ad.contains(' ') && _genelKelime.contains(ilk))) return false;
     for (final k in n.split(' ')) {
       if (k.length >= ilk.length && k.startsWith(ilk.substring(0, ilk.length - (ilk.length > 5 ? 1 : 0)))) return true;
     }
@@ -971,6 +1185,7 @@ class KiyidabiriBeyin {
       sonStil = stil;
       return KbYanit(await stilOnerisi(stil), niyet: 'stil_${kbNorm(stil.ad).replaceAll(' ', '_')}', spot: sonMera, secenekler: [
         KbSecenek('${stil.ad} ekipmanı', gonder: '${stil.ad} ekipmanı'),
+        KbSecenek('🎁 ${stil.ad} setleri', gonder: '${stil.ad} seti'),
         const KbSecenek('Mera bilgisini aç', eylem: KbEylem.meraBilgisiAc),
       ]);
     }
@@ -1066,9 +1281,14 @@ class KiyidabiriBeyin {
         sonStil = st;
         return KbAracSonucu(await stilOnerisi(st), spot: sonMera);
       case 'ekipman_onerisi':
-        final y = await ekipmanYaniti(kbNorm(yazi('soru')));
+        final soru = kbNorm(yazi('soru'));
+        final y = setSorusu(soru) ? await setYaniti(soru) : await ekipmanYaniti(soru);
         return KbAracSonucu(y.metin, secenekler: y.secenekler);
       case 'urun_ara':
+        if (setSorusu(kbNorm(yazi('sorgu')))) {
+          final y = await setYaniti(kbNorm(yazi('sorgu')));
+          return KbAracSonucu(y.metin, secenekler: y.secenekler);
+        }
         final l = (await veri.urunAra(yazi('sorgu'))).take(6).toList();
         if (l.isEmpty) return KbAracSonucu('"${yazi('sorgu')}" için mağazada ürün bulunamadı.');
         final b = StringBuffer('kiyidanav.com ürünleri:');
