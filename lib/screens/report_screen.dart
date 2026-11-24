@@ -38,6 +38,7 @@ import '../share.dart';
 import '../share_card.dart';
 import '../app_state.dart';
 import '../solunar.dart';
+import '../meraya.dart';
 import '../theme.dart';
 import '../weather_icon.dart';
 import '../ekran_turu.dart';
@@ -319,6 +320,8 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
                 'konum': () => [
                       if (fx.location) const PremiumKilit(panel: 'konum', ad: 'Konum seçimi', yukseklik: 90, child: LocationBar()),
                     ],
+                // 1.18.0: Meraya git (yol tarifi, otopark, kamera, kalabalık)
+                'meraya': () => [if (fx.meraya) MerayaGitKarti(spot: spot)],
                 'rapor': () => [
                       ModulAlani(f: f, sat: data.sat, now: now, uye: memberNotifier.value, konum: ModulKonum.ust),
                       PremiumKilit(
@@ -368,12 +371,18 @@ class _ReportScreenState extends State<ReportScreen> with WidgetsBindingObserver
               };
               final sira = [
                 ...Api.config.meraSira.where(bolumler.containsKey),
-                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k) && k != 'oneri' && k != 'avgunu' && k != 'saatlik'),
+                ...bolumler.keys.where((k) => !Api.config.meraSira.contains(k) && k != 'oneri' && k != 'avgunu' && k != 'saatlik' && k != 'meraya'),
               ];
               // Panelde sırası verilmemişse saatlik skor günlük raporun hemen altında
               if (!sira.contains('saatlik')) {
                 final i = sira.indexOf('rapor');
                 sira.insert(i < 0 ? 0 : i + 1, 'saatlik');
+              }
+              // Panelde sırası verilmemişse "Meraya git" konum şeridinin hemen altında
+              if (!Api.config.meraSira.contains('meraya')) {
+                sira.remove('meraya');
+                final i = sira.indexOf('konum');
+                sira.insert(i < 0 ? 0 : i + 1, 'meraya');
               }
               // Panelde sırası verilmemişse: Kural oluştur → Av günüm → Mera öner
               for (final yeni in ['avgunu', 'oneri']) {

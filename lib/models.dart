@@ -338,6 +338,8 @@ class Features {
   bool get badi => _on('badi');
   bool get ekranKoruma => _on('ekran_koruma');
   bool get kategoriFiltre => _on('kategori_filtre');
+  // 1.18.0: Mera Bilgisi › Meraya git (yol tarifi, otopark, kamera, kalabalık)
+  bool get meraya => _on('meraya');
 }
 
 /// Rapor altındaki açıklama: yalnızca açık olan veri kaynaklarını sayar

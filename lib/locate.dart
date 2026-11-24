@@ -11,6 +11,7 @@ import 'mera.dart';
 import 'meralarim.dart';
 import 'mera_oner.dart';
 import 'overlays.dart';
+import 'meraya.dart';
 import 'sea.dart';
 import 'sea_card.dart';
 import 'theme.dart';
@@ -288,7 +289,9 @@ Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) asyn
                 leading: Icon(s.nokta ? Icons.push_pin : Icons.place_outlined, color: Tide.turuncu),
                 title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text(s.side.label),
-                trailing: !s.side.public && !appState.isMember ? const Icon(Icons.lock_outline, size: 18) : null,
+                trailing: !s.side.public && !appState.isMember
+                    ? const Icon(Icons.lock_outline, size: 18)
+                    : (Api.config.features.meraya ? YolTarifiIkonu(spot: s) : null),
                 onTap: () => sec(s),
               ),
             ListTile(
@@ -311,6 +314,7 @@ Future<void> showSpotPicker(BuildContext context, {bool listeOnly = false}) asyn
                 leading: const Icon(Icons.push_pin, color: Tide.derin),
                 title: Text(s.name, style: const TextStyle(fontWeight: FontWeight.w700)),
                 subtitle: Text('${s.side.label} · en yakın mera ${s.key}'),
+                trailing: Api.config.features.meraya ? YolTarifiIkonu(spot: s) : null,
                 onTap: () async {
                   Navigator.of(ctx).pop();
                   if (!s.side.public && !appState.isMember) {
