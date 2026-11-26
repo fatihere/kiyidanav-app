@@ -8,8 +8,9 @@ on:
   schedule:
     # GitHub zamanlanmış işleri saatlerce geciktirebiliyor; 06:30 paylaşımına yetişmesi için gece üç deneme (00:05, 02:00, 05:30 TR).
     # Aynı gün ikinci video gelirse sunucu (paylaşılmadıysa) eskisinin yerine koyar.
-    # 23.11.2026: saatlerce gecikip sabah 06:25'ten sonra başlayan gece denemesi video üretmez (22.11'de 13:15'te gelip
-    # gece videosunun yerine geçmişti); o gün video yoksa elle çalıştırma ya da sonraki gece denemesi üretir.
+    # 26.11.2026: GitHub gece denemelerini her gün 06:30'dan sonraya kaydırıyordu; 06:25 sınırı yüzünden hiç video üretilmedi
+    # (25.11 Çarşamba paylaşımı kaçtı). Sınır 11:45'e alındı: sunucu o günün videosu paylaşıldıysa yenisini atlar, paylaşılmadıysa
+    # eskisinin yerine koyar; paylaşım cron'u 12:30'a kadar her yarım saatte dener. 06:15 mera zamanlaması da 4. deneme sayılır.
     - cron: '5 21 * * *'
     - cron: '0 23 * * *'
     - cron: '30 2 * * *'
@@ -37,8 +38,8 @@ concurrency:
 
 jobs:
   reels:
-    # yalnız gece denemeleri ve elle çalıştırma (gündüz zamanlamaları yalnız mera sayfaları içindir)
-    if: (github.event_name == 'workflow_dispatch' && !inputs.sadece_mera) || github.event_name == 'push' || github.event.schedule == '5 21 * * *' || github.event.schedule == '0 23 * * *' || github.event.schedule == '30 2 * * *'
+    # gece denemeleri, 06:15 denemesi ve elle çalıştırma (13:15 zamanlaması yalnız mera sayfaları içindir)
+    if: (github.event_name == 'workflow_dispatch' && !inputs.sadece_mera) || github.event_name == 'push' || github.event.schedule == '5 21 * * *' || github.event.schedule == '0 23 * * *' || github.event.schedule == '30 2 * * *' || github.event.schedule == '15 3 * * *'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -65,9 +66,9 @@ jobs:
         run: |
           S=$((10#$(date +%H%M)))
           echo "Türkiye saati: $(date '+%d.%m.%Y %H:%M')"
-          if [ "${{ github.event_name }}" = "schedule" ] && [ "$S" -ge 625 ] && [ "$S" -lt 2300 ]; then
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$S" -ge 1145 ] && [ "$S" -lt 2300 ]; then
             echo "atla=1" >> "$GITHUB_OUTPUT"
-            echo "::warning::Gece denemesi GitHub tarafından geciktirildi ($(date +%H:%M)); paylaşım saati geçtiği için video üretilmedi."
+            echo "::warning::Gece denemesi GitHub tarafından geciktirildi ($(date +%H:%M)); 12:30 paylaşım penceresi kapanacağı için video üretilmedi."
           fi
 
       - name: Video üret
